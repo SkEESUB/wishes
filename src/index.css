@@ -114,10 +114,32 @@ body {
 }
 
 .btn-primary {
+  position: relative;
+  overflow: hidden;
   background: linear-gradient(135deg, var(--gold) 0%, #b8862e 100%);
   color: #1a0f05;
   box-shadow: 0 4px 18px rgba(217, 168, 94, 0.32), inset 0 1px 0 rgba(255,255,255,0.35);
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+.btn-primary::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -150%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.25),
+    transparent
+  );
+  transform: skewX(-25deg);
+  transition: 0.75s;
+}
+.btn-primary:hover::before {
+  left: 150%;
+  transition: 0.75s ease-in-out;
 }
 .btn-primary:hover {
   transform: translateY(-2px);
@@ -136,11 +158,33 @@ body {
 }
 
 .btn-glass {
+  position: relative;
+  overflow: hidden;
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.18);
   color: #fff;
   transition: background var(--transition-fast), transform var(--transition-fast);
+}
+.btn-glass::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -150%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.15),
+    transparent
+  );
+  transform: skewX(-25deg);
+  transition: 0.75s;
+}
+.btn-glass:hover::before {
+  left: 150%;
+  transition: 0.75s ease-in-out;
 }
 .btn-glass:hover {
   background: rgba(255, 255, 255, 0.18);
@@ -386,4 +430,20 @@ body {
     0 12px 40px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
+
+/* 3D Card Flip Custom Utilities */
+.perspective-1000 {
+  perspective: 1000px;
+}
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+.backface-hidden {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+
 

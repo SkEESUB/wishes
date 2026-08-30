@@ -44,7 +44,7 @@ export interface PlaylistItem {
 // CENTRAL CONTENT CONFIGURATION
 // ==========================================
 export const birthdayContent = {
-  herName: "Nazma",
+  herName: "Bindu",
   birthdayDate: "2026-10-19T00:00:00",
   password: "delulu",
 
@@ -57,13 +57,17 @@ export const birthdayContent = {
 
   letter: {
     heading: "A Letter For You ♥",
-    greeting: "My dearest Nazma,",
+    greeting: "My dearest Bindu,",
     paragraphs: [
-      "It is beautiful how a single day can divide life into 'before' and 'after'. That day was when you came into my life.",
-      "What began as a simple conversation became my favorite place. Your voice instantly felt like home, and every moment with you became magic.",
-      "Thank you for being my safe harbor and my constant light. Happy Birthday, my love. Here is to writing the rest of our story together."
+      "It still amazes me how one person can quietly become such an important part of another person's world.",
+      "What began as simple moments slowly became memories I never want to lose. Somewhere between the conversations, laughter, little moments, and everything we shared, you became a place my heart feels at home.",
+      "Thank you for every smile, every beautiful memory, every moment that made ordinary days feel special.",
+      "On your birthday, I don't just wish you happiness for today. I wish you countless reasons to smile, dreams that find their way to you, and a life filled with moments worth remembering.",
+      "And if I could ask for one thing, it would be this — let there be many more chapters of our story waiting for us.",
+      "Happy Birthday, my love.",
+      "Here is to every memory behind us, every moment beside us, and every beautiful moment still ahead."
     ],
-    signature: "Yours forever, ♥",
+    signature: "Yours forever ♥",
   },
 
   memories: [
@@ -72,7 +76,7 @@ export const birthdayContent = {
       title: "First Chat",
       subtitle: "Where it all began",
       date: "The beginning",
-      image: "/images/love-letter.jpg",
+      image: "/memories/memories 1.png",
       description: "A simple message that turned into the most beautiful conversation of my life. We talked for hours about everything and nothing, finding a connection that felt instant and real.",
       fallbackColor: "from-rose-300 to-rose-400",
     },
@@ -81,7 +85,7 @@ export const birthdayContent = {
       title: "First Call",
       subtitle: "The night flew by",
       date: "Voice of home",
-      image: "/images/record-player.jpg",
+      image: "/memories/memories 2.png",
       description: "Hearing your voice made everything feel right in the world. The hours vanished as we laughed, shared secrets, and realized just how much we had in common.",
       fallbackColor: "from-amber-200 to-orange-300",
     },
@@ -90,7 +94,7 @@ export const birthdayContent = {
       title: "First Meet",
       subtitle: "A moment frozen",
       date: "Time stood still",
-      image: "/images/couple-photo.jpg",
+      image: "/memories/memories 3.png",
       description: "The world blurred and all I saw was you. Seeing your smile in person for the first time is a memory I keep locked safely in my heart, forever warm and bright.",
       fallbackColor: "from-violet-300 to-fuchsia-300",
     },
@@ -99,7 +103,7 @@ export const birthdayContent = {
       title: "First Trip",
       subtitle: "Wandering together",
       date: "Adventures with you",
-      image: "/images/lantern-sky.jpg",
+      image: "/memories/memories 4.png",
       description: "Every road led to more laughter, more stories, and more love. Travelling side by side showed me that no matter the destination, the journey is perfect with you.",
       fallbackColor: "from-sky-300 to-indigo-300",
     },
@@ -108,7 +112,7 @@ export const birthdayContent = {
       title: "Many More",
       subtitle: "Our journey continues",
       date: "Our forever",
-      image: "/images/wish-tree.jpg",
+      image: "/memories/memories 5.png",
       description: "Every milestone, every quiet Sunday, and every shared laugh builds this beautiful life together. I cannot wait to write a thousand more chapters with you.",
       fallbackColor: "from-emerald-300 to-teal-300",
     },
@@ -117,11 +121,132 @@ export const birthdayContent = {
       title: "Us Always",
       subtitle: "A love that grows",
       date: "Every moment",
-      image: "/images/final-sunset.jpg",
+      image: "/memories/memories 6.png",
       description: "Through every season, your love remains my anchor and my guide. Here is to us, to our little universe, and to a lifetime of celebrating you.",
       fallbackColor: "from-pink-300 to-rose-300",
     },
+    {
+      id: 7,
+      title: "Dreamy Sunsets",
+      subtitle: "Golden hour with you",
+      date: "August 2025",
+      image: "/images/final-sunset.jpg",
+      description: "Watching the sun dip below the horizon, painting the sky in gold and peach, holding your hand tight.",
+      fallbackColor: "from-orange-300 to-amber-400",
+    },
+    {
+      id: 8,
+      title: "Sky Lanterns",
+      subtitle: "Floating wishes",
+      date: "September 2025",
+      image: "/images/lantern-sky.jpg",
+      description: "Releasing our hopes and dreams into the night sky, watching them drift away like warm, glowing stars.",
+      fallbackColor: "from-indigo-400 to-purple-500",
+    },
+    {
+      id: 9,
+      title: "Garden Walks",
+      subtitle: "Walking in blossoms",
+      date: "October 2025",
+      image: "/images/countdown-garden.jpg",
+      description: "Strolling through the botanical paths, talking about our future, surrounded by beautiful midnight blooms.",
+      fallbackColor: "from-emerald-300 to-green-400",
+    },
+    {
+      id: 10,
+      title: "Record Player",
+      subtitle: "Dancing to our song",
+      date: "November 2025",
+      image: "/images/record-player.jpg",
+      description: "Slow dancing in the warm living room, listening to the vinyl turn, lost in our own little melody.",
+      fallbackColor: "from-teal-300 to-cyan-400",
+    },
+    {
+      id: 11,
+      title: "Birthday Cake",
+      subtitle: "Sweet celebrations",
+      date: "December 2025",
+      image: "/images/birthday-cake.jpg",
+      description: "Sharing cake, blowing candles, and wishing for a lifetime of sweet moments together.",
+      fallbackColor: "from-pink-300 to-rose-400",
+    },
+    {
+      id: 12,
+      title: "Welcome Flowers",
+      subtitle: "Fresh spring mornings",
+      date: "March 2026",
+      image: "/images/welcome-flowers.jpg",
+      description: "Waking up to beautiful fresh roses, brewing warm coffee, and starting another beautiful season of us.",
+      fallbackColor: "from-rose-200 to-rose-300",
+    },
   ] as (MemoryItem & { title: string })[],
+
+  stories: [
+    {
+      index: "01",
+      label: "First Chat",
+      date: "Where it all began",
+      description: "A simple message turned into the most beautiful conversation of my life.",
+      image: "/story/story 1.png",
+      rotate: -3,
+    },
+    {
+      index: "02",
+      label: "First Call",
+      date: "The night flew by",
+      description: "Hearing your voice made everything feel right in the world.",
+      image: "/story/story 2.png",
+      rotate: 3,
+    },
+    {
+      index: "03",
+      label: "First Meet",
+      date: "A moment frozen in time",
+      description: "The world blurred and all I saw was you.",
+      image: "/story/stoty 3.png",
+      rotate: -4,
+    },
+    {
+      index: "04",
+      label: "First Trip",
+      date: "Wandering together",
+      description: "Every road led to more laughter, more stories, and more love.",
+      image: "/story/story 4.png",
+      rotate: 4,
+    },
+    {
+      index: "05",
+      label: "Little Moments",
+      date: "Cozy days",
+      description: "Finding happiness in the simplest things — coffee mornings, lazy Sundays, and shared silence.",
+      image: "/story/story 5.png",
+      rotate: -2,
+    },
+    {
+      index: "06",
+      label: "Deep Connections",
+      date: "Conversations at midnight",
+      description: "Speaking about our deepest fears, grandest dreams, and realizing our souls speak the same language.",
+      image: "/story/story 6.png",
+      rotate: 3,
+    },
+    {
+      index: "07",
+      label: "Hand in Hand",
+      date: "Facing tomorrow",
+      description: "Whatever path lies ahead, knowing I'll walk it with you makes the future look incredibly bright.",
+      image: "/story/story 7.png",
+      rotate: -3,
+    },
+    {
+      index: "08",
+      label: "Many More",
+      date: "Our journey continues",
+      description: "I cannot wait to write a thousand more chapters with you.",
+      image: "/story/story 5.png",
+      rotate: -2,
+    }
+  ],
 
   playlist: [
     {
@@ -152,6 +277,7 @@ export const birthdayContent = {
     wishTree: "/images/wish-tree.jpg",
     lanternSky: "/images/lantern-sky.jpg",
     finalSunset: "/images/final-sunset.jpg",
+    specialVideo: "/assets/special_video.mp4",
   },
 };
 
@@ -191,6 +317,8 @@ export const memoryJourney: TimelineItem[] = birthdayContent.memories.slice(0, 5
   date: m.subtitle || m.date,
   description: m.description || "",
 }));
+
+export const stories = birthdayContent.stories;
 
 export const wishTreeWishes: WishItem[] = [
   { id: 1, text: "May your smile shine brighter than all the stars in the sky." },

@@ -35,6 +35,7 @@ import {
   happiness,
   type HappinessItem,
   birthdayContent,
+  stories,
 } from "./data/content";
 
 
@@ -406,8 +407,6 @@ function Polaroid({
         {/* Subtle inner gold frame highlight on hover */}
         <div className="absolute inset-0 border border-transparent group-hover:border-gold/15 rounded-sm pointer-events-none transition-colors duration-300" />
       </div>
-      <p className="mt-2 text-center font-script text-lg text-amber-950/80 group-hover:text-amber-950 font-bold leading-tight transition-colors duration-300">{caption}</p>
-      {date && <p className="text-center font-serif text-[10px] text-amber-900/40 group-hover:text-amber-900/60 mt-0.5 transition-colors duration-300">{date}</p>}
     </motion.button>
   );
 }
@@ -849,7 +848,7 @@ function useBlowDetector(onBlow: () => void) {
   return { start, stop, status, blowIntensity };
 }
 
-function FireworkCanvas() {
+function FireworkCanvas({ edgesOnly = false }: { edgesOnly?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -916,15 +915,29 @@ function FireworkCanvas() {
     let nextExplosionFrame = 60;
 
     // Elegant entrance firework bursts
-    const t1 = setTimeout(() => createFirework(w * 0.25, h * 0.28), 350);
-    const t2 = setTimeout(() => createFirework(w * 0.75, h * 0.24), 850);
+    const t1 = setTimeout(() => {
+      const x = edgesOnly ? w * (0.08 + Math.random() * 0.12) : w * 0.25;
+      createFirework(x, h * 0.28);
+    }, 350);
+    const t2 = setTimeout(() => {
+      const x = edgesOnly ? w * (0.8 + Math.random() * 0.12) : w * 0.75;
+      createFirework(x, h * 0.24);
+    }, 850);
 
     const loop = () => {
       ctx.clearRect(0, 0, w, h);
       timer++;
       if (timer >= nextExplosionFrame) {
+        let fireworkX;
+        if (edgesOnly) {
+          fireworkX = Math.random() > 0.5 
+            ? w * (0.06 + Math.random() * 0.15) 
+            : w * (0.79 + Math.random() * 0.15);
+        } else {
+          fireworkX = w * (0.2 + Math.random() * 0.6);
+        }
         createFirework(
-          w * (0.2 + Math.random() * 0.6),
+          fireworkX,
           h * (0.15 + Math.random() * 0.25)
         );
         nextExplosionFrame = timer + 120 + Math.floor(Math.random() * 100);
@@ -1109,9 +1122,8 @@ export default function App() {
       const opened = s.openedGifts.includes(giftId)
         ? s.openedGifts
         : [...s.openedGifts, giftId];
-      // Transition directly to Wish Tree (Scene 13) if all 3 gifts have been visited, otherwise return to garden (Scene 9)
-      const nextScene = s.visitedGifts.length === 3 ? 13 : 9;
-      const next = { ...s, openedGifts: opened, scene: nextScene };
+      // Always return to the Gifts page (Scene 9) so they can see the manual Continue button!
+      const next = { ...s, openedGifts: opened, scene: 9 };
       saveState(next);
       return next;
     });
@@ -1125,7 +1137,7 @@ export default function App() {
       saveState(next);
       return next;
     });
-    goTo(16);
+    goTo(17);
   }, [goTo]);
 
   const replay = useCallback(() => {
@@ -1255,7 +1267,8 @@ export default function App() {
 
       <WishTreeScene key="wishtree" onContinue={() => goTo(14)} />,
       <MemoryJourneyScene key="memoryjourney" onContinue={() => goTo(15)} />,
-      <HiddenSurpriseScene key="surprise" onContinue={completeExperience} />,
+      <HiddenSurpriseScene key="surprise" onContinue={() => goTo(16)} />,
+      <SpecialVideoScene key="specialvideo" onContinue={completeExperience} audio={audio} />,
       <FinalScene key="final" onReplay={replay} />,
     ],
     [
@@ -1572,7 +1585,7 @@ function BirthdayRevealScene({ onContinue }: { onContinue: () => void }) {
                 transition={{ delay: 0.8, duration: 1.2 }}
                 className="mt-4 font-script text-5xl text-rose glow-rose sm:text-7xl"
               >
-                My Love ♥
+               Bindu ♥
               </motion.h2>
             </motion.div>
           )}
@@ -1590,7 +1603,7 @@ function BirthdayRevealScene({ onContinue }: { onContinue: () => void }) {
                 Happy Birthday
               </h1>
               <h2 className="mt-3 font-script text-5xl text-rose glow-rose sm:text-7xl">
-                My Love ♥
+                Pandi ♥
               </h2>
               <motion.p
                 initial={{ opacity: 0, y: 10 }}
@@ -1612,7 +1625,7 @@ function BirthdayRevealScene({ onContinue }: { onContinue: () => void }) {
               className="max-w-2xl"
             >
               <h1 className="font-serif text-4xl font-bold leading-tight sm:text-5xl lg:text-6xl gradient-text glow-gold">
-                Happy Birthday My Bindu
+                Happy Birthday Bangaram ♥ 
               </h1>
               <p className="mx-auto mt-6 max-w-lg text-base leading-relaxed text-white/80 sm:text-lg">
                 On this beautiful day, a small journey of memories, wishes, and love is waiting for you. Let's step inside.
@@ -1804,16 +1817,23 @@ function WishesScene({ onContinue }: { onContinue: () => void }) {
           </motion.h2>
 
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9, duration: 1 }} className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
-            {memories.slice(0, 3).map((m, i) => (
-              <Polaroid
-                key={m.id}
-                image={m.image}
-                caption={m.caption}
-                date={m.date}
-                rotate={i % 2 === 0 ? -3 : 3}
-                className="mx-auto max-w-[110px] sm:max-w-[140px]"
-              />
-            ))}
+            {memories.slice(0, 3).map((m, i) => {
+              const birthdayImages = [
+                "/birthday/first chat.png",
+                "/birthday/first call.png",
+                "/birthday/first meet.png"
+              ];
+              return (
+                <Polaroid
+                  key={m.id}
+                  image={birthdayImages[i]}
+                  caption={m.caption}
+                  date={m.date}
+                  rotate={i % 2 === 0 ? -3 : 3}
+                  className="mx-auto max-w-[110px] sm:max-w-[140px]"
+                />
+              );
+            })}
           </motion.div>
 
           <p className="mx-auto mt-6 max-w-xl text-sm sm:text-base md:text-lg leading-relaxed text-white/85 min-h-[5.5rem] px-2 select-text">
@@ -1840,14 +1860,68 @@ function CakeScene({ onBlown }: { onBlown: () => void }) {
   const [lit, setLit] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]);
   const [smoke, setSmoke] = useState<number | null>(null);
   const [micRequestAsked, setMicRequestAsked] = useState(false);
+  const [blowStage, setBlowStage] = useState<"active" | "shrinking" | "smoke" | "sparkles" | "celebrate" | "ready">("active");
+  const [sparkles, setSparkles] = useState<{ id: number; x: number; y: number }[]>([]);
+  const [celebrationConfetti, setCelebrationConfetti] = useState<{ id: number; x: number; y: number; color: string; size: number; vx: number; vy: number; rot: number; rotSpeed: number }[]>([]);
   
   const blowOne = () => {
-    if (lit.length === 0) return;
+    if (lit.length === 0 || blowStage !== "active") return;
     const removed = lit[0];
-    const next = lit.slice(1);
-    setLit(next);
-    setSmoke(removed);
-    setTimeout(() => setSmoke(null), 1200);
+    
+    if (lit.length === 1) {
+      // Last candle blowout sequence:
+      // 1. Flame shrinks
+      setBlowStage("shrinking");
+      setTimeout(() => {
+        // 2. Flame disappears
+        setLit([]);
+        setBlowStage("smoke");
+        setSmoke(removed);
+        
+        // 3. Smoke appears
+        setTimeout(() => {
+          setSmoke(null);
+          setBlowStage("sparkles");
+          
+          // 4. Tiny sparkles appear around cake
+          const newSparkles = Array.from({ length: 18 }).map((_, i) => ({
+            id: i,
+            x: 130 + Math.random() * 140,
+            y: 100 + Math.random() * 50
+          }));
+          setSparkles(newSparkles);
+          
+          setTimeout(() => {
+            setBlowStage("celebrate");
+            // 5. Celebration particles trigger (confetti)
+            const confettiColors = ["#d9a85e", "#d4869a", "#f3cbb4", "#ffffff", "#b06b7d"];
+            const newConfetti = Array.from({ length: 50 }).map((_, i) => ({
+              id: i,
+              x: 200,
+              y: 135,
+              color: confettiColors[Math.floor(Math.random() * confettiColors.length)],
+              size: Math.random() * 6 + 4,
+              vx: (Math.random() - 0.5) * 8,
+              vy: -4 - Math.random() * 8,
+              rot: Math.random() * 360,
+              rotSpeed: (Math.random() - 0.5) * 10
+            }));
+            setCelebrationConfetti(newConfetti);
+            
+            // 6. Transition becomes available
+            setTimeout(() => {
+              setBlowStage("ready");
+            }, 1200);
+          }, 800);
+        }, 1000);
+      }, 600);
+    } else {
+      // Normal candle blowout
+      const next = lit.slice(1);
+      setLit(next);
+      setSmoke(removed);
+      setTimeout(() => setSmoke(null), 1200);
+    }
   };
 
   const { start, stop, status, blowIntensity } = useBlowDetector(() => blowOne());
@@ -1863,12 +1937,39 @@ function CakeScene({ onBlown }: { onBlown: () => void }) {
   // Clean up mic listening when scene leaves
   useEffect(() => () => stop(), [stop]);
 
-  // Stop mic blow detector once all candles are blown out
+  // Stop mic blow detector once all candles are blown out or inactive
   useEffect(() => {
-    if (lit.length === 0) {
+    if (lit.length === 0 || blowStage !== "active") {
       stop();
     }
-  }, [lit.length, stop]);
+  }, [lit.length, blowStage, stop]);
+
+  // Confetti update loop
+  useEffect(() => {
+    if (celebrationConfetti.length === 0) return;
+    let active = true;
+    let raf = 0;
+    const update = () => {
+      if (!active) return;
+      setCelebrationConfetti((prev) =>
+        prev
+          .map((c) => ({
+            ...c,
+            x: c.x + c.vx,
+            y: c.y + c.vy,
+            vy: c.vy + 0.18, // gravity
+            rot: c.rot + c.rotSpeed,
+          }))
+          .filter((c) => c.y < 240 && c.x > 0 && c.x < 400)
+      );
+      raf = requestAnimationFrame(update);
+    };
+    raf = requestAnimationFrame(update);
+    return () => {
+      active = false;
+      cancelAnimationFrame(raf);
+    };
+  }, [celebrationConfetti.length]);
 
   // Organic coordinates on the top surface of the round cake
   const candles = [
@@ -1883,8 +1984,20 @@ function CakeScene({ onBlown }: { onBlown: () => void }) {
 
   return (
     <div className="scene-container relative">
-      <BackgroundLayer src={assets.birthdayCake} overlay />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(61,15,24,0.45),_transparent_75%)]" />
+      {/* Premium Burgundy/Plum/Black Background */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#0e050c] via-[#240615] to-[#0a0309] z-0" />
+      
+      {/* Soft spotlight behind the cake */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(224,141,162,0.14),_transparent_60%)] pointer-events-none z-0 mix-blend-screen" />
+      
+      {/* Cinematic vignette */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_40%,_rgba(0,0,0,0.85)_100%)] pointer-events-none z-0" />
+
+      {/* Edge-only Fireworks (Tasteful gold/rose bursts around borders) */}
+      {(blowStage === "celebrate" || blowStage === "ready") && (
+        <FireworkCanvas edgesOnly={true} />
+      )}
+
       <ParticleField density="low" petals={true} dots={false} />
 
       {/* Ambient room darkening overlay when all candles are blown out */}
@@ -1952,7 +2065,7 @@ function CakeScene({ onBlown }: { onBlown: () => void }) {
                 <feDropShadow dx="0" dy="15" stdDeviation="12" floodColor="#000" floodOpacity="0.5" />
               </filter>
               <filter id="flameGlowFilter">
-                <feGaussianBlur stdDeviation="1.5" result="blur" />
+                <feGaussianBlur stdDeviation="3.0" result="blur" />
                 <feComposite in="SourceGraphic" in2="blur" operator="over" />
               </filter>
               <filter id="frostingGlow" x="-10%" y="-10%" width="120%" height="120%">
@@ -2049,19 +2162,27 @@ function CakeScene({ onBlown }: { onBlown: () => void }) {
                 {/* Animated Wind-responsive Candle Flame (SVG-rendered) */}
                 {lit.includes(idx) && (
                   <motion.g
-                    animate={{
-                      scaleY: [1, 1.08, 0.95, 1.04, 1],
-                      scaleX: [1, 1.05, 0.96, 1.03, 1],
-                      y: [0, -0.5, 0.3, -0.3, 0],
-                      skewX: blowIntensity * 32, // Lean to the side based on volume
-                      scale: 1 - blowIntensity * 0.65, // Shrink under pressure
-                      opacity: 1 - blowIntensity * 0.3,
-                    }}
-                    transition={{
-                      repeat: Infinity,
-                      duration: 0.7 + idx * 0.12,
-                      ease: "easeInOut",
-                    }}
+                    animate={
+                      blowStage === "shrinking" && lit.length === 1 && lit[0] === idx
+                        ? { scale: 0, opacity: 0 }
+                        : {
+                            scaleY: [1, 1.08, 0.95, 1.04, 1],
+                            scaleX: [1, 1.05, 0.96, 1.03, 1],
+                            y: [0, -0.5, 0.3, -0.3, 0],
+                            skewX: blowIntensity * 32,
+                            scale: 1 - blowIntensity * 0.65,
+                            opacity: 1 - blowIntensity * 0.3,
+                          }
+                    }
+                    transition={
+                      blowStage === "shrinking" && lit.length === 1 && lit[0] === idx
+                        ? { duration: 0.5, ease: "easeIn" }
+                        : {
+                            repeat: Infinity,
+                            duration: 0.7 + idx * 0.12,
+                            ease: "easeInOut",
+                          }
+                    }
                     className="origin-bottom"
                     style={{ transformOrigin: `${candle.x}px ${candle.y - 32}px` }}
                   >
@@ -2069,9 +2190,10 @@ function CakeScene({ onBlown }: { onBlown: () => void }) {
                     <circle
                       cx={candle.x}
                       cy={candle.y - 39}
-                      r="8"
+                      r="13"
                       fill="url(#flameOuter)"
                       filter="url(#flameGlowFilter)"
+                      style={{ mixBlendMode: "screen" }}
                     />
                     {/* Inner Core */}
                     <path
@@ -2100,12 +2222,47 @@ function CakeScene({ onBlown }: { onBlown: () => void }) {
                 )}
               </g>
             ))}
+
+            {/* Sparkles Layer */}
+            {sparkles.map((sp) => (
+              <motion.path
+                key={sp.id}
+                d="M 0,-4 L 1,-1 L 4,0 L 1,1 L 0,4 L -1,1 L -4,0 L -1,-1 Z"
+                fill="#d9a85e"
+                initial={{ x: sp.x, y: sp.y, scale: 0, opacity: 0 }}
+                animate={{
+                  scale: [0, 1.2, 0],
+                  opacity: [0, 1, 0],
+                  y: sp.y - 15 - Math.random() * 20
+                }}
+                transition={{
+                  duration: 0.8 + Math.random() * 0.4,
+                  delay: Math.random() * 0.3,
+                  ease: "easeOut"
+                }}
+                style={{ transformOrigin: "center" }}
+              />
+            ))}
+
+            {/* Confetti Celebration Layer */}
+            {celebrationConfetti.map((c) => (
+              <rect
+                key={c.id}
+                x={c.x}
+                y={c.y}
+                width={c.size}
+                height={c.size}
+                fill={c.color}
+                transform={`rotate(${c.rot}, ${c.x}, ${c.y})`}
+                opacity={0.8}
+              />
+            ))}
           </svg>
         </motion.div>
 
         {/* Integrated Microphone status & Fallback text */}
         <div className="z-30 mt-6 min-h-[4rem]">
-          {lit.length > 0 ? (
+          {blowStage === "active" || blowStage === "shrinking" ? (
             <div className="flex flex-col items-center gap-3">
               {status === "listening" ? (
                 <div className="flex flex-col items-center gap-2">
@@ -2141,21 +2298,26 @@ function CakeScene({ onBlown }: { onBlown: () => void }) {
             >
               <div>
                 <p className="font-script text-3.5xl text-gold glow-gold tracking-wide">
-                  🎂 All candles blown out!
+                  {blowStage === "smoke" && "💨 Extinguishing..."}
+                  {blowStage === "sparkles" && "✨ Magic is happening..."}
+                  {blowStage === "celebrate" && `🎉 Happy Birthday ${birthdayContent.herName}! ♥`}
+                  {blowStage === "ready" && "🎂 All candles blown out!"}
                 </p>
                 <p className="text-xs uppercase tracking-widest text-white/50 mt-1">
-                  Your wishes are flying to the stars ♥
+                  {blowStage === "ready" ? "Your wishes are flying to the stars ♥" : "Wait for the magic to unfold..."}
                 </p>
               </div>
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.4, duration: 0.6 }}
-              >
-                <PrimaryButton onClick={onBlown}>
-                  Continue →
-                </PrimaryButton>
-              </motion.div>
+              {blowStage === "ready" && (
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: 0.1, duration: 0.5 }}
+                >
+                  <PrimaryButton onClick={onBlown}>
+                    Continue →
+                  </PrimaryButton>
+                </motion.div>
+              )}
             </motion.div>
           )}
         </div>
@@ -2169,9 +2331,68 @@ function CakeScene({ onBlown }: { onBlown: () => void }) {
 /* ------------------------------------------------------------------ */
 
 function CakeCuttingScene({ stage, onStage }: { stage: number; onStage: (n: number) => void }) {
-  const interact = () => {
-    if (stage < 6) onStage(stage + 1);
+  const [activeKnife, setActiveKnife] = useState<number | null>(null);
+  const [particles, setParticles] = useState<{ id: number; x: number; y: number; vx: number; vy: number; color: string; size: number; alpha: number }[]>([]);
+
+  const spawnParticles = (x: number, y: number, count = 20) => {
+    const colors = ["#d9a85e", "#d4869a", "#f3cbb4", "#ffffff", "#b06b7d"];
+    const newParticles = Array.from({ length: count }).map((_, i) => ({
+      id: Date.now() + i + Math.random(),
+      x,
+      y,
+      vx: (Math.random() - 0.5) * 5,
+      vy: -2 - Math.random() * 4,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      size: Math.random() * 4 + 2,
+      alpha: 1,
+    }));
+    setParticles((prev) => [...prev, ...newParticles]);
   };
+
+  const interact = () => {
+    if (activeKnife !== null) return;
+    if (stage < 3) {
+      setActiveKnife(stage);
+      // Wait 700ms (when knife passes center) to show cut line & advance stage
+      setTimeout(() => {
+        onStage(stage + 1);
+        spawnParticles(200, 135, 25);
+      }, 700);
+      // Wait 1400ms to allow another cut
+      setTimeout(() => {
+        setActiveKnife(null);
+      }, 1400);
+    } else if (stage < 5) {
+      onStage(stage + 1);
+      spawnParticles(200, 135, 15);
+    }
+  };
+
+  useEffect(() => {
+    if (particles.length === 0) return;
+    let active = true;
+    let raf = 0;
+    const update = () => {
+      if (!active) return;
+      setParticles((prev) =>
+        prev
+          .map((p) => ({
+            ...p,
+            x: p.x + p.vx,
+            y: p.y + p.vy,
+            vy: p.vy + 0.15,
+            alpha: p.alpha - 0.02,
+          }))
+          .filter((p) => p.alpha > 0 && p.y < 280)
+      );
+      raf = requestAnimationFrame(update);
+    };
+    raf = requestAnimationFrame(update);
+    return () => {
+      active = false;
+      cancelAnimationFrame(raf);
+    };
+  }, [particles.length]);
 
   // Dimensions of the 3D-isometric cake
   const rx = 100;
@@ -2186,8 +2407,20 @@ function CakeCuttingScene({ stage, onStage }: { stage: number; onStage: (n: numb
 
   return (
     <div className="scene-container relative">
-      <BackgroundLayer src={assets.birthdayCake} overlay />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(61,15,24,0.5),_transparent_70%)]" />
+      {/* Premium Dark Burgundy Background Progression */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#0f060b] via-[#2b081a] to-[#0c0309] z-0" />
+      
+      {/* Soft spotlight behind the cake (Warm champagne/gold bloom) */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(217,168,94,0.12),_transparent_65%)] pointer-events-none z-0 mix-blend-screen" />
+      
+      {/* Cinematic vignette */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_45%,_rgba(0,0,0,0.85)_100%)] pointer-events-none z-0" />
+
+      {/* Edge-only Fireworks once cut is complete */}
+      {stage >= 5 && (
+        <FireworkCanvas edgesOnly={true} />
+      )}
+
       <ParticleField density="low" petals={true} dots={false} />
       
       <div className="relative z-10 flex min-h-full flex-1 flex-col items-center justify-center p-4 py-8 text-center select-none overflow-y-auto">
@@ -2354,21 +2587,21 @@ function CakeCuttingScene({ stage, onStage }: { stage: number; onStage: (n: numb
               )}
             </g>
 
-            {/* Knife slash cutting animations */}
+             {/* Knife slash cutting animations */}
             <AnimatePresence>
-              {stage < 3 && (
+              {activeKnife !== null && (
                 <motion.g
-                  key={`knife-${stage}`}
+                  key={`knife-${activeKnife}`}
                   initial={{ x: 120, y: -90, rotate: -40, opacity: 0 }}
                   animate={
-                    stage === 0
+                    activeKnife === 0
                       ? {
                           x: [120, 20, 20, 80],
                           y: [-90, -10, 30, -50],
                           rotate: [-40, -90, -90, -40],
                           opacity: [0, 1, 1, 0],
                         }
-                      : stage === 1
+                      : activeKnife === 1
                       ? {
                           x: [120, -20, 50, 80],
                           y: [-90, -20, 20, -50],
@@ -2382,7 +2615,7 @@ function CakeCuttingScene({ stage, onStage }: { stage: number; onStage: (n: numb
                           opacity: [0, 1, 1, 0],
                         }
                   }
-                  transition={{ duration: 1.5, ease: "easeInOut" }}
+                  transition={{ duration: 1.4, ease: "easeInOut" }}
                   style={{ transformOrigin: "200px 135px" }}
                 >
                   <path d="M280 40 L310 130 L302 133 L272 44 Z" fill="url(#rblade)" stroke="#cbd5e1" />
@@ -2390,6 +2623,18 @@ function CakeCuttingScene({ stage, onStage }: { stage: number; onStage: (n: numb
                 </motion.g>
               )}
             </AnimatePresence>
+
+            {/* Cut Particles Layer */}
+            {particles.map((p) => (
+              <circle
+                key={p.id}
+                cx={p.x}
+                cy={p.y}
+                r={p.size}
+                fill={p.color}
+                opacity={p.alpha}
+              />
+            ))}
           </svg>
         </div>
 
@@ -2535,26 +2780,82 @@ function ShareHappinessScene({
   onContinue: () => void;
 }) {
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
+  const [isFlipped, setIsFlipped] = useState(false);
 
   const handleOpen = (idx: number) => {
     setActiveIdx(idx);
+    setIsFlipped(false);
     const item = happiness[idx];
     if (!opened.includes(item.id)) {
       onOpen(item.id);
     }
+    
+    // Play sequential 3D flip animation in the modal:
+    // 1. Lift slightly (handled by modal initial y-offset)
+    // 2. Glow activates (modal animations)
+    // 3. Rotate 3D (after a small delay)
+    setTimeout(() => {
+      setIsFlipped(true);
+    }, 450);
   };
 
-  // Dimensions of the 3D-isometric cake pieces
-  const rx = 100;
-  const ry = 24;
-  const h = 60; // cake height
-  const cyTop = 120;
-  const cyBottom = cyTop + h;
-  const cx = 200;
-
-  // Sorting indices from back-to-front for correct overlap rendering
-  const sortedSlices = [4, 3, 5, 0, 2, 1];
-  const d_sep = 34; // separation distance
+  // Card configuration colors and gradients
+  const cardThemes = [
+    {
+      accent: "warm rose/pink",
+      colorCode: "#f43f5e",
+      glowClass: "shadow-[0_0_30px_rgba(244,63,94,0.45)]",
+      borderClass: "border-rose-500/40",
+      bgGradient: "from-[#3b0b12] to-[#120306]",
+      bgStyle: "linear-gradient(135deg, #3b0b12 0%, #120306 100%)",
+      glowBorderClass: "shadow-[0_0_15px_rgba(244,63,94,0.5)]",
+    },
+    {
+      accent: "lavender/purple",
+      colorCode: "#c084fc",
+      glowClass: "shadow-[0_0_30px_rgba(192,132,252,0.45)]",
+      borderClass: "border-purple-400/40",
+      bgGradient: "from-[#220c38] to-[#0a0314]",
+      bgStyle: "linear-gradient(135deg, #220c38 0%, #0a0314 100%)",
+      glowBorderClass: "shadow-[0_0_15px_rgba(192,132,252,0.5)]",
+    },
+    {
+      accent: "champagne/gold",
+      colorCode: "#f3e2c7",
+      glowClass: "shadow-[0_0_30px_rgba(243,226,199,0.35)]",
+      borderClass: "border-amber-200/40",
+      bgGradient: "from-[#2d2416] to-[#0e0b07]",
+      bgStyle: "linear-gradient(135deg, #2d2416 0%, #0e0b07 100%)",
+      glowBorderClass: "shadow-[0_0_15px_rgba(243,226,199,0.5)]",
+    },
+    {
+      accent: "peach/coral",
+      colorCode: "#fb923c",
+      glowClass: "shadow-[0_0_30px_rgba(251,146,60,0.45)]",
+      borderClass: "border-orange-400/40",
+      bgGradient: "from-[#381608] to-[#140602]",
+      bgStyle: "linear-gradient(135deg, #381608 0%, #140602 100%)",
+      glowBorderClass: "shadow-[0_0_15px_rgba(251,146,60,0.5)]",
+    },
+    {
+      accent: "deep burgundy",
+      colorCode: "#881337",
+      glowClass: "shadow-[0_0_30px_rgba(136,19,55,0.45)]",
+      borderClass: "border-rose-700/40",
+      bgGradient: "from-[#4c0519] to-[#160005]",
+      bgStyle: "linear-gradient(135deg, #4c0519 0%, #160005 100%)",
+      glowBorderClass: "shadow-[0_0_15px_rgba(136,19,55,0.55)]",
+    },
+    {
+      accent: "soft violet/gold",
+      colorCode: "#ddd6fe",
+      glowClass: "shadow-[0_0_30px_rgba(221,214,254,0.35)]",
+      borderClass: "border-violet-300/40",
+      bgGradient: "from-[#20163b] via-[#2d2416] to-[#07050e]",
+      bgStyle: "linear-gradient(135deg, #20163b 0%, #2d2416 50%, #07050e 100%)",
+      glowBorderClass: "shadow-[0_0_15px_rgba(221,214,254,0.45)]",
+    },
+  ];
 
   return (
     <div className="scene-container relative">
@@ -2570,179 +2871,73 @@ function ShareHappinessScene({
           animate={{ opacity: 1, y: 0 }}
           className="max-w-3xl text-center w-full mt-4"
         >
-          <h2 className="font-serif text-3xl font-bold sm:text-5xl gradient-text glow-gold">
+          <span className="text-xs uppercase tracking-[0.3em] text-gold font-medium">Collectible Memories</span>
+          <h2 className="font-serif text-3xl font-bold sm:text-5xl gradient-text glow-gold mt-2">
             Yay! Let's share the happiness
           </h2>
-          <p className="mt-1.5 text-xs text-white/70 max-w-md mx-auto font-sans leading-relaxed">
-            Keep cutting until the cake turns into yummy pieces. Click on any cake slice to share a reason why you are so special to me.
+          <p className="mt-2.5 text-xs text-white/70 max-w-md mx-auto font-sans leading-relaxed">
+            Click on each memory card to reveal the special reasons why you are so precious to me.
           </p>
         </motion.div>
 
-        {/* Separated Cake Pieces SVG */}
-        <div className="w-full max-w-md h-[180px] sm:h-[210px] mt-6 flex items-center justify-center relative">
-          <svg viewBox="0 0 400 220" className="w-full h-full drop-shadow-[0_16px_36px_rgba(0,0,0,0.5)]">
-            <defs>
-              <linearGradient id="rcakeTop" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#ffcbd7" />
-                <stop offset="100%" stopColor="#fca1b5" />
-              </linearGradient>
-              <linearGradient id="rcakeFront" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#fca1b5" />
-                <stop offset="60%" stopColor="#e87a90" />
-                <stop offset="100%" stopColor="#cf576e" />
-              </linearGradient>
-              <linearGradient id="cakeInside" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#cf576e" />
-                <stop offset="10%" stopColor="#cf576e" />
-                <stop offset="10%" stopColor="#4a1521" />
-                <stop offset="35%" stopColor="#4a1521" />
-                <stop offset="35%" stopColor="#faf6ee" />
-                <stop offset="45%" stopColor="#faf6ee" />
-                <stop offset="45%" stopColor="#4a1521" />
-                <stop offset="70%" stopColor="#4a1521" />
-                <stop offset="70%" stopColor="#faf6ee" />
-                <stop offset="80%" stopColor="#faf6ee" />
-                <stop offset="80%" stopColor="#4a1521" />
-                <stop offset="100%" stopColor="#4a1521" />
-              </linearGradient>
-              <filter id="rcakeShadow">
-                <feDropShadow dx="0" dy="12" stdDeviation="10" floodColor="#000" floodOpacity="0.4" />
-              </filter>
-            </defs>
-
-            {/* plate */}
-            <ellipse cx="200" cy="180" rx="145" ry="22" fill="#faf8f5" filter="url(#rcakeShadow)" />
-            <ellipse cx="200" cy="180" rx="141" ry="19.5" fill="none" stroke="#ebdcb9" strokeWidth="1" opacity="0.4" />
-
-            {/* Slices */}
-            {sortedSlices.map((i) => {
-              const item = happiness[i];
-              const isOpened = opened.includes(item.id);
-
-              const t1 = (i * 2 * Math.PI) / 6;
-              const t2 = ((i + 1) * 2 * Math.PI) / 6;
-              const a_mid = ((i + 0.5) * 2 * Math.PI) / 6;
-
-              // Translation vectors
-              const dx = d_sep * Math.cos(a_mid);
-              const dy = d_sep * Math.sin(a_mid) * 0.24;
-
-              const p1x = cx + rx * Math.cos(t1);
-              const p1y = cyTop + ry * Math.sin(t1);
-              const p2x = cx + rx * Math.cos(t2);
-              const p2y = cyTop + ry * Math.sin(t2);
-
-              const p1yBot = cyBottom + ry * Math.sin(t1);
-              const p2yBot = cyBottom + ry * Math.sin(t2);
-
-              // Frosting flower dollop
-              const fx = cx + 96 * Math.cos(a_mid);
-              const fy = cyTop + 23 * Math.sin(a_mid);
-
-              return (
-                <motion.g
-                  key={i}
-                  animate={{
-                    y: [dy, dy - 6, dy],
-                    x: dx,
-                    rotate: [0, i % 2 === 0 ? 1 : -1, 0]
-                  }}
-                  transition={{
-                    y: { duration: 3 + i * 0.4, repeat: Infinity, ease: "easeInOut" },
-                    rotate: { duration: 3.5 + i * 0.5, repeat: Infinity, ease: "easeInOut" },
-                    x: { type: "spring", stiffness: 85, damping: 13 }
-                  }}
-                  className="cursor-pointer origin-center"
-                  style={{ transformOrigin: `${cx + dx}px ${cyTop + dy}px` }}
-                  onClick={() => handleOpen(i)}
-                >
-                  {/* Slice Shadow overlay when opened */}
-                  {isOpened && (
-                    <filter id={`sliceGlow-${i}`}>
-                      <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor="#d9a85e" floodOpacity="0.8" />
-                    </filter>
-                  )}
-
-                  {/* Wedge Interior Side Walls */}
-                  <path d={`M ${cx} ${cyTop} L ${cx} ${cyBottom} L ${p1x} ${p1yBot} L ${p1x} ${p1y} Z`} fill="url(#cakeInside)" />
-                  <path d={`M ${cx} ${cyTop} L ${cx} ${cyBottom} L ${p2x} ${p2yBot} L ${p2x} ${p2y} Z`} fill="url(#cakeInside)" />
-
-                  {/* Outer curved wall */}
-                  <path
-                    d={`M ${p1x} ${p1y} A ${rx} ${ry} 0 0 1 ${p2x} ${p2y} L ${p2x} ${p2yBot} A ${rx} ${ry} 0 0 0 ${p1x} ${p1yBot} Z`}
-                    fill="url(#rcakeFront)"
-                    filter={isOpened ? `url(#sliceGlow-${i})` : undefined}
-                  />
-
-                  {/* Top Wedge */}
-                  <path
-                    d={`M ${cx} ${cyTop} L ${p1x} ${p1y} A ${rx} ${ry} 0 0 1 ${p2x} ${p2y} Z`}
-                    fill="url(#rcakeTop)"
-                    filter={isOpened ? `url(#sliceGlow-${i})` : undefined}
-                  />
-
-                  {/* Frosting decoration */}
-                  <circle cx={fx} cy={fy} r="4.5" fill="#fcf7eb" stroke="#ebdcb9" strokeWidth="0.5" />
-                  <circle cx={fx} cy={fy} r="3" fill={isOpened ? "#d9a85e" : "#d4869a"} />
-
-                  {/* Heart icon or indicator on top of slice */}
-                  {isOpened && (
-                    <circle cx={cx + 50 * Math.cos(a_mid)} cy={cyTop + 12 * Math.sin(a_mid)} r="2" fill="#d9a85e" />
-                  )}
-                </motion.g>
-              );
-            })}
-          </svg>
-        </div>
-
-        {/* 6 Cards Grid (Below SVG) */}
-        <div className="mt-8 grid w-full max-w-2xl grid-cols-2 gap-3.5 sm:grid-cols-3">
+        {/* 6 Cards Grid - Main Visual Focus */}
+        <div className="mt-12 grid w-full max-w-4xl grid-cols-2 gap-5 sm:grid-cols-3 px-2 sm:px-6">
           {happiness.map((h, i) => {
             const isOpened = opened.includes(h.id);
+            const theme = cardThemes[i];
             return (
               <motion.button
                 key={h.id}
-                initial={{ opacity: 0, y: 15 }}
+                initial={{ opacity: 0, y: 25 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05, duration: 0.6 }}
+                whileHover={{ 
+                  y: -5, 
+                  scale: 1.03, 
+                  boxShadow: `0 12px 30px rgba(0, 0, 0, 0.4)`,
+                  borderColor: theme.colorCode
+                }}
+                whileTap={{ scale: 0.97 }}
+                transition={{ delay: i * 0.08, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                 onClick={() => handleOpen(i)}
                 className={cn(
-                  "relative flex flex-col items-center justify-center rounded-2xl p-4 text-center border cursor-pointer select-none transition-all duration-300",
-                  "glass-premium border-white/5 shadow-md min-h-[6.5rem]",
+                  "relative flex flex-col items-center justify-center rounded-2xl p-6 text-center border cursor-pointer select-none transition-all duration-300 min-h-[9rem] sm:min-h-[11rem]",
+                  "glass-premium border-white/5 shadow-md",
                   isOpened 
-                    ? "border-gold/30 bg-gold/5 shadow-[0_0_12px_rgba(217,168,94,0.15)]" 
+                    ? `bg-gradient-to-br ${theme.bgGradient} ${theme.borderClass} ${theme.glowClass}` 
                     : "hover:border-white/20 hover:bg-white/[0.03]"
                 )}
               >
                 {isOpened && (
-                  <div className="absolute top-2.5 right-2.5">
-                    <Heart className="h-3 w-3 fill-rose text-rose animate-pulse" />
+                  <div className="absolute top-3.5 right-3.5">
+                    <Heart className="h-4.5 w-4.5 fill-rose text-rose animate-pulse" />
                   </div>
                 )}
                 <div className={cn(
-                  "flex h-9 w-9 items-center justify-center rounded-full bg-white/5 border mb-2",
-                  isOpened ? "border-gold/20 text-gold" : "border-white/10 text-white/50"
-                )}>
-                  <HappinessIcon icon={h.icon} className={isOpened ? "text-gold" : "text-white/60"} />
+                  "flex h-11 w-11 items-center justify-center rounded-full bg-white/5 border mb-3 transition-colors duration-300",
+                  isOpened ? "border-white/20 text-white" : "border-white/10 text-white/50"
+                )}
+                style={isOpened ? { color: theme.colorCode, borderColor: theme.colorCode } : {}}
+                >
+                  <HappinessIcon icon={h.icon} className="transition-transform duration-500 group-hover:scale-110" />
                 </div>
                 <h3 className={cn(
-                  "font-serif text-xs font-semibold tracking-wide",
-                  isOpened ? "text-gold" : "text-champagne/80"
+                  "font-serif text-sm sm:text-base font-semibold tracking-wide transition-colors duration-300",
+                  isOpened ? "text-white glow-gold" : "text-champagne/70"
                 )}>{h.title}</h3>
-                <span className="text-[8px] uppercase tracking-widest text-white/40 mt-1 block">
-                  {isOpened ? "Shared" : "Tap to share"}
+                <span className="text-[9px] uppercase tracking-widest text-white/40 mt-1.5 block">
+                  {isOpened ? "Relive Memory" : "Tap to open"}
                 </span>
               </motion.button>
             );
           })}
         </div>
 
-        {/* Continue button appears once all slices have been opened */}
+        {/* Continue button appears once all cards have been opened */}
         {opened.length === happiness.length && (
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-10 mb-6 text-center z-20"
+            className="mt-14 mb-8 text-center z-20"
           >
             <PrimaryButton onClick={onContinue}>
               Continue Journey ♥
@@ -2751,7 +2946,7 @@ function ShareHappinessScene({
         )}
       </div>
 
-      {/* Premium Parchment Modal Popup */}
+      {/* 3D Collectible Card Modal popup */}
       <AnimatePresence>
         {activeIdx !== null && (
           <motion.div
@@ -2759,47 +2954,139 @@ function ShareHappinessScene({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setActiveIdx(null)}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-6 backdrop-blur-md"
           >
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              transition={{ type: "spring", stiffness: 150, damping: 18 }}
+            {/* The 3D Perspective Card Wrapper */}
+            <div 
+              className="relative w-full max-w-sm h-[450px] perspective-1000"
               onClick={(e) => e.stopPropagation()}
-              className="max-w-xs sm:max-w-sm w-full rounded-2xl parchment-container border border-amber-900/20 p-8 shadow-[0_20px_50px_rgba(0,0,0,0.6)] relative overflow-hidden text-center"
             >
-              {/* Decorative borders */}
-              <div className="parchment-border" />
-              <div className="parchment-corner top-3 left-3 border-t border-l border-amber-900/25" />
-              <div className="parchment-corner top-3 right-3 border-t border-r border-amber-900/25" />
-              <div className="parchment-corner bottom-3 left-3 border-b border-l border-amber-900/25" />
-              <div className="parchment-corner bottom-3 right-3 border-b border-r border-amber-900/25" />
-
-              <div className="relative z-10 pt-2 flex flex-col items-center select-text">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-900/5 border border-amber-900/20 text-amber-950 mb-3">
-                  <HappinessIcon icon={happiness[activeIdx].icon} className="text-amber-950" />
-                </div>
-                <h3 className="font-serif text-lg font-bold text-amber-950 uppercase tracking-wider mb-2">
-                  {happiness[activeIdx].title}
-                </h3>
-                <p className="font-script text-2xl font-bold text-rose-800 leading-relaxed min-h-[4.5rem]">
-                  "{happiness[activeIdx].message}"
-                </p>
-                <button
-                  onClick={() => setActiveIdx(null)}
-                  className="btn-glass mx-auto mt-6 block rounded-full px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-amber-950 border border-amber-900/25 bg-amber-900/5 hover:bg-amber-900/10 cursor-pointer"
+              {/* Card Container holding both faces */}
+              <motion.div
+                animate={{ rotateY: isFlipped ? 180 : 0, scale: isFlipped ? 1.02 : 1 }}
+                transition={{ type: "spring", stiffness: 90, damping: 14 }}
+                className="w-full h-full preserve-3d relative cursor-pointer"
+                onClick={() => setIsFlipped(!isFlipped)}
+              >
+                {/* 1. FRONT FACE (Card Cover) */}
+                <div 
+                  className={cn(
+                    "absolute inset-0 rounded-2xl glass-premium border p-8 flex flex-col items-center justify-between text-center backface-hidden",
+                    cardThemes[activeIdx].borderClass
+                  )}
+                  style={{
+                    background: `linear-gradient(135deg, rgba(18,20,38,0.92) 0%, rgba(8,4,12,0.98) 100%)`,
+                    boxShadow: `0 15px 40px rgba(0,0,0,0.6)`
+                  }}
                 >
-                  Close ♥
-                </button>
-              </div>
-            </motion.div>
+                  <div className="w-full flex justify-between items-center opacity-60">
+                    <span className="text-[9px] uppercase tracking-widest text-white/50">NO. 0{activeIdx + 1}</span>
+                    <Heart className="h-4 w-4 text-white/40" />
+                  </div>
+
+                  <div className="flex flex-col items-center gap-4">
+                    <motion.div 
+                      animate={{ scale: [1, 1.06, 1] }}
+                      transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
+                      className="flex h-20 w-20 items-center justify-center rounded-full bg-white/5 border border-white/10 text-white"
+                      style={{ borderColor: cardThemes[activeIdx].colorCode, boxShadow: `inset 0 0 20px rgba(255,255,255,0.05), ${cardThemes[activeIdx].glowBorderClass}` }}
+                    >
+                      <HappinessIcon icon={happiness[activeIdx].icon} className="h-10 w-10" style={{ color: cardThemes[activeIdx].colorCode }} />
+                    </motion.div>
+                    <h3 className="font-serif text-2xl font-bold tracking-wide text-white">
+                      {happiness[activeIdx].title}
+                    </h3>
+                  </div>
+
+                  <div className="flex flex-col items-center gap-1.5">
+                    <span className="text-[10px] uppercase tracking-[0.2em] font-medium" style={{ color: cardThemes[activeIdx].colorCode }}>
+                      Tap to Unveil ♥
+                    </span>
+                    <div className="w-8 h-0.5 rounded-full" style={{ backgroundColor: cardThemes[activeIdx].colorCode }} />
+                  </div>
+                </div>
+
+                {/* 2. BACK FACE (Premium Collectible Inner Details) */}
+                <div 
+                  className={cn(
+                    "absolute inset-0 rounded-2xl p-8 flex flex-col justify-between text-center backface-hidden rotate-y-180 border overflow-hidden",
+                    cardThemes[activeIdx].borderClass,
+                    cardThemes[activeIdx].glowClass
+                  )}
+                  style={{
+                    background: cardThemes[activeIdx].bgStyle,
+                  }}
+                >
+                  {/* Subtle inner animated gradient & soft glow bloom */}
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.01),_transparent_75%)] pointer-events-none" />
+                  <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-tr from-transparent via-white/[0.01] to-transparent" />
+                  
+                  {/* Glowing inner border accent */}
+                  <div 
+                    className="absolute inset-4 rounded-xl border border-dashed opacity-25 pointer-events-none" 
+                    style={{ borderColor: cardThemes[activeIdx].colorCode }}
+                  />
+
+                  {/* Header */}
+                  <div className="relative z-10 flex justify-between items-center">
+                    <span className="text-[8px] font-sans tracking-[0.35em] text-white/40 uppercase">Collectible Card</span>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveIdx(null);
+                      }}
+                      className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-white/70 hover:text-white transition-colors cursor-pointer"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+
+                  {/* Content details with custom typographic styling */}
+                  <div className="relative z-10 my-auto py-2 flex flex-col items-center select-text">
+                    <motion.div
+                      animate={{ y: [0, -4, 0] }}
+                      transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
+                      className="mb-4 text-white/90"
+                      style={{ color: cardThemes[activeIdx].colorCode }}
+                    >
+                      <HappinessIcon icon={happiness[activeIdx].icon} className="h-9 w-9" />
+                    </motion.div>
+
+                    <h4 className="font-serif text-sm tracking-[0.2em] font-semibold text-white/50 uppercase mb-3">
+                      {happiness[activeIdx].title}
+                    </h4>
+
+                    <p className="font-serif italic text-xl sm:text-2xl leading-relaxed text-white/95 pr-1 pl-1 font-medium">
+                      "{happiness[activeIdx].message}"
+                    </p>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="relative z-10 flex flex-col items-center gap-2">
+                    <span className="text-[8px] uppercase tracking-widest text-white/30">
+                      Tap card to flip back
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveIdx(null);
+                      }}
+                      className="rounded-full px-5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white border bg-white/5 hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
+                      style={{ borderColor: `${cardThemes[activeIdx].colorCode}50` }}
+                    >
+                      Close Reason ♥
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
     </div>
   );
 }
+
 
 /* ------------------------------------------------------------------ */
 /* Scene 9 — Three Gifts                                              */
@@ -3197,6 +3484,20 @@ function GiftsScene({
             );
           })}
         </div>
+
+        {/* Manual Continue Button shown only after all three gifts are opened */}
+        {opened.length === 3 && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="mt-14 z-30 text-center"
+          >
+            <PrimaryButton onClick={onContinue}>
+              Continue Journey ♥
+            </PrimaryButton>
+          </motion.div>
+        )}
       </div>
     </div>
   );
@@ -3213,81 +3514,161 @@ function HandwritingText({
   paragraphs,
   greeting,
   signature,
+  alreadyAnimated,
   onComplete,
 }: {
   paragraphs: string[];
   greeting: string;
   signature: string;
+  alreadyAnimated?: boolean;
   onComplete: () => void;
 }) {
+  const greetingText = greeting;
+  const pTexts = paragraphs;
+
+  const totalLength = greetingText.length + pTexts.reduce((sum, p) => sum + p.length, 0);
+
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [showSignature, setShowSignature] = useState(alreadyAnimated);
+
+  // Keep stable references to callbacks and texts to prevent restarts
+  const onCompleteRef = useRef(onComplete);
+  const greetingTextRef = useRef(greetingText);
+  const pTextsRef = useRef(pTexts);
+
   useEffect(() => {
-    // Notify letter animation complete after stagger animations finish
-    const timer = setTimeout(onComplete, 2500);
-    return () => clearTimeout(timer);
-  }, [onComplete]);
+    onCompleteRef.current = onComplete;
+    greetingTextRef.current = greetingText;
+    pTextsRef.current = pTexts;
+  }, [onComplete, greetingText, pTexts]);
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.5, // Elegant delay between paragraphs
-      },
-    },
-  };
+  useEffect(() => {
+    if (alreadyAnimated) {
+      setCurrentIndex(totalLength);
+      setShowSignature(true);
+      onCompleteRef.current();
+      return;
+    }
 
-  const itemVariants = {
-    hidden: { 
-      opacity: 0, 
-      y: 10, 
-      filter: "blur(3px)" 
-    },
-    visible: {
-      opacity: 1,
-      y: 0,
-      filter: "blur(0px)",
-      transition: {
-        duration: 0.8,
-        ease: [0.22, 1, 0.36, 1],
-      },
-    },
-  };
+    let index = 0;
+    let active = true;
+    let timerId: any = null;
+
+    const getCharAt = (idx: number) => {
+      if (idx < greetingTextRef.current.length) {
+        return greetingTextRef.current[idx];
+      }
+      let offset = greetingTextRef.current.length;
+      for (let p = 0; p < pTextsRef.current.length; p++) {
+        const pText = pTextsRef.current[p];
+        if (idx < offset + pText.length) {
+          return pText[idx - offset];
+        }
+        offset += pText.length;
+      }
+      return "";
+    };
+
+    const tick = () => {
+      if (!active) return;
+      if (index < totalLength) {
+        index++;
+        setCurrentIndex(index);
+
+        let delay = 20 + Math.random() * 15; // 20-35ms per character
+
+        const c = getCharAt(index - 1);
+        if (c === "." || c === "!" || c === "?") {
+          delay = 450; // Pause at end of sentence
+        } else if (c === ",") {
+          delay = 250; // Pause at comma
+        }
+
+        // Section boundary pauses
+        if (index === greetingTextRef.current.length) {
+          delay = 600;
+        } else {
+          let offset = greetingTextRef.current.length;
+          for (let p = 0; p < pTextsRef.current.length; p++) {
+            offset += pTextsRef.current[p].length;
+            if (index === offset) {
+              delay = 800;
+              break;
+            }
+          }
+        }
+
+        timerId = setTimeout(tick, delay);
+      } else {
+        // Typing finished!
+        timerId = setTimeout(() => {
+          if (active) {
+            setShowSignature(true);
+            onCompleteRef.current();
+          }
+        }, 800); // 800ms delay before revealing signature
+      }
+    };
+
+    timerId = setTimeout(tick, 500);
+
+    return () => {
+      active = false;
+      if (timerId) clearTimeout(timerId);
+    };
+  }, [alreadyAnimated, totalLength]);
+
+  const dispGreeting = currentIndex <= greetingText.length 
+    ? greetingText.substring(0, currentIndex) 
+    : greetingText;
+
+  const dispParagraphs = pTexts.map((pText, pIdx) => {
+    let prevC = greetingText.length;
+    for (let i = 0; i < pIdx; i++) {
+      prevC += pTexts[i].length;
+    }
+    const currC = prevC + pText.length;
+    if (currentIndex <= prevC) return "";
+    if (currentIndex <= currC) return pText.substring(0, currentIndex - prevC);
+    return pText;
+  });
 
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      className="text-left font-serif text-amber-950/90 leading-relaxed select-text flex flex-col gap-4 pt-4 pb-12"
-    >
+    <div className="text-left font-serif text-amber-950/90 leading-relaxed select-text flex flex-col gap-4 pt-4 pb-12">
       {/* Greeting */}
-      <motion.h3 
-        variants={itemVariants} 
-        className="font-script text-xl sm:text-2xl font-bold text-rose-800"
-      >
-        {greeting}
-      </motion.h3>
+      <h3 className="font-script text-xl sm:text-2xl font-bold text-rose-800 min-h-[1.5rem]">
+        {dispGreeting}
+      </h3>
 
       {/* Paragraphs */}
-      {paragraphs.map((p, idx) => (
-        <motion.p 
+      {pTexts.map((p, idx) => (
+        <p 
           key={idx} 
-          variants={itemVariants} 
-          className="text-sm sm:text-base leading-relaxed text-amber-950/80 font-serif indent-4 text-justify"
+          className="text-sm sm:text-base leading-relaxed text-amber-950/80 font-serif indent-4 text-justify min-h-[2.5rem]"
         >
-          {p}
-        </motion.p>
+          {dispParagraphs[idx] || ""}
+        </p>
       ))}
 
       {/* Signature */}
-      <motion.div 
-        variants={itemVariants} 
-        className="mt-6 flex flex-col items-end text-right pr-6"
-      >
-        <span className="text-xs text-amber-950/50 font-sans italic">With love,</span>
-        <span className="font-script text-2xl font-bold text-rose-800 mt-1">{signature}</span>
-      </motion.div>
-    </motion.div>
+      <AnimatePresence>
+        {showSignature && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="mt-6 flex flex-col items-end text-right pr-6"
+          >
+            <span className="text-sm text-amber-950/70 font-serif italic min-h-[1rem]">
+              With all my love,
+            </span>
+            <span className="font-script text-2xl font-bold text-rose-800 mt-1 min-h-[2rem]">
+              Yours forever ♥
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
 
@@ -3305,25 +3686,48 @@ function LetterScene({
   onPrev?: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [stage, setStage] = useState<"closed" | "flap" | "slide" | "reveal" | "writing">("closed");
-
-  // Automatically trigger opening envelope sequence upon entering scene
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setOpen(true);
-    }, 450);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Custom persistent state mapping
+  const [stage, setStage] = useState<"closed" | "pulsing" | "releasing" | "flap" | "slide" | "reveal" | "writing">("closed");
   const [state, setState] = useState(() => loadState() as SceneState);
+  const [letterFinished, setLetterFinished] = useState(state.letterAnimated);
+  
+  // Particles states
+  const [sealParticles, setSealParticles] = useState<{ id: number; x: number; y: number; vx: number; vy: number; color: string; size: number }[]>([]);
+  const [stampParticles, setStampParticles] = useState<{ id: number; x: number; y: number; vx: number; vy: number; color: string; size: number }[]>([]);
+
+  // Trigger sequential open sequence
+  const handleOpenEnvelope = () => {
+    if (stage !== "closed") return;
+    setStage("pulsing");
+    
+    // Pulse for 900ms
+    setTimeout(() => {
+      setStage("releasing");
+      // Spawn particles on release
+      const colors = ["#b91c1c", "#d9a85e", "#ffcbd7", "#ffffff"];
+      const newParticles = Array.from({ length: 25 }).map((_, i) => ({
+        id: i,
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2,
+        vx: (Math.random() - 0.5) * 8,
+        vy: (Math.random() - 0.5) * 8,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        size: Math.random() * 4 + 2
+      }));
+      setSealParticles(newParticles);
+      
+      // Delay envelope opening
+      setTimeout(() => {
+        setOpen(true);
+      }, 700);
+    }, 900);
+  };
 
   useEffect(() => {
     if (open) {
       setStage("flap");
-      const t1 = setTimeout(() => setStage("slide"), 500);
-      const t2 = setTimeout(() => setStage("reveal"), 1100);
-      const t3 = setTimeout(() => setStage("writing"), 1700);
+      const t1 = setTimeout(() => setStage("slide"), 700);
+      const t2 = setTimeout(() => setStage("reveal"), 1500);
+      const t3 = setTimeout(() => setStage("writing"), 2300);
       return () => {
         clearTimeout(t1);
         clearTimeout(t2);
@@ -3334,6 +3738,76 @@ function LetterScene({
     }
   }, [open]);
 
+  // Update loop for seal particles
+  useEffect(() => {
+    if (sealParticles.length === 0) return;
+    let active = true;
+    let raf = 0;
+    const update = () => {
+      if (!active) return;
+      setSealParticles((prev) =>
+        prev
+          .map((p) => ({
+            ...p,
+            x: p.x + p.vx,
+            y: p.y + p.vy,
+            vy: p.vy + 0.1, // floating gravity
+          }))
+          .filter((p) => p.y < window.innerHeight && p.x > 0 && p.x < window.innerWidth)
+      );
+      raf = requestAnimationFrame(update);
+    };
+    raf = requestAnimationFrame(update);
+    return () => {
+      active = false;
+      cancelAnimationFrame(raf);
+    };
+  }, [sealParticles.length]);
+
+  // Update loop for stamp particles
+  useEffect(() => {
+    if (stampParticles.length === 0) return;
+    let active = true;
+    let raf = 0;
+    const update = () => {
+      if (!active) return;
+      setStampParticles((prev) =>
+        prev
+          .map((p) => ({
+            ...p,
+            x: p.x + p.vx,
+            y: p.y + p.vy,
+            vy: p.vy + 0.2, // gravity falling
+          }))
+          .filter((p) => p.y < 500)
+      );
+      raf = requestAnimationFrame(update);
+    };
+    raf = requestAnimationFrame(update);
+    return () => {
+      active = false;
+      cancelAnimationFrame(raf);
+    };
+  }, [stampParticles.length]);
+
+  const spawnStampParticles = () => {
+    const colors = ["#b91c1c", "#d9a85e", "#ffcbd7", "#881337"];
+    const cardEl = document.querySelector(".letter-card-container");
+    const width = cardEl ? cardEl.clientWidth : 580;
+    const height = cardEl ? cardEl.clientHeight : 490;
+
+    const newParticles = Array.from({ length: 20 }).map((_, i) => ({
+      id: i,
+      x: width - 50 - Math.random() * 30, // dynamically near bottom right
+      y: height - 50 - Math.random() * 30,
+      vx: (Math.random() - 0.5) * 4,
+      vy: (Math.random() - 0.5) * 4 - 2,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      size: Math.random() * 3 + 1.5
+    }));
+    setStampParticles(newParticles);
+  };
+
   return (
     <div className="scene-container relative">
       <BackgroundLayer src={assets.loveLetter} overlay />
@@ -3342,35 +3816,53 @@ function LetterScene({
       {/* Candlelit atmospheric warm overlay */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(253,230,138,0.22),_rgba(8,4,12,0.85)_80%)] pointer-events-none z-10" />
 
-      {/* Header controls */}
-      <div className="absolute top-6 left-6 right-6 flex items-center justify-between z-30">
-        <button
-          onClick={onBack}
-          className="flex h-10 px-4 items-center justify-center rounded-full glass border border-white/10 hover:border-gold/30 hover:scale-105 active:scale-95 text-white/95 text-sm transition-all duration-300 cursor-pointer gap-2"
-        >
-          <ChevronLeft size={16} /> Garden
-        </button>
-        <div className="flex gap-2">
-          {onPrev && (
-            <button
-              onClick={onPrev}
-              className="flex h-10 w-10 items-center justify-center rounded-full glass border border-white/10 hover:border-gold/30 hover:scale-105 active:scale-95 text-white/95 transition-all duration-300 cursor-pointer"
-              aria-label="Previous present"
-            >
-              <ArrowLeft size={16} />
-            </button>
-          )}
-          {onNext && (
-            <button
-              onClick={onNext}
-              className="flex h-10 w-10 items-center justify-center rounded-full glass border border-white/10 hover:border-gold/30 hover:scale-105 active:scale-95 text-white/95 transition-all duration-300 cursor-pointer"
-              aria-label="Next present"
-            >
-              <ArrowRight size={16} />
-            </button>
-          )}
+      {/* Floating Seal Particles */}
+      {sealParticles.map((p) => (
+        <div
+          key={p.id}
+          className="fixed rounded-full pointer-events-none z-50 transition-opacity duration-1000"
+          style={{
+            left: p.x,
+            top: p.y,
+            width: p.size,
+            height: p.size,
+            backgroundColor: p.color,
+            boxShadow: `0 0 8px ${p.color}`,
+          }}
+        />
+      ))}
+
+      {/* Header controls (Visible only if letter is open) */}
+      {open && (
+        <div className="absolute top-6 left-6 right-6 flex items-center justify-between z-30">
+          <button
+            onClick={onBack}
+            className="flex h-10 px-4 items-center justify-center rounded-full glass border border-white/10 hover:border-gold/30 hover:scale-105 active:scale-95 text-white/95 text-sm transition-all duration-300 cursor-pointer gap-2"
+          >
+            <ChevronLeft size={16} /> Garden
+          </button>
+          <div className="flex gap-2">
+            {onPrev && (
+              <button
+                onClick={onPrev}
+                className="flex h-10 w-10 items-center justify-center rounded-full glass border border-white/10 hover:border-gold/30 hover:scale-105 active:scale-95 text-white/95 transition-all duration-300 cursor-pointer"
+                aria-label="Previous present"
+              >
+                <ArrowLeft size={16} />
+              </button>
+            )}
+            {onNext && (
+              <button
+                onClick={onNext}
+                className="flex h-10 w-10 items-center justify-center rounded-full glass border border-white/10 hover:border-gold/30 hover:scale-105 active:scale-95 text-white/95 transition-all duration-300 cursor-pointer"
+                aria-label="Next present"
+              >
+                <ArrowRight size={16} />
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="relative z-10 flex min-h-full flex-1 flex-col items-center justify-center overflow-y-auto p-6 py-12 text-center">
         <motion.h2 
@@ -3386,8 +3878,10 @@ function LetterScene({
           {/* Physical Envelope */}
           <div className="relative w-[310px] h-[210px] sm:w-[360px] sm:h-[240px]">
             
-            {/* 1. Envelope Back Plate (The bottom sheet of the pocket) */}
-            <div 
+            {/* 1. Envelope Back Plate */}
+            <motion.div 
+              animate={open ? { opacity: 0 } : { opacity: 1 }}
+              transition={{ duration: 0.6, delay: open ? 0.8 : 0 }}
               className="absolute inset-0 rounded-lg shadow-xl"
               style={{
                 background: "linear-gradient(135deg, #eaddc6 0%, #dbcbab 100%)",
@@ -3397,36 +3891,37 @@ function LetterScene({
             >
               {/* Pocket interior shadow overlay */}
               <div className="absolute inset-0 bg-black/10 rounded-lg" />
-            </div>
+            </motion.div>
 
-            {/* 2. The Letter Card (Slides out of the pocket) */}
+            {/* 2. The Letter Card */}
             <motion.div
               style={{
-                zIndex: stage === "closed" || stage === "flap" ? 15 : 40,
+                zIndex: stage === "closed" || stage === "pulsing" || stage === "releasing" || stage === "flap" ? 15 : 40,
                 transformStyle: "preserve-3d",
               }}
               animate={
-                stage === "closed"
+                stage === "closed" || stage === "pulsing" || stage === "releasing"
                   ? { y: 10, scale: 0.95, opacity: 0.5, rotateX: 0 }
                   : stage === "flap"
                   ? { y: 10, scale: 0.95, opacity: 1, rotateX: 0 }
                   : stage === "slide"
                   ? { y: -190, scale: 0.95, opacity: 1, rotateX: 0 }
-                  : stage === "reveal"
-                  ? { y: -100, scale: 1.03, opacity: 1, rotateX: 0 }
-                  : { y: -70, scale: 1.05, opacity: 1, rotateX: 0 }
+                  : { y: -110, scale: 1.0, opacity: 1, rotateX: 0 }
               }
-              transition={{ duration: 0.6, ease: "easeOut" }}
+              transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
               className={cn(
-                "absolute inset-x-2 rounded-2xl p-0.5 shadow-2xl overflow-hidden cursor-pointer",
-                stage === "closed" ? "pointer-events-none" : "pointer-events-auto"
+                "absolute rounded-2xl p-0.5 shadow-[0_25px_60px_rgba(0,0,0,0.5),_0_0_40px_rgba(217,168,94,0.12)] overflow-hidden cursor-pointer left-1/2 -translate-x-1/2 letter-card-container",
+                (stage === "closed" || stage === "pulsing" || stage === "releasing") ? "pointer-events-none" : "pointer-events-auto",
+                (stage === "reveal" || stage === "writing")
+                  ? "w-[94vw] sm:w-[660px] md:w-[720px] h-[520px] sm:h-[580px] md:h-[640px] max-h-[82vh]"
+                  : "w-[92%] h-[195px] sm:h-[225px]"
               )}
               onClick={() => {
-                if (!open) setOpen(true);
+                if (!open) handleOpenEnvelope();
               }}
             >
               <div 
-                className="paper-texture relative rounded-[14px] p-6 sm:p-7 bg-[#fdfbf7] flex flex-col h-full min-h-[330px] border border-amber-900/10 shadow-inner overflow-y-auto max-h-[380px]"
+                className="paper-texture relative rounded-[14px] p-6 sm:p-8 bg-[#fdfbf7] flex flex-col h-full border border-amber-900/10 shadow-inner overflow-y-auto"
                 style={{
                   boxShadow: "inset 0 0 25px rgba(217,168,94,0.06)",
                 }}
@@ -3458,13 +3953,14 @@ function LetterScene({
                 </div>
 
                 {/* Text Content Area */}
-                {(stage === "reveal" || stage === "writing") && (
+                {((stage === "reveal" && state.letterAnimated) || stage === "writing") && (
                   <HandwritingText
                     paragraphs={letterContent.paragraphs}
                     greeting={letterContent.greeting}
                     signature={letterContent.signature}
                     alreadyAnimated={state.letterAnimated}
                     onComplete={() => {
+                      setLetterFinished(true);
                       if (!state.letterAnimated) {
                         setState((s) => {
                           const next = { ...s, letterAnimated: true };
@@ -3476,16 +3972,46 @@ function LetterScene({
                   />
                 )}
 
+                {/* Stamp Particles */}
+                {stampParticles.map((p) => (
+                  <div
+                    key={p.id}
+                    className="absolute rounded-full pointer-events-none z-30"
+                    style={{
+                      left: p.x,
+                      top: p.y,
+                      width: p.size,
+                      height: p.size,
+                      backgroundColor: p.color,
+                      opacity: 0.8
+                    }}
+                  />
+                ))}
+
                 {/* Wax Seal Stamp (inside letter as decorative element when complete) */}
-                {(stage === "reveal" || stage === "writing") && (
+                {letterFinished && (
                   <motion.div
-                    initial={state.letterAnimated ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.3 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 1, type: "spring", stiffness: 120, damping: 10 }}
-                    className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 rotate-[-8deg] pointer-events-none"
+                    initial={{ opacity: 0, scale: 0.8, rotate: -25 }}
+                    animate={{ 
+                      opacity: 1, 
+                      scale: 1, 
+                      rotate: -8,
+                      boxShadow: [
+                        "0 4px 8px rgba(0,0,0,0.3)",
+                        "0 0 25px rgba(185, 28, 28, 0.75), 0 0 15px rgba(217, 168, 94, 0.6)",
+                        "0 4px 8px rgba(0,0,0,0.3)"
+                      ]
+                    }}
+                    transition={{ 
+                      delay: 0.8,
+                      duration: 0.6,
+                      ease: [0.34, 1.56, 0.64, 1]
+                    }}
+                    onAnimationComplete={spawnStampParticles}
+                    className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 pointer-events-none z-30"
                   >
                     <div
-                      className="w-11 h-11 rounded-full flex items-center justify-center shadow-md border border-rose-800/40 relative"
+                       className="w-11 h-11 rounded-full flex items-center justify-center shadow-md border border-rose-800/40 relative shadow-[0_0_15px_rgba(185,28,28,0.4)]"
                       style={{
                         background: "radial-gradient(circle at 35% 35%, #b91c1c 0%, #881337 70%, #4c0519 100%)",
                         boxShadow: "0 4px 8px rgba(0,0,0,0.3), inset 0 2px 3px rgba(255,255,255,0.25)"
@@ -3498,15 +4024,16 @@ function LetterScene({
               </div>
             </motion.div>
 
-            {/* 3. Envelope Front Side flaps (diagonal pocket folds) */}
-            <div
+            {/* 3. Envelope Front Side flaps */}
+            <motion.div
+              animate={open ? { opacity: 0 } : { opacity: 1 }}
+              transition={{ duration: 0.6, delay: open ? 0.8 : 0 }}
               className="absolute inset-0 pointer-events-none"
               style={{
                 zIndex: 20,
                 background: "linear-gradient(135deg, transparent 40%, rgba(0,0,0,0.05) 50%, transparent 60%)",
               }}
             >
-              {/* Bottom fold */}
               <div 
                 className="absolute inset-x-0 bottom-0 h-[60%]"
                 style={{
@@ -3515,7 +4042,6 @@ function LetterScene({
                   borderTop: "1px solid rgba(139, 115, 85, 0.15)",
                 }}
               />
-              {/* Left fold */}
               <div 
                 className="absolute inset-y-0 left-0 w-[55%]"
                 style={{
@@ -3524,7 +4050,6 @@ function LetterScene({
                   borderRight: "1px solid rgba(139, 115, 85, 0.12)",
                 }}
               />
-              {/* Right fold */}
               <div 
                 className="absolute inset-y-0 right-0 w-[55%]"
                 style={{
@@ -3533,20 +4058,22 @@ function LetterScene({
                   borderLeft: "1px solid rgba(139, 115, 85, 0.12)",
                 }}
               />
-            </div>
+            </motion.div>
 
-            {/* 4. Envelope Flap (Hinges on top) */}
+            {/* 4. Envelope Flap */}
             <motion.div
               style={{
-                zIndex: stage === "closed" ? 30 : 5,
+                zIndex: stage === "closed" || stage === "pulsing" || stage === "releasing" ? 30 : 5,
                 transformOrigin: "top center",
                 perspective: 1000,
               }}
-              animate={stage === "closed" ? { rotateX: 0 } : { rotateX: -180 }}
-              transition={{ duration: 0.6, ease: "easeInOut" }}
+              animate={open ? { rotateX: -180, opacity: 0 } : { rotateX: 0, opacity: 1 }}
+              transition={{ 
+                rotateX: { duration: 0.6, ease: "easeInOut" },
+                opacity: { duration: 0.5, delay: open ? 0.8 : 0 }
+              }}
               className="absolute inset-x-0 top-0 h-[55%] pointer-events-none"
             >
-              {/* Closed Flap shape pointing down */}
               <div 
                 className="w-full h-full"
                 style={{
@@ -3556,11 +4083,36 @@ function LetterScene({
                 }}
               />
 
-              {/* Gold Wax Seal (Only visible when closed, hinges with flap) */}
-              {stage === "closed" && (
+              {/* Gold Wax Seal (Visible when closed/pulsing/releasing) */}
+              {(stage === "closed" || stage === "pulsing" || stage === "releasing") && (
                 <div className="absolute left-1/2 bottom-0 -translate-x-1/2 translate-y-1/2 pointer-events-auto">
-                  <button
-                    onClick={() => setOpen(true)}
+                  <motion.button
+                    onClick={handleOpenEnvelope}
+                    animate={
+                      stage === "closed"
+                        ? { 
+                            scale: [1, 1.06, 1], 
+                            boxShadow: [
+                              "0 4px 10px rgba(0,0,0,0.3), 0 0 10px rgba(185,28,28,0.25)",
+                              "0 4px 12px rgba(0,0,0,0.35), 0 0 20px rgba(185,28,28,0.55), 0 0 10px rgba(217,168,94,0.3)",
+                              "0 4px 10px rgba(0,0,0,0.3), 0 0 10px rgba(185,28,28,0.25)"
+                            ] 
+                          }
+                        : stage === "pulsing"
+                        ? { scale: [1, 1.12, 1], boxShadow: "0 0 25px rgba(185,28,28,0.8)" }
+                        : stage === "releasing"
+                        ? { scale: 0, opacity: 0, filter: "brightness(1.5)" }
+                        : { scale: 1 }
+                    }
+                    transition={
+                      stage === "closed"
+                        ? { repeat: Infinity, duration: 2.2, ease: "easeInOut" }
+                        : stage === "pulsing"
+                        ? { repeat: Infinity, duration: 0.6 }
+                        : stage === "releasing"
+                        ? { duration: 0.5, ease: "easeOut" }
+                        : { duration: 0.2 }
+                    }
                     className="w-12 h-12 rounded-full flex items-center justify-center shadow-lg border border-rose-800/40 relative cursor-pointer hover:scale-105 active:scale-95 transition-transform"
                     style={{
                       background: "radial-gradient(circle at 35% 35%, #b91c1c 0%, #881337 70%, #4c0519 100%)",
@@ -3569,28 +4121,29 @@ function LetterScene({
                     aria-label="Open envelope"
                   >
                     <Heart className="w-5 h-5 fill-rose-100/90 text-rose-100/90 filter drop-shadow-[0_1px_1px_rgba(0,0,0,0.4)]" />
-                  </button>
+                  </motion.button>
                 </div>
               )}
             </motion.div>
-
-            {/* Tap cue for closed state */}
-            {stage === "closed" && (
-              <div className="absolute -bottom-12 w-full text-center pointer-events-none animate-pulse">
-                <span className="font-serif text-sm italic text-gold/80">Tap wax seal to open</span>
-              </div>
-            )}
           </div>
         </div>
 
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row z-30">
-          {cameFromGifts && (
-            <GlassButton onClick={onBack}>
-              <ChevronLeft size={16} className="mr-1 inline" /> Back to Gifts
-            </GlassButton>
-          )}
-          <PrimaryButton onClick={onContinue}>Continue →</PrimaryButton>
-        </div>
+        {/* Action Buttons: Visible only after typing is finished */}
+        {letterFinished && (
+          <motion.div 
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="mt-8 flex flex-col gap-3 sm:flex-row z-30"
+          >
+            {cameFromGifts && (
+              <GlassButton onClick={onBack}>
+                <ChevronLeft size={16} className="mr-1 inline" /> Back to Gifts
+              </GlassButton>
+            )}
+            <PrimaryButton onClick={onContinue}>Continue →</PrimaryButton>
+          </motion.div>
+        )}
       </div>
     </div>
   );
@@ -3666,7 +4219,7 @@ function MemoriesScene({
 
       <div className="relative z-10 flex min-h-full flex-1 flex-col items-center overflow-y-auto p-6 py-16">
         <h2 className="font-serif text-3xl font-semibold sm:text-5xl gradient-text glow-gold mt-6">
-          {partnerName} & Me
+          Mine & Me
         </h2>
         <p className="mt-2 text-white/70 text-sm">Tap a Polaroid to relive the moment</p>
 
@@ -3704,12 +4257,12 @@ function MemoriesScene({
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm"
           >
             <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              transition={{ type: "spring", damping: 25, stiffness: 180 }}
+              initial={{ opacity: 0, scale: 0.95, rotateY: 15, y: 15 }}
+              animate={{ opacity: 1, scale: 1, rotateY: 0, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-sm sm:max-w-md border border-[#d9a85e]/30 shadow-[0_24px_60px_rgba(0,0,0,0.6)] rounded-2xl p-0.5 overflow-hidden bg-gradient-to-br from-[#d9a85e]/30 via-[#fb7185]/10 to-[#d9a85e]/20"
+              className="relative w-full max-w-sm sm:max-w-md border border-[#d9a85e]/30 shadow-[0_25px_60px_rgba(0,0,0,0.65),_0_0_35px_rgba(217,168,94,0.18)] rounded-2xl p-0.5 overflow-hidden bg-gradient-to-br from-[#d9a85e]/30 via-[#fb7185]/10 to-[#d9a85e]/20"
             >
               <div className="paper-texture relative rounded-[14px] p-5 pb-6 bg-[#fdfbf7] flex flex-col justify-between h-full min-h-[460px]">
                 {/* Close Button */}
@@ -4041,6 +4594,155 @@ function VoiceScene({
 /* Scene 14 — Wish Tree                                               */
 /* ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ */
+/* Scene 14 — Wish Tree                                               */
+/* ------------------------------------------------------------------ */
+
+function WishTreePopupCard({ 
+  text, 
+  onClose 
+}: { 
+  text: string; 
+  onClose: () => void; 
+}) {
+  const [isFlipped, setIsFlipped] = useState(false);
+  const [showSparkles, setShowSparkles] = useState(false);
+
+  useEffect(() => {
+    const tFlip = setTimeout(() => {
+      setIsFlipped(true);
+    }, 600);
+
+    const tSparkles = setTimeout(() => {
+      setShowSparkles(true);
+    }, 1100);
+
+    return () => {
+      clearTimeout(tFlip);
+      clearTimeout(tSparkles);
+    };
+  }, []);
+
+  return (
+    <div 
+      className="relative w-full max-w-sm h-[400px] perspective-1000"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <motion.div
+        animate={{
+          rotateY: isFlipped ? 180 : 0,
+          y: isFlipped ? -5 : 0,
+          boxShadow: isFlipped 
+            ? "0 25px 55px rgba(217,168,94,0.35), 0 0 35px rgba(244,63,94,0.25)" 
+            : "0 15px 35px rgba(0,0,0,0.4)"
+        }}
+        transition={{ duration: 0.85, ease: [0.34, 1.56, 0.64, 1] }}
+        className="w-full h-full preserve-3d relative cursor-pointer"
+        onClick={() => setIsFlipped(!isFlipped)}
+      >
+        {/* FRONT FACE (Closed Card Cover) */}
+        <div 
+          className="absolute inset-0 rounded-2xl p-6 flex flex-col items-center justify-between text-center backface-hidden border border-gold/25 shadow-[0_15px_35px_rgba(0,0,0,0.5)] bg-[#fdfbf7]"
+          style={{
+            boxShadow: "0 15px 35px rgba(0,0,0,0.5), inset 0 0 25px rgba(217,168,94,0.06)"
+          }}
+        >
+          <div className="absolute inset-3 border border-[#d9a85e]/30 rounded-lg pointer-events-none" />
+          
+          <div className="w-full flex justify-between items-center opacity-40">
+            <Sparkles className="h-4 w-4 text-gold" />
+            <span className="text-[9px] uppercase tracking-widest text-amber-950 font-serif">A Wish For You</span>
+            <Sparkles className="h-4 w-4 text-gold" />
+          </div>
+
+          <div className="flex flex-col items-center gap-3">
+            <motion.div 
+              animate={{ scale: [1, 1.05, 1] }}
+              transition={{ repeat: Infinity, duration: 2.2, ease: "easeInOut" }}
+              className="w-16 h-16 rounded-full flex items-center justify-center border border-rose-800/40 relative shadow-[0_4px_10px_rgba(185,28,28,0.2)]"
+              style={{
+                background: "radial-gradient(circle at 35% 35%, #b91c1c 0%, #881337 70%, #4c0519 100%)",
+              }}
+            >
+              <Heart className="w-6 h-6 fill-rose-100/90 text-rose-100/90" />
+            </motion.div>
+            <h3 className="font-serif text-xl font-bold text-amber-950 mt-2">
+              Open My Wish
+            </h3>
+          </div>
+
+          <span className="text-[10px] uppercase tracking-widest text-amber-900/60 font-serif mb-1">
+            Tap to Flip Open ♥
+          </span>
+        </div>
+
+        {/* BACK FACE (Opened Card Content) */}
+        <div 
+          className="absolute inset-0 rounded-2xl p-7 flex flex-col justify-between text-center backface-hidden rotate-y-180 border border-gold/40 bg-[#fdfbf7] overflow-hidden"
+          style={{
+            boxShadow: "0 20px 45px rgba(217,168,94,0.18), inset 0 0 35px rgba(217,168,94,0.08)"
+          }}
+        >
+          <div className="absolute inset-3 border border-[#d9a85e]/30 rounded-lg pointer-events-none" />
+          <div className="absolute inset-[16px] border-[0.5px] border-dashed border-[#d9a85e]/15 rounded-lg pointer-events-none" />
+
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(253,230,138,0.18),_transparent_70%)] pointer-events-none" />
+
+          {showSparkles && Array.from({ length: 8 }).map((_, idx) => (
+            <motion.div
+              key={idx}
+              initial={{ opacity: 0, y: 30, scale: 0.5 }}
+              animate={{ opacity: [0, 0.8, 0], y: -80, scale: [0.5, 1.2, 0.5] }}
+              transition={{ repeat: Infinity, duration: 2.0 + idx * 0.3, ease: "easeOut" }}
+              className={cn("absolute h-1.5 w-1.5 rounded-full", idx % 2 === 0 ? "bg-[#d9a85e]" : "bg-[#fb7185]")}
+              style={{
+                left: `${15 + ((idx * 93) % 70)}%`,
+                bottom: "20%",
+                boxShadow: idx % 2 === 0 ? "0 0 8px #d9a85e" : "0 0 8px #fb7185"
+              }}
+            />
+          ))}
+
+          <div className="relative z-10 flex justify-between items-center opacity-40">
+            <span className="text-[8px] tracking-[0.2em] font-serif text-amber-950 uppercase">Hanging Wish</span>
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
+              className="p-1 rounded-full hover:bg-amber-900/5 text-amber-950 transition-colors"
+            >
+              <X size={14} />
+            </button>
+          </div>
+
+          <div className="relative z-10 my-auto py-2 flex flex-col items-center">
+            <div className="absolute w-44 h-44 rounded-full bg-gold/5 blur-2xl -z-10" />
+            <p className="font-serif italic text-lg sm:text-xl text-amber-950 leading-relaxed font-bold px-2 select-text">
+              &quot;{text}&quot;
+            </p>
+          </div>
+
+          <div className="relative z-10 flex flex-col items-center gap-2">
+            <span className="text-[8px] uppercase tracking-widest text-amber-900/40 font-serif">
+              Tap to close
+            </span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
+              className="rounded-full px-5 py-1.5 text-[9px] font-bold uppercase tracking-wider text-amber-950 border border-gold/40 bg-gold/5 hover:bg-gold/15 active:scale-95 transition-all"
+            >
+              Close Wish ♥
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 function WishTreeScene({ onContinue }: { onContinue: () => void }) {
   const [active, setActive] = useState<{ text: string; id: number } | null>(null);
   const [discovered, setDiscovered] = useState<number[]>([]);
@@ -4138,33 +4840,13 @@ function WishTreeScene({ onContinue }: { onContinue: () => void }) {
         <AnimatePresence>
           {active && (
             <motion.div
-              initial={{ opacity: 0, y: 20, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 20, scale: 0.95 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               onClick={close}
               className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-6 backdrop-blur-md"
             >
-              <motion.div
-                onClick={(e) => e.stopPropagation()}
-                className="max-w-sm w-full rounded-2xl parchment-container border border-amber-900/20 p-8 shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative overflow-hidden text-center"
-              >
-                {/* Decorative border on pop-up */}
-                <div className="parchment-border" />
-                <div className="parchment-corner top-3 left-3 border-t border-l border-amber-900/25" />
-                <div className="parchment-corner top-3 right-3 border-t border-r border-amber-900/25" />
-                <div className="parchment-corner bottom-3 left-3 border-b border-l border-amber-900/25" />
-                <div className="parchment-corner bottom-3 right-3 border-b border-r border-amber-900/25" />
-
-                <div className="relative z-10 pt-2">
-                  <p className="font-script text-2xl font-bold text-amber-950 leading-relaxed">&quot;{active.text}&quot;</p>
-                  <button
-                    onClick={close}
-                    className="btn-glass mx-auto mt-6 block rounded-full px-6 py-2 text-xs font-semibold uppercase tracking-wider text-amber-900 border border-amber-900/20 bg-amber-900/5 hover:bg-amber-900/10 cursor-pointer"
-                  >
-                    Close
-                  </button>
-                </div>
-              </motion.div>
+              <WishTreePopupCard text={active.text} onClose={close} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -4195,56 +4877,18 @@ function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const milestones = [
-    {
-      index: "01",
-      label: "First Chat",
-      date: "Where it all began",
-      description: "A simple message turned into the most beautiful conversation of my life.",
-      image: memories[0].image,
-      rotate: -3,
-    },
-    {
-      index: "02",
-      label: "First Call",
-      date: "The night flew by",
-      description: "Hearing your voice made everything feel right in the world.",
-      image: memories[1].image,
-      rotate: 3,
-    },
-    {
-      index: "03",
-      label: "First Meet",
-      date: "A moment frozen in time",
-      description: "The world blurred and all I saw was you.",
-      image: memories[2].image,
-      rotate: -4,
-    },
-    {
-      index: "04",
-      label: "First Trip",
-      date: "Wandering together",
-      description: "Every road led to more laughter, more stories, and more love.",
-      image: memories[3].image,
-      rotate: 4,
-    },
-    {
-      index: "05",
-      label: "Many More",
-      date: "Our journey continues",
-      description: "I cannot wait to write a thousand more chapters with you.",
-      image: memories[4].image,
-      rotate: -2,
-    },
-  ];
+  const milestones = stories;
 
   // Dynamic backgrounds corresponding to the active index
   const atmospheres = [
-    "bg-[#14080e] bg-[radial-gradient(circle_at_center,rgba(212,134,154,0.15),transparent_75%)]", // Rose/candle
-    "bg-[#0e0c1a] bg-[radial-gradient(circle_at_center,rgba(217,168,94,0.15),transparent_75%)]",  // Amber/night
-    "bg-[#1c140a] bg-[radial-gradient(circle_at_center,rgba(243,203,180,0.18),transparent_75%)]", // Golden bokeh
-    "bg-[#07091a] bg-[radial-gradient(circle_at_center,rgba(134,147,204,0.15),transparent_75%)]", // Deep/lantern sky
-    "bg-[#1f1112] bg-[radial-gradient(circle_at_center,rgba(217,168,94,0.22),transparent_75%)]",  // Sunrise gold
+    "bg-[#14080e] bg-[radial-gradient(circle_at_center,rgba(212,134,154,0.15),transparent_75%)]", // 1
+    "bg-[#0e0c1a] bg-[radial-gradient(circle_at_center,rgba(217,168,94,0.15),transparent_75%)]",  // 2
+    "bg-[#1c140a] bg-[radial-gradient(circle_at_center,rgba(243,203,180,0.18),transparent_75%)]", // 3
+    "bg-[#07091a] bg-[radial-gradient(circle_at_center,rgba(134,147,204,0.15),transparent_75%)]", // 4
+    "bg-[#131a14] bg-[radial-gradient(circle_at_center,rgba(167,243,208,0.15),transparent_75%)]", // 5 (Emerald/Greenish)
+    "bg-[#1c112a] bg-[radial-gradient(circle_at_center,rgba(196,181,253,0.15),transparent_75%)]", // 6 (Lavender/Purple)
+    "bg-[#25101a] bg-[radial-gradient(circle_at_center,rgba(253,164,196,0.15),transparent_75%)]", // 7 (Pink/Rose)
+    "bg-[#1f1112] bg-[radial-gradient(circle_at_center,rgba(217,168,94,0.22),transparent_75%)]",  // 8 (Sunrise gold conclusion)
   ];
 
   // Track the active milestone as the user scrolls
@@ -4340,8 +4984,8 @@ function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
             const isEven = i % 2 === 0;
             const isMarkerActive = activeIndex === i;
 
-            // Render Chapter 5 conclusion custom layout
-            if (item.index === "05") {
+            // Render Chapter 8 conclusion custom layout
+            if (item.index === "08") {
               return (
                 <div 
                   key={item.label}
@@ -4349,7 +4993,7 @@ function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
                   data-index={i}
                   className="w-full flex flex-col items-center text-center py-12 relative min-h-[70vh] justify-center"
                 >
-                  {/* Chapter 05 Title */}
+                  {/* Chapter 08 Title */}
                   <motion.div
                     initial={{ opacity: 0, y: 30 }}
                     whileInView={{ opacity: 1, y: 0 }}
@@ -4378,7 +5022,7 @@ function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
                       transition={{ duration: 1.0, ease: "easeOut" }}
                       className="absolute w-[100px] sm:w-[130px] pointer-events-auto"
                     >
-                      <Polaroid image={memories[0].image} caption="First Chat" rotate={-8} />
+                      <Polaroid image="/story/story 1.png" caption="First Chat" rotate={-8} />
                     </motion.div>
                     
                     {/* Fragment 2 (Top Right) */}
@@ -4389,7 +5033,7 @@ function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
                       transition={{ duration: 1.0, ease: "easeOut" }}
                       className="absolute w-[100px] sm:w-[130px] pointer-events-auto"
                     >
-                      <Polaroid image={memories[1].image} caption="First Call" rotate={10} />
+                      <Polaroid image="/story/story 2.png" caption="First Call" rotate={10} />
                     </motion.div>
 
                     {/* Fragment 3 (Bottom Left) */}
@@ -4400,7 +5044,7 @@ function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
                       transition={{ duration: 1.0, ease: "easeOut", delay: 0.15 }}
                       className="absolute w-[100px] sm:w-[130px] pointer-events-auto"
                     >
-                      <Polaroid image={memories[2].image} caption="First Meet" rotate={-4} />
+                      <Polaroid image="/story/stoty 3.png" caption="First Meet" rotate={-4} />
                     </motion.div>
 
                     {/* Fragment 4 (Bottom Right) */}
@@ -4411,7 +5055,7 @@ function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
                       transition={{ duration: 1.0, ease: "easeOut", delay: 0.15 }}
                       className="absolute w-[100px] sm:w-[130px] pointer-events-auto"
                     >
-                      <Polaroid image={memories[3].image} caption="First Trip" rotate={6} />
+                      <Polaroid image="/story/story 4.png" caption="First Trip" rotate={6} />
                     </motion.div>
 
                     {/* Center Main Polaroid */}
@@ -4422,7 +5066,7 @@ function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
                       transition={{ duration: 1.0, ease: "easeOut", delay: 0.3 }}
                       className="absolute w-[115px] sm:w-[150px] z-10 pointer-events-auto"
                     >
-                      <Polaroid image={memories[4].image} caption="Our Future" rotate={2} />
+                      <Polaroid image="/story/story 7.png" caption="Our Future" rotate={2} />
                     </motion.div>
                   </div>
 
@@ -4723,7 +5367,275 @@ function HiddenSurpriseScene({ onContinue }: { onContinue: () => void }) {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Scene 16 — Special Video                                           */
+/* ------------------------------------------------------------------ */
 
+function SpecialVideoScene({
+  onContinue,
+  audio,
+}: {
+  onContinue: () => void;
+  audio: any;
+}) {
+  const [phase, setPhase] = useState<
+    "intro-text-1" | "intro-text-2" | "video-reveal" | "video-playing" | "video-ended" | "outro-text-1" | "outro-text-2"
+  >("intro-text-1");
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Timers for the intro text sequences
+  useEffect(() => {
+    const timer1 = setTimeout(() => {
+      setPhase("intro-text-2");
+    }, 3800);
+    return () => clearTimeout(timer1);
+  }, []);
+
+  useEffect(() => {
+    if (phase === "intro-text-2") {
+      const timer2 = setTimeout(() => {
+        setPhase("video-reveal");
+      }, 4200);
+      return () => clearTimeout(timer2);
+    }
+  }, [phase]);
+
+  // Timers for the outro text sequences
+  useEffect(() => {
+    if (phase === "outro-text-1") {
+      const timer3 = setTimeout(() => {
+        setPhase("outro-text-2");
+      }, 3500);
+      return () => clearTimeout(timer3);
+    }
+  }, [phase]);
+
+  // Handle audio integration
+  useEffect(() => {
+    const wasAmbientPlaying = audio.enabled;
+    const wasMusicPlaying = audio.isPlayingVoice;
+    
+    if (wasAmbientPlaying) {
+      audio.stopAmbient();
+    }
+    if (wasMusicPlaying) {
+      audio.pause();
+    }
+    
+    return () => {
+      if (wasAmbientPlaying) {
+        audio.startAmbient();
+      }
+      if (wasMusicPlaying) {
+        audio.play();
+      }
+    };
+  }, [audio]);
+
+  // Autoplay handler when video is revealed
+  useEffect(() => {
+    if (phase === "video-reveal") {
+      const video = videoRef.current;
+      if (video) {
+        video.play()
+          .then(() => {
+            setIsPlaying(true);
+            setPhase("video-playing");
+          })
+          .catch((err) => {
+            console.log("Autoplay blocked, attempting muted autoplay", err);
+            video.muted = true;
+            setIsMuted(true);
+            video.play()
+              .then(() => {
+                setIsPlaying(true);
+                setPhase("video-playing");
+              })
+              .catch((mutedErr) => {
+                console.log("Muted autoplay also blocked", mutedErr);
+              });
+          });
+      }
+    }
+  }, [phase]);
+
+  const handlePlay = () => {
+    setIsPlaying(true);
+    if (phase === "video-reveal") {
+      setPhase("video-playing");
+    }
+  };
+
+  const handlePause = () => {
+    setIsPlaying(false);
+  };
+
+  const handleEnded = () => {
+    setIsPlaying(false);
+    setPhase("video-ended");
+    setTimeout(() => {
+      setPhase("outro-text-1");
+    }, 1500);
+  };
+
+  const handleUnmute = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = false;
+      setIsMuted(false);
+    }
+  };
+
+  const isVideoVisible = phase === "video-reveal" || phase === "video-playing" || phase === "video-ended";
+
+  return (
+    <div className="scene-container bg-[#0b0c16]">
+      {/* Dark cinematic background and golden radial gradient */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#0b0c16] via-[#1c0a1a] to-[#0b0c16] opacity-95" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(217,168,94,0.08)_0%,_transparent_75%)] pointer-events-none" />
+      
+      {/* Soft floating golden particles */}
+      <ParticleField density="low" petals={false} dots={true} />
+
+      {/* Main Content Area */}
+      <div className="relative z-10 flex flex-1 flex-col items-center justify-center p-4">
+        
+        {/* Video Player wrapper (always mounted to prevent restarts on state change) */}
+        <div className={cn(
+          "relative flex flex-col items-center justify-center w-full max-w-4xl mx-auto transition-all duration-[1200ms] ease-out",
+          isVideoVisible ? "opacity-100 scale-100 pointer-events-auto" : "opacity-0 scale-95 pointer-events-none absolute"
+        )}>
+          <video
+            ref={videoRef}
+            src={assets.specialVideo}
+            className="w-full max-h-[60vh] aspect-[19/6] object-contain rounded-2xl shadow-[0_0_50px_rgba(217,168,94,0.12),_0_20px_50px_rgba(0,0,0,0.85)] border border-white/5 bg-black"
+            playsInline
+            controls={isVideoVisible && !hasError}
+            onPlay={handlePlay}
+            onPause={handlePause}
+            onEnded={handleEnded}
+            onError={() => setHasError(true)}
+          />
+
+          {/* Cinematic Play overlay when paused */}
+          {!isPlaying && isVideoVisible && !hasError && (
+            <motion.button
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              onClick={() => videoRef.current?.play().catch(e => console.log(e))}
+              className="absolute flex h-20 w-20 items-center justify-center rounded-full bg-[#1b0a1d]/85 border border-gold/30 shadow-[0_0_35px_rgba(217,168,94,0.35)] hover:border-gold/60 cursor-pointer transition-all duration-300 active:scale-95 z-20"
+              aria-label="Play video"
+            >
+              <Play className="h-8 w-8 fill-gold text-gold ml-1 filter drop-shadow-[0_0_8px_rgba(217,168,94,0.6)]" />
+            </motion.button>
+          )}
+
+          {/* Floating Unmute indicator */}
+          {isMuted && isPlaying && isVideoVisible && (
+            <motion.button
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              onClick={handleUnmute}
+              className="absolute bottom-4 right-8 z-30 flex items-center gap-2 rounded-full bg-[#1a0a1d]/90 border border-gold/30 px-4 py-2 text-xs font-medium text-gold shadow-md hover:bg-[#25102a] active:scale-95 transition-all"
+            >
+              <VolumeX size={14} /> Tap to Unmute
+            </motion.button>
+          )}
+
+          {/* Fallback instructions when video has error (i.e. is missing) */}
+          {hasError && isVideoVisible && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-midnight/95 border border-white/5 rounded-2xl shadow-2xl z-20">
+              <Sparkles className="h-10 w-10 text-gold mb-3 animate-pulse" />
+              <h4 className="font-serif text-lg font-semibold text-gold mb-2">Cinematic Video Placeholder</h4>
+              <p className="text-xs text-white/70 max-w-sm mb-5 leading-relaxed">
+                Please place your 19:6 landscape video file at:<br />
+                <code className="bg-white/10 px-1.5 py-0.5 rounded text-[11px] select-all">public/assets/special_video.mp4</code>
+              </p>
+              <PrimaryButton onClick={onContinue} className="text-xs py-2.5 px-6">
+                Skip Video to Final Surprise
+              </PrimaryButton>
+            </div>
+          )}
+        </div>
+
+        {/* Text phases overlay */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-10 p-6 text-center pointer-events-none">
+          <AnimatePresence mode="wait">
+            {phase === "intro-text-1" && (
+              <motion.div
+                key="intro1"
+                initial={{ opacity: 0, y: 15, filter: "blur(6px)" }}
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                exit={{ opacity: 0, y: -12, filter: "blur(6px)" }}
+                transition={{ duration: 1.5, ease: [0.22, 1, 0.36, 1] }}
+                className="max-w-xl"
+              >
+                <h3 className="font-serif text-3xl sm:text-4xl lg:text-5xl text-champagne/90 tracking-wide glow-gold font-light">
+                  Before the final surprise...
+                </h3>
+              </motion.div>
+            )}
+
+            {phase === "intro-text-2" && (
+              <motion.div
+                key="intro2"
+                initial={{ opacity: 0, y: 15, filter: "blur(6px)" }}
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                exit={{ opacity: 0, y: -12, filter: "blur(6px)" }}
+                transition={{ duration: 1.5, ease: [0.22, 1, 0.36, 1] }}
+                className="max-w-xl"
+              >
+                <h3 className="font-script text-4xl sm:text-5xl lg:text-6xl text-gold glow-gold leading-relaxed">
+                  I made something special for you. ♥
+                </h3>
+              </motion.div>
+            )}
+
+            {phase === "outro-text-1" && (
+              <motion.div
+                key="outro1"
+                initial={{ opacity: 0, y: 15, filter: "blur(6px)" }}
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                exit={{ opacity: 0, y: -12, filter: "blur(6px)" }}
+                transition={{ duration: 1.5, ease: [0.22, 1, 0.36, 1] }}
+                className="max-w-xl"
+              >
+                <h3 className="font-script text-4xl sm:text-5xl lg:text-6xl text-gold glow-gold leading-relaxed">
+                  That was just for you. ♥
+                </h3>
+              </motion.div>
+            )}
+
+            {phase === "outro-text-2" && (
+              <motion.div
+                key="outro2"
+                initial={{ opacity: 0, y: 15, filter: "blur(6px)" }}
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                transition={{ duration: 1.5, ease: [0.22, 1, 0.36, 1] }}
+                className="max-w-xl flex flex-col items-center gap-8 pointer-events-auto"
+              >
+                <h3 className="font-serif text-3xl sm:text-4xl lg:text-5xl text-champagne/90 tracking-wide glow-gold font-light">
+                  Ready for the final surprise?
+                </h3>
+                <PrimaryButton 
+                  onClick={onContinue}
+                  className="px-10 py-3.5 text-base tracking-widest bg-gradient-to-r from-gold via-amber-500 to-gold text-midnight border border-gold/40 shadow-[0_0_25px_rgba(217,168,94,0.45)] hover:shadow-[0_0_35px_rgba(217,168,94,0.65)] hover:scale-105 transition-all duration-300"
+                >
+                  Continue ♥
+                </PrimaryButton>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+      </div>
+    </div>
+  );
+}
 
 /* ------------------------------------------------------------------ */
 /* Scene 17 — Final                                                   */
@@ -4754,7 +5666,7 @@ function FinalScene({ onReplay }: { onReplay: () => void }) {
       case 1:
         return (
           <h2 className="leading-tight">
-            <span className="font-script text-5xl sm:text-7xl lg:text-8xl text-gold glow-gold block mb-2">My Love,</span>
+            <span className="font-script text-5xl sm:text-7xl lg:text-8xl text-gold glow-gold block mb-2">Our Journey,</span>
             <span className="font-serif text-3xl sm:text-5xl lg:text-6xl text-white/90">this isn't the end...</span>
           </h2>
         );
@@ -4768,7 +5680,7 @@ function FinalScene({ onReplay }: { onReplay: () => void }) {
         return (
           <h2 className="leading-tight">
             <span className="font-serif text-4xl sm:text-6xl lg:text-7xl text-champagne/90 block">Happy Birthday</span>
-            <span className="font-script text-5xl sm:text-7xl lg:text-8xl text-rose glow-rose block mt-3">My Love ♥</span>
+            <span className="font-script text-5xl sm:text-7xl lg:text-8xl text-rose glow-rose block mt-3">Bindu ♥</span>
           </h2>
         );
       case 4:
