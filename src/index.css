@@ -41,10 +41,10 @@
 html, body, #root {
   height: 100%;
   margin: 0;
-  overflow: hidden;
 }
 
 body {
+  overflow-x: hidden;
   font-family: var(--font-sans);
   background: var(--midnight);
   color: #fff;

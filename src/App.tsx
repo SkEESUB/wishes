@@ -23,6 +23,9 @@ import {
   Compass,
   SkipBack,
   SkipForward,
+  Repeat,
+  BookOpen,
+  ZoomIn,
 } from "lucide-react";
 import assets from "./data/assets";
 import {
@@ -178,8 +181,10 @@ function ParticleField({
     resize();
     window.addEventListener("resize", resize);
 
-    const baseCount = density === "low" ? 24 : density === "medium" ? 48 : 80;
-    const count = Math.min(baseCount, Math.floor((w * h) / 22000));
+    const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+    const mobileMultiplier = isMobile ? 0.45 : 1.0;
+    const baseCount = density === "low" ? 20 : density === "medium" ? 40 : 70;
+    const count = Math.max(8, Math.min(Math.floor(baseCount * mobileMultiplier), Math.floor((w * h) / (isMobile ? 36000 : 22000))));
 
     type P = {
       x: number;
@@ -202,9 +207,9 @@ function ParticleField({
       particles.push({
         x: Math.random() * w,
         y: Math.random() * h,
-        r: isPetal ? Math.random() * 5 + 4 : Math.random() * 2 + 1,
-        vx: (Math.random() - 0.5) * (isPetal ? 0.5 : 0.25),
-        vy: (Math.random() * -0.5) - (isPetal ? 0.25 : 0.08),
+        r: isPetal ? Math.random() * 4 + 3 : Math.random() * 2 + 1,
+        vx: (Math.random() - 0.5) * (isPetal ? 0.4 : 0.2),
+        vy: (Math.random() * -0.4) - (isPetal ? 0.2 : 0.06),
         alpha: Math.random() * 0.5 + 0.2,
         type: isPetal ? "petal" : "dot",
         rot: Math.random() * Math.PI * 2,
@@ -213,36 +218,44 @@ function ParticleField({
       });
     }
 
-    const draw = () => {
-      ctx.clearRect(0, 0, w, h);
-      particles.forEach((p) => {
-        p.x += p.vx;
-        p.y += p.vy;
-        p.rot += p.rotSpeed;
-        if (p.y < -30) {
-          p.y = h + 30;
-          p.x = Math.random() * w;
-        }
-        if (p.x < -30) p.x = w + 30;
-        if (p.x > w + 30) p.x = -30;
+    let isPaused = false;
+    const handleVisibility = () => {
+      isPaused = document.hidden;
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
 
-        ctx.save();
-        ctx.globalAlpha = p.alpha;
-        ctx.translate(p.x, p.y);
-        if (p.type === "petal") {
-          ctx.rotate(p.rot);
-          ctx.fillStyle = p.color;
-          ctx.beginPath();
-          ctx.ellipse(0, 0, p.r, p.r * 0.55, 0, 0, Math.PI * 2);
-          ctx.fill();
-        } else {
-          ctx.fillStyle = p.color;
-          ctx.beginPath();
-          ctx.arc(0, 0, p.r, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.restore();
-      });
+    const draw = () => {
+      if (!isPaused) {
+        ctx.clearRect(0, 0, w, h);
+        particles.forEach((p) => {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.rot += p.rotSpeed;
+          if (p.y < -30) {
+            p.y = h + 30;
+            p.x = Math.random() * w;
+          }
+          if (p.x < -30) p.x = w + 30;
+          if (p.x > w + 30) p.x = -30;
+
+          ctx.save();
+          ctx.globalAlpha = p.alpha;
+          ctx.translate(p.x, p.y);
+          if (p.type === "petal") {
+            ctx.rotate(p.rot);
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, p.r, p.r * 0.55, 0, 0, Math.PI * 2);
+            ctx.fill();
+          } else {
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(0, 0, p.r, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        });
+      }
       raf = requestAnimationFrame(draw);
     };
 
@@ -250,10 +263,11 @@ function ParticleField({
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
+      document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [density, petals, prefersReducedMotion]);
 
-  return <canvas ref={canvasRef} className="petal-canvas" aria-hidden="true" />;
+  return <canvas ref={canvasRef} className="petal-canvas will-change-transform" aria-hidden="true" />;
 }
 
 function PrimaryButton({
@@ -285,7 +299,7 @@ function PrimaryButton({
       }}
       transition={{ type: "spring", stiffness: 400, damping: 25 }}
       className={cn(
-        "btn-primary rounded-full px-8 py-3 font-medium tracking-wide shadow-md transition-shadow duration-300",
+        "btn-primary inline-flex min-h-[48px] items-center justify-center rounded-full px-8 py-3 font-medium tracking-wide shadow-md transition-shadow duration-300",
         className
       )}
     >
@@ -319,7 +333,7 @@ function GlassButton({
         y: 0 
       }}
       transition={{ type: "spring", stiffness: 400, damping: 25 }}
-      className={cn("btn-glass rounded-full px-6 py-2.5 text-sm font-medium shadow-sm transition-shadow duration-300", className)}
+      className={cn("btn-glass inline-flex min-h-[44px] items-center justify-center rounded-full px-6 py-2.5 text-sm font-medium shadow-sm transition-shadow duration-300", className)}
     >
       {children}
     </motion.button>
@@ -595,10 +609,28 @@ function useAudioEngine() {
     setIsPlayingSynth(false);
   }, []);
 
+  const [isLooping, setIsLooping] = useState(false);
+  const toggleLoop = useCallback(() => {
+    setIsLooping((prev) => {
+      const next = !prev;
+      if (audioElRef.current) {
+        audioElRef.current.loop = next;
+      }
+      return next;
+    });
+  }, []);
+
   // --- HTML5 AUDIO PLAYBACK ENGINE ---
   useEffect(() => {
     const audio = new Audio();
     audio.volume = volume;
+    audio.loop = isLooping;
+
+    const initialTrack = playlist[currentTrackIndex] || playlist[0];
+    if (initialTrack && initialTrack.src) {
+      audio.src = initialTrack.src;
+      audio.load();
+    }
 
     const onTimeUpdate = () => {
       setAudioCurrentTime(audio.currentTime);
@@ -615,11 +647,13 @@ function useAudioEngine() {
     const onPause = () => setIsPlayingAudio(false);
     
     const onEnded = () => {
-      setIsPlayingAudio(false);
-      setAudioProgress(0);
-      setAudioCurrentTime(0);
-      // Auto-advance next song
-      handleNext();
+      if (!audio.loop) {
+        setIsPlayingAudio(false);
+        setAudioProgress(0);
+        setAudioCurrentTime(0);
+        // Auto-advance next song
+        handleNext();
+      }
     };
 
     const onError = () => {
@@ -649,7 +683,7 @@ function useAudioEngine() {
       audio.removeEventListener("ended", onEnded);
       audio.removeEventListener("error", onError);
     };
-  }, [volume, playSynthMelody]);
+  }, [volume, playSynthMelody, isLooping]);
 
   // Handle switching tracks
   const loadTrack = useCallback((index: number, shouldPlay: boolean) => {
@@ -687,7 +721,15 @@ function useAudioEngine() {
   // Global control interface
   const play = useCallback(() => {
     if (currentTrack.src && !audioError) {
-      audioElRef.current?.play().catch(() => {});
+      if (audioElRef.current) {
+        if (!audioElRef.current.src || !audioElRef.current.src.includes(currentTrack.src)) {
+          audioElRef.current.src = currentTrack.src;
+          audioElRef.current.load();
+        }
+        audioElRef.current.play().catch((err) => {
+          console.warn("Audio play prevented:", err);
+        });
+      }
     } else {
       playSynthMelody(synthCurrentTime || audioCurrentTime);
     }
@@ -752,9 +794,9 @@ function useAudioEngine() {
     startAmbient,
     stopAmbient,
     toggleAmbient,
-    isPlayingVoice: isPlaying, // Keep naming for compatibility inside the rest of App.tsx
-    voiceProgress: progress,    // Keep naming for compatibility
-    voiceDuration: duration,    // Keep naming for compatibility
+    isPlayingVoice: isPlaying,
+    voiceProgress: progress,
+    voiceDuration: duration,
     currentTime,
     currentTrackIndex,
     currentTrack,
@@ -765,11 +807,13 @@ function useAudioEngine() {
     next: handleNext,
     prev: handlePrev,
     seek,
+    isLooping,
+    toggleLoop,
+    loadTrack,
     audioError,
-    // Add compatibility functions if needed
     playVoiceMelody: play,
     pauseVoiceMelody: pause,
-    replayVoiceMelody: () => seek(0)
+    replayVoiceMelody: () => seek(0),
   };
 }
 
@@ -1076,12 +1120,12 @@ export default function App() {
     });
     audio.startAmbient();
     const now = new Date().getTime();
-    if (now >= targetDate.getTime()) {
-      goTo(3); // Auto-unlock to Birthday Reveal!
+    if (targetDate.getTime() - now <= 0 || state.countdownSkipped) {
+      goTo(3);
     } else {
       goTo(1);
     }
-  }, [audio, goTo, targetDate]);
+  }, [audio, goTo, targetDate, state.countdownSkipped]);
 
   const unlockPassword = useCallback(() => {
     setState((s) => {
@@ -1122,7 +1166,6 @@ export default function App() {
       const opened = s.openedGifts.includes(giftId)
         ? s.openedGifts
         : [...s.openedGifts, giftId];
-      // Always return to the Gifts page (Scene 9) so they can see the manual Continue button!
       const next = { ...s, openedGifts: opened, scene: 9 };
       saveState(next);
       return next;
@@ -1161,14 +1204,6 @@ export default function App() {
     audio.stopAmbient();
   }, [audio, state.reducedMotion]);
 
-  // Auto-advance on mount/state load if target date has already passed and the story started
-  useEffect(() => {
-    const now = new Date().getTime();
-    if (now >= targetDate.getTime() && state.started && state.scene < 3) {
-      goTo(3);
-    }
-  }, [state.started, state.scene, targetDate, goTo]);
-
   /* Countdown */
   useEffect(() => {
     const tick = () => {
@@ -1176,7 +1211,6 @@ export default function App() {
       const diff = targetDate.getTime() - now;
       if (diff <= 0) {
         setCountdown({ d: 0, h: 0, m: 0, s: 0 });
-        if (state.scene === 1 || state.scene === 2) goTo(3);
         return;
       }
       const totalSecs = Math.ceil(diff / 1000);
@@ -1317,7 +1351,7 @@ export default function App() {
             else audio.stopAmbient();
             setState((s) => ({ ...s, audioEnabled: next }));
           }}
-          className="glass rounded-full p-2.5 text-white/90 hover:text-white"
+          className="glass rounded-full p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-white/90 hover:text-white"
           aria-label={audio.enabled ? "Mute music" : "Play music"}
         >
           {audio.enabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
@@ -1479,6 +1513,7 @@ function CountdownRunningScene({
 
 function BirthdayRevealScene({ onContinue }: { onContinue: () => void }) {
   const [stage, setStage] = useState(1);
+  const partnerName = birthdayContent.herName;
 
   useEffect(() => {
     const t1 = setTimeout(() => setStage(2), 3500);
@@ -1585,7 +1620,7 @@ function BirthdayRevealScene({ onContinue }: { onContinue: () => void }) {
                 transition={{ delay: 0.8, duration: 1.2 }}
                 className="mt-4 font-script text-5xl text-rose glow-rose sm:text-7xl"
               >
-               Bindu ♥
+                {partnerName} ♥
               </motion.h2>
             </motion.div>
           )}
@@ -1649,7 +1684,7 @@ function BirthdayRevealScene({ onContinue }: { onContinue: () => void }) {
       {stage < 5 && (
         <button
           onClick={skip}
-          className="absolute bottom-6 right-6 z-30 text-xs text-white/40 hover:text-white/80 tracking-widest uppercase transition-colors"
+          className="absolute bottom-6 right-6 z-30 min-h-[44px] min-w-[44px] px-3 py-2 flex items-center justify-center text-xs text-white/40 hover:text-white/80 tracking-widest uppercase transition-colors cursor-pointer"
         >
           Skip Intro
         </button>
@@ -1798,6 +1833,71 @@ function PasswordScene({ onUnlock }: { onUnlock: () => void }) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Animated Sticker Component                                         */
+/* ------------------------------------------------------------------ */
+
+interface AnimatedStickerProps {
+  src: string;
+  alt: string;
+  className?: string;
+  delay?: number;
+  rotate?: number;
+  floatY?: number;
+}
+
+function AnimatedSticker({
+  src,
+  alt,
+  className,
+  delay = 0,
+  rotate = 0,
+  floatY = 8,
+}: AnimatedStickerProps) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.75, y: 15 }}
+      animate={{
+        opacity: 1,
+        scale: 1,
+        y: [0, -floatY, 0],
+        rotate: [rotate - 2, rotate + 2, rotate - 2],
+      }}
+      transition={{
+        opacity: { duration: 0.8, delay },
+        scale: { duration: 0.8, delay, ease: [0.34, 1.56, 0.64, 1] },
+        y: {
+          duration: 3.2 + (delay % 2) * 0.8,
+          repeat: Infinity,
+          repeatType: "reverse",
+          ease: "easeInOut",
+          delay: delay * 0.5,
+        },
+        rotate: {
+          duration: 4.2 + (delay % 2) * 1.2,
+          repeat: Infinity,
+          repeatType: "reverse",
+          ease: "easeInOut",
+          delay: delay * 0.5,
+        },
+      }}
+      whileHover={{ scale: 1.1, rotate: 0 }}
+      whileTap={{ scale: 0.95 }}
+      className={cn(
+        "relative flex items-center justify-center select-none filter drop-shadow-[0_8px_20px_rgba(0,0,0,0.35)] transition-transform duration-300",
+        className
+      )}
+    >
+      <img
+        src={src}
+        alt={alt}
+        className="w-full h-full object-contain pointer-events-none"
+        loading="eager"
+      />
+    </motion.div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Scene 5 — Wishes                                                   */
 /* ------------------------------------------------------------------ */
 
@@ -1816,24 +1916,36 @@ function WishesScene({ onContinue }: { onContinue: () => void }) {
             {birthdayWish.subheading}
           </motion.h2>
 
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9, duration: 1 }} className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
-            {memories.slice(0, 3).map((m, i) => {
-              const birthdayImages = [
-                "/birthday/first chat.png",
-                "/birthday/first call.png",
-                "/birthday/first meet.png"
-              ];
-              return (
-                <Polaroid
-                  key={m.id}
-                  image={birthdayImages[i]}
-                  caption={m.caption}
-                  date={m.date}
-                  rotate={i % 2 === 0 ? -3 : 3}
-                  className="mx-auto max-w-[110px] sm:max-w-[140px]"
-                />
-              );
-            })}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.9, duration: 1 }}
+            className="mt-6 sm:mt-8 flex flex-row items-center justify-center gap-3 sm:gap-8 md:gap-12 w-full px-2 max-w-2xl mx-auto"
+          >
+            <AnimatedSticker
+              src="/assets/stickers/teddy-1.gif"
+              alt="Cute teddy animation blowing love kisses"
+              className="w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 shrink-0"
+              delay={0.2}
+              rotate={-3}
+              floatY={7}
+            />
+            <AnimatedSticker
+              src="/assets/stickers/teddy-2.gif"
+              alt="Cute teddy bears hugging animation"
+              className="w-24 h-24 sm:w-32 sm:h-32 md:w-44 md:h-44 -mt-2 sm:-mt-3 shrink-0"
+              delay={0.4}
+              rotate={2}
+              floatY={10}
+            />
+            <AnimatedSticker
+              src="/assets/stickers/teddy-3.gif"
+              alt="Cute teddy cuddles animation"
+              className="w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 shrink-0"
+              delay={0.6}
+              rotate={4}
+              floatY={8}
+            />
           </motion.div>
 
           <p className="mx-auto mt-6 max-w-xl text-sm sm:text-base md:text-lg leading-relaxed text-white/85 min-h-[5.5rem] px-2 select-text">
@@ -3400,7 +3512,10 @@ function GiftsScene({
   goToGift: (n: number, id: string) => void;
 }) {
   const [opening, setOpening] = useState<string | null>(null);
+  const [mobileRevealed, setMobileRevealed] = useState(() => opened.length > 0);
+  const [burstParticles, setBurstParticles] = useState<{ id: number; x: number; y: number; vx: number; vy: number; color: string; size: number }[]>([]);
 
+  // Scene 10: LetterScene, Scene 11: MemoriesScene, Scene 12: VoiceScene
   const handleExplore = (id: string) => {
     if (id === "letter") goToGift(10, "letter");
     else if (id === "memories") goToGift(11, "memories");
@@ -3411,15 +3526,57 @@ function GiftsScene({
     if (opened.includes(id)) {
       handleExplore(id);
     } else {
-      if (opening !== null) return; // Prevent multiple concurrent opens
+      if (opening !== null) return;
       setOpening(id);
       setTimeout(() => {
         onOpen(id);
         handleExplore(id);
         setOpening(null);
-      }, 1500); // 1.5s opening sequence then transition automatically
+      }, 1500);
     }
   };
+
+  const handleMobileOpenHero = () => {
+    const colors = ["#fbbf24", "#f59e0b", "#ffcbd7", "#ffffff", "#d9a85e"];
+    const newP = Array.from({ length: 30 }).map((_, i) => ({
+      id: i,
+      x: window.innerWidth / 2,
+      y: window.innerHeight / 2,
+      vx: (Math.random() - 0.5) * 10,
+      vy: (Math.random() - 0.5) * 10 - 2,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      size: Math.random() * 4 + 2,
+    }));
+    setBurstParticles(newP);
+    setTimeout(() => {
+      setMobileRevealed(true);
+    }, 450);
+  };
+
+  useEffect(() => {
+    if (burstParticles.length === 0) return;
+    let active = true;
+    let raf = 0;
+    const update = () => {
+      if (!active) return;
+      setBurstParticles((prev) =>
+        prev
+          .map((p) => ({
+            ...p,
+            x: p.x + p.vx,
+            y: p.y + p.vy,
+            vy: p.vy + 0.15,
+          }))
+          .filter((p) => p.y < window.innerHeight && p.x > 0 && p.x < window.innerWidth)
+      );
+      raf = requestAnimationFrame(update);
+    };
+    raf = requestAnimationFrame(update);
+    return () => {
+      active = false;
+      cancelAnimationFrame(raf);
+    };
+  }, [burstParticles.length]);
 
   return (
     <div className="scene-container relative">
@@ -3428,6 +3585,22 @@ function GiftsScene({
       {/* Night Garden Tree atmospheric overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-[#070518]/90 via-[#0d0920]/80 to-[#03020a]/95" />
       <ParticleField density="medium" petals={false} />
+
+      {/* Burst Particles */}
+      {burstParticles.map((p) => (
+        <div
+          key={p.id}
+          className="fixed rounded-full pointer-events-none z-50 transition-opacity duration-700"
+          style={{
+            left: p.x,
+            top: p.y,
+            width: p.size,
+            height: p.size,
+            backgroundColor: p.color,
+            boxShadow: `0 0 10px ${p.color}`,
+          }}
+        />
+      ))}
 
       {/* Hanging String Lights / Fairy Lights on Branches */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none z-10" overflow="visible">
@@ -3445,19 +3618,213 @@ function GiftsScene({
         <circle cx="910" cy="110" r="5" fill="#f59e0b" className="animate-pulse shadow-[0_0_10px_#f59e0b]" style={{ animationDuration: "2.5s" }} />
       </svg>
 
-      <div className="relative z-20 flex min-h-full flex-1 flex-col items-center justify-center overflow-y-auto p-6 py-10 text-center select-none">
-        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}>
+      <div className="relative z-20 flex min-h-full flex-1 flex-col items-center justify-center overflow-y-auto p-4 sm:p-6 py-10 text-center select-none">
+        
+        {/* Header Title */}
+        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="max-w-xl">
           <span className="text-xs uppercase tracking-[0.3em] text-gold font-medium">Gifts Await You</span>
           <h2 className="font-serif text-3xl font-bold mt-2 sm:text-5xl gradient-text glow-gold">
-            You have<br className="sm:hidden" /> 3 special gifts
+            You have 3 special gifts
           </h2>
-          <p className="mt-2 text-white/70 text-sm">
-            Tap a gift box to step inside its special experience.
+          <p className="mt-2 text-white/70 text-xs sm:text-sm">
+            Carefully crafted moments waiting for you to discover.
           </p>
         </motion.div>
 
-        {/* Organically positioned presents sitting under the tree branches */}
-        <div className="relative mt-12 flex w-full max-w-3xl flex-col items-center justify-center gap-10 px-4 sm:flex-row sm:items-end sm:gap-6 sm:mt-16">
+        {/* ======================================================== */}
+        {/* MOBILE VIEW (< 640px)                                    */}
+        {/* ======================================================== */}
+        <div className="w-full max-w-sm mt-8 sm:hidden flex flex-col items-center">
+          {!mobileRevealed && opened.length === 0 ? (
+            /* Hero Central Gift Presentation */
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6 }}
+              className="w-full flex flex-col items-center p-6 rounded-3xl bg-gradient-to-b from-white/10 to-white/[0.02] border border-white/15 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.6)]"
+            >
+              {/* Pulsing Aura Box */}
+              <div className="relative my-6 flex items-center justify-center">
+                <div className="absolute w-28 h-28 rounded-full bg-gold/20 filter blur-xl animate-pulse" />
+                <motion.div
+                  animate={{ y: [-4, 4, -4], rotate: [-1, 1, -1] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                  className="relative z-10 w-24 h-24 rounded-2xl bg-gradient-to-br from-amber-200 via-rose-300 to-rose-500 border border-gold/40 shadow-[0_10px_30px_rgba(217,168,94,0.4)] flex items-center justify-center"
+                >
+                  <Sparkles className="w-10 h-10 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]" />
+                </motion.div>
+              </div>
+
+              <h3 className="font-serif text-xl font-bold text-champagne glow-gold">
+                There's something waiting for you...
+              </h3>
+              <p className="text-xs text-white/60 mt-1.5 mb-6 leading-relaxed">
+                A personal collection of 3 gifts made with love for your special day.
+              </p>
+
+              <button
+                onClick={handleMobileOpenHero}
+                className="w-full min-h-[52px] px-6 rounded-full bg-gradient-to-r from-gold via-amber-300 to-gold text-midnight font-semibold text-sm tracking-wide shadow-[0_0_25px_rgba(217,168,94,0.45)] hover:scale-102 active:scale-98 transition-all cursor-pointer flex items-center justify-center gap-2"
+              >
+                <Sparkles size={16} /> Open Your Gifts
+              </button>
+            </motion.div>
+          ) : (
+            /* 3-Gift Tray with Progress & Badges */
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="w-full flex flex-col gap-3.5"
+            >
+              {/* Progress Indicator */}
+              <div className="px-4 py-2.5 rounded-2xl bg-white/[0.04] border border-white/10 flex flex-col gap-1.5">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-white/60 font-mono">Progress</span>
+                  <span className="text-gold font-semibold">{opened.length} of 3 unlocked</span>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5 h-1.5 w-full">
+                  {[0, 1, 2].map((idx) => (
+                    <div
+                      key={idx}
+                      className={cn(
+                        "rounded-full transition-all duration-500",
+                        idx < opened.length
+                          ? "bg-gradient-to-r from-gold to-amber-300 shadow-[0_0_8px_rgba(217,168,94,0.6)]"
+                          : "bg-white/10"
+                      )}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Gift 1: Letter */}
+              <div
+                onClick={() => handleGiftClick("letter")}
+                className={cn(
+                  "p-3.5 rounded-2xl border text-left flex items-center justify-between gap-3 backdrop-blur-md transition-all cursor-pointer min-h-[64px] active:scale-[0.98]",
+                  opened.includes("letter")
+                    ? "bg-rose-950/25 border-rose-400/30 shadow-[0_4px_20px_rgba(190,24,93,0.15)]"
+                    : "bg-white/[0.03] border-white/10 hover:border-gold/30"
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-rose-500/20 to-rose-700/30 border border-rose-400/30 flex items-center justify-center shrink-0">
+                    <Mail className="w-5 h-5 text-rose-300" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-serif text-sm font-bold text-white">A Letter For You</h4>
+                      <span className={cn(
+                        "text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider font-semibold",
+                        opened.includes("letter")
+                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                          : "bg-gold/20 text-gold border border-gold/30"
+                      )}>
+                        {opened.includes("letter") ? "Opened ✓" : "New Gift ✨"}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-white/50 mt-0.5">Written straight from the heart</p>
+                  </div>
+                </div>
+                <span className="text-xs font-semibold text-gold shrink-0">
+                  {opened.includes("letter") ? "Read →" : "Open →"}
+                </span>
+              </div>
+
+              {/* Gift 2: Memories */}
+              <div
+                onClick={() => handleGiftClick("memories")}
+                className={cn(
+                  "p-3.5 rounded-2xl border text-left flex items-center justify-between gap-3 backdrop-blur-md transition-all cursor-pointer min-h-[64px] active:scale-[0.98]",
+                  opened.includes("memories")
+                    ? "bg-amber-950/25 border-amber-400/30 shadow-[0_4px_20px_rgba(217,168,94,0.15)]"
+                    : "bg-white/[0.03] border-white/10 hover:border-gold/30"
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-700/30 border border-amber-400/30 flex items-center justify-center shrink-0">
+                    <ImageIcon className="w-5 h-5 text-amber-300" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-serif text-sm font-bold text-white">Memories Gallery</h4>
+                      <span className={cn(
+                        "text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider font-semibold",
+                        opened.includes("memories")
+                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                          : "bg-gold/20 text-gold border border-gold/30"
+                      )}>
+                        {opened.includes("memories") ? "Opened ✓" : "New Gift ✨"}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-white/50 mt-0.5">Our favorite moments together</p>
+                  </div>
+                </div>
+                <span className="text-xs font-semibold text-gold shrink-0">
+                  {opened.includes("memories") ? "View →" : "Open →"}
+                </span>
+              </div>
+
+              {/* Gift 3: Voice */}
+              <div
+                onClick={() => handleGiftClick("voice")}
+                className={cn(
+                  "p-3.5 rounded-2xl border text-left flex items-center justify-between gap-3 backdrop-blur-md transition-all cursor-pointer min-h-[64px] active:scale-[0.98]",
+                  opened.includes("voice")
+                    ? "bg-indigo-950/25 border-indigo-400/30 shadow-[0_4px_20px_rgba(99,102,241,0.15)]"
+                    : "bg-white/[0.03] border-white/10 hover:border-gold/30"
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500/20 to-indigo-700/30 border border-indigo-400/30 flex items-center justify-center shrink-0">
+                    <Volume2 className="w-5 h-5 text-indigo-300" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-serif text-sm font-bold text-white">Voice & Melody</h4>
+                      <span className={cn(
+                        "text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider font-semibold",
+                        opened.includes("voice")
+                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                          : "bg-gold/20 text-gold border border-gold/30"
+                      )}>
+                        {opened.includes("voice") ? "Opened ✓" : "New Gift ✨"}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-white/50 mt-0.5">Acoustic songs & melodies</p>
+                  </div>
+                </div>
+                <span className="text-xs font-semibold text-gold shrink-0">
+                  {opened.includes("voice") ? "Play →" : "Open →"}
+                </span>
+              </div>
+
+              {/* Continue button appears once at least 1 gift is opened */}
+              {opened.length >= 1 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-4 flex flex-col items-center gap-1.5"
+                >
+                  <PrimaryButton onClick={onContinue} className="w-full min-h-[48px]">
+                    {opened.length === 3 ? "Continue Journey ♥" : "Continue to Wish Tree →"}
+                  </PrimaryButton>
+                  {opened.length < 3 && (
+                    <span className="text-[11px] text-white/40">
+                      You can return to explore the remaining {3 - opened.length} gift{3 - opened.length > 1 ? "s" : ""}
+                    </span>
+                  )}
+                </motion.div>
+              )}
+            </motion.div>
+          )}
+        </div>
+
+        {/* ======================================================== */}
+        {/* DESKTOP VIEW (>= 640px)                                  */}
+        {/* ======================================================== */}
+        <div className="hidden sm:flex relative mt-12 w-full max-w-3xl flex-col items-center justify-center gap-10 px-4 sm:flex-row sm:items-end sm:gap-6 sm:mt-16">
           {gifts.map((g, i) => {
             const isOpened = opened.includes(g.id);
             const isOpening = opening === g.id;
@@ -3485,19 +3852,26 @@ function GiftsScene({
           })}
         </div>
 
-        {/* Manual Continue Button shown only after all three gifts are opened */}
-        {opened.length === 3 && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 15 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="mt-14 z-30 text-center"
-          >
-            <PrimaryButton onClick={onContinue}>
-              Continue Journey ♥
-            </PrimaryButton>
-          </motion.div>
-        )}
+        {/* Desktop Continue Button shown when at least 1 gift is opened (highlighted when all 3) */}
+        <div className="hidden sm:block">
+          {opened.length >= 1 && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              className="mt-14 z-30 text-center flex flex-col items-center gap-2"
+            >
+              <PrimaryButton onClick={onContinue}>
+                {opened.length === 3 ? "Continue Journey ♥" : "Continue to Wish Tree →"}
+              </PrimaryButton>
+              {opened.length < 3 && (
+                <span className="text-xs text-white/50">
+                  ({opened.length} of 3 opened — you can explore more or continue anytime)
+                </span>
+              )}
+            </motion.div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -3663,7 +4037,7 @@ function HandwritingText({
               With all my love,
             </span>
             <span className="font-script text-2xl font-bold text-rose-800 mt-1 min-h-[2rem]">
-              Yours forever ♥
+              {signature || "Yours forever ♥"}
             </span>
           </motion.div>
         )}
@@ -3837,7 +4211,7 @@ function LetterScene({
         <div className="absolute top-6 left-6 right-6 flex items-center justify-between z-30">
           <button
             onClick={onBack}
-            className="flex h-10 px-4 items-center justify-center rounded-full glass border border-white/10 hover:border-gold/30 hover:scale-105 active:scale-95 text-white/95 text-sm transition-all duration-300 cursor-pointer gap-2"
+            className="flex min-h-[44px] min-w-[44px] px-4 items-center justify-center rounded-full glass border border-white/10 hover:border-gold/30 hover:scale-105 active:scale-95 text-white/95 text-sm transition-all duration-300 cursor-pointer gap-2"
           >
             <ChevronLeft size={16} /> Garden
           </button>
@@ -3845,7 +4219,7 @@ function LetterScene({
             {onPrev && (
               <button
                 onClick={onPrev}
-                className="flex h-10 w-10 items-center justify-center rounded-full glass border border-white/10 hover:border-gold/30 hover:scale-105 active:scale-95 text-white/95 transition-all duration-300 cursor-pointer"
+                className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full glass border border-white/10 hover:border-gold/30 hover:scale-105 active:scale-95 text-white/95 transition-all duration-300 cursor-pointer"
                 aria-label="Previous present"
               >
                 <ArrowLeft size={16} />
@@ -3854,7 +4228,7 @@ function LetterScene({
             {onNext && (
               <button
                 onClick={onNext}
-                className="flex h-10 w-10 items-center justify-center rounded-full glass border border-white/10 hover:border-gold/30 hover:scale-105 active:scale-95 text-white/95 transition-all duration-300 cursor-pointer"
+                className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full glass border border-white/10 hover:border-gold/30 hover:scale-105 active:scale-95 text-white/95 transition-all duration-300 cursor-pointer"
                 aria-label="Next present"
               >
                 <ArrowRight size={16} />
@@ -3864,173 +4238,36 @@ function LetterScene({
         </div>
       )}
 
-      <div className="relative z-10 flex min-h-full flex-1 flex-col items-center justify-center overflow-y-auto p-6 py-12 text-center">
+      <div className="relative z-10 flex min-h-full flex-1 flex-col items-center justify-center p-4 sm:p-6 py-10 sm:py-12 text-center w-full max-w-3xl mx-auto">
         <motion.h2 
           initial={{ opacity: 0, y: 20 }} 
           animate={{ opacity: 1, y: 0 }} 
-          className="font-serif text-3xl font-semibold sm:text-5xl gradient-text glow-gold mt-6 mb-4"
+          className="font-serif text-2xl sm:text-4xl lg:text-5xl gradient-text glow-gold mb-3 sm:mb-4 shrink-0"
         >
           {letterContent.heading}
         </motion.h2>
 
-        {/* Unified 3D Envelope & Letter Area */}
-        <div className="relative w-full max-w-md h-[400px] flex items-center justify-center perspective-1000 mt-2">
-          {/* Physical Envelope */}
-          <div className="relative w-[310px] h-[210px] sm:w-[360px] sm:h-[240px]">
-            
+        {!open ? (
+          /* Unopened Envelope */
+          <div className="relative w-[310px] h-[210px] sm:w-[360px] sm:h-[240px] my-auto">
             {/* 1. Envelope Back Plate */}
-            <motion.div 
-              animate={open ? { opacity: 0 } : { opacity: 1 }}
-              transition={{ duration: 0.6, delay: open ? 0.8 : 0 }}
+            <div 
               className="absolute inset-0 rounded-lg shadow-xl"
               style={{
                 background: "linear-gradient(135deg, #eaddc6 0%, #dbcbab 100%)",
                 border: "1px solid rgba(139, 115, 85, 0.2)",
-                zIndex: 10,
               }}
             >
-              {/* Pocket interior shadow overlay */}
               <div className="absolute inset-0 bg-black/10 rounded-lg" />
-            </motion.div>
+            </div>
 
-            {/* 2. The Letter Card */}
-            <motion.div
-              style={{
-                zIndex: stage === "closed" || stage === "pulsing" || stage === "releasing" || stage === "flap" ? 15 : 40,
-                transformStyle: "preserve-3d",
-              }}
-              animate={
-                stage === "closed" || stage === "pulsing" || stage === "releasing"
-                  ? { y: 10, scale: 0.95, opacity: 0.5, rotateX: 0 }
-                  : stage === "flap"
-                  ? { y: 10, scale: 0.95, opacity: 1, rotateX: 0 }
-                  : stage === "slide"
-                  ? { y: -190, scale: 0.95, opacity: 1, rotateX: 0 }
-                  : { y: -110, scale: 1.0, opacity: 1, rotateX: 0 }
-              }
-              transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
-              className={cn(
-                "absolute rounded-2xl p-0.5 shadow-[0_25px_60px_rgba(0,0,0,0.5),_0_0_40px_rgba(217,168,94,0.12)] overflow-hidden cursor-pointer left-1/2 -translate-x-1/2 letter-card-container",
-                (stage === "closed" || stage === "pulsing" || stage === "releasing") ? "pointer-events-none" : "pointer-events-auto",
-                (stage === "reveal" || stage === "writing")
-                  ? "w-[94vw] sm:w-[660px] md:w-[720px] h-[520px] sm:h-[580px] md:h-[640px] max-h-[82vh]"
-                  : "w-[92%] h-[195px] sm:h-[225px]"
-              )}
-              onClick={() => {
-                if (!open) handleOpenEnvelope();
-              }}
-            >
-              <div 
-                className="paper-texture relative rounded-[14px] p-6 sm:p-8 bg-[#fdfbf7] flex flex-col h-full border border-amber-900/10 shadow-inner overflow-y-auto"
-                style={{
-                  boxShadow: "inset 0 0 25px rgba(217,168,94,0.06)",
-                }}
-              >
-                {/* Double-gold foil border frame */}
-                <div className="absolute inset-3 border border-[#d9a85e]/35 rounded-lg pointer-events-none" />
-                <div className="absolute inset-[15px] border-[0.5px] border-[#d9a85e]/20 rounded-lg pointer-events-none shadow-[0_0_8px_rgba(217,168,94,0.1)]" />
+            {/* Letter peek inside */}
+            <div className="absolute inset-x-4 top-2 h-16 bg-[#fdfbf7] rounded-t border border-amber-900/10 shadow-inner" />
 
-                {/* SVG Corner Flourishes */}
-                <div className="absolute top-2.5 left-2.5 pointer-events-none text-gold/40">
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="M 6,18 L 6,6 L 18,6" />
-                  </svg>
-                </div>
-                <div className="absolute top-2.5 right-2.5 rotate-90 pointer-events-none text-gold/40">
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="M 6,18 L 6,6 L 18,6" />
-                  </svg>
-                </div>
-                <div className="absolute bottom-2.5 left-2.5 -rotate-90 pointer-events-none text-gold/40">
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="M 6,18 L 6,6 L 18,6" />
-                  </svg>
-                </div>
-                <div className="absolute bottom-2.5 right-2.5 rotate-180 pointer-events-none text-gold/40">
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path d="M 6,18 L 6,6 L 18,6" />
-                  </svg>
-                </div>
-
-                {/* Text Content Area */}
-                {((stage === "reveal" && state.letterAnimated) || stage === "writing") && (
-                  <HandwritingText
-                    paragraphs={letterContent.paragraphs}
-                    greeting={letterContent.greeting}
-                    signature={letterContent.signature}
-                    alreadyAnimated={state.letterAnimated}
-                    onComplete={() => {
-                      setLetterFinished(true);
-                      if (!state.letterAnimated) {
-                        setState((s) => {
-                          const next = { ...s, letterAnimated: true };
-                          saveState(next);
-                          return next;
-                        });
-                      }
-                    }}
-                  />
-                )}
-
-                {/* Stamp Particles */}
-                {stampParticles.map((p) => (
-                  <div
-                    key={p.id}
-                    className="absolute rounded-full pointer-events-none z-30"
-                    style={{
-                      left: p.x,
-                      top: p.y,
-                      width: p.size,
-                      height: p.size,
-                      backgroundColor: p.color,
-                      opacity: 0.8
-                    }}
-                  />
-                ))}
-
-                {/* Wax Seal Stamp (inside letter as decorative element when complete) */}
-                {letterFinished && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.8, rotate: -25 }}
-                    animate={{ 
-                      opacity: 1, 
-                      scale: 1, 
-                      rotate: -8,
-                      boxShadow: [
-                        "0 4px 8px rgba(0,0,0,0.3)",
-                        "0 0 25px rgba(185, 28, 28, 0.75), 0 0 15px rgba(217, 168, 94, 0.6)",
-                        "0 4px 8px rgba(0,0,0,0.3)"
-                      ]
-                    }}
-                    transition={{ 
-                      delay: 0.8,
-                      duration: 0.6,
-                      ease: [0.34, 1.56, 0.64, 1]
-                    }}
-                    onAnimationComplete={spawnStampParticles}
-                    className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 pointer-events-none z-30"
-                  >
-                    <div
-                       className="w-11 h-11 rounded-full flex items-center justify-center shadow-md border border-rose-800/40 relative shadow-[0_0_15px_rgba(185,28,28,0.4)]"
-                      style={{
-                        background: "radial-gradient(circle at 35% 35%, #b91c1c 0%, #881337 70%, #4c0519 100%)",
-                        boxShadow: "0 4px 8px rgba(0,0,0,0.3), inset 0 2px 3px rgba(255,255,255,0.25)"
-                      }}
-                    >
-                      <Heart className="w-3 h-3 fill-rose-100/90 text-rose-100/90 filter drop-shadow-[0_1px_1px_rgba(0,0,0,0.4)]" />
-                    </div>
-                  </motion.div>
-                )}
-              </div>
-            </motion.div>
-
-            {/* 3. Envelope Front Side flaps */}
-            <motion.div
-              animate={open ? { opacity: 0 } : { opacity: 1 }}
-              transition={{ duration: 0.6, delay: open ? 0.8 : 0 }}
+            {/* 2. Envelope Front Flaps */}
+            <div 
               className="absolute inset-0 pointer-events-none"
               style={{
-                zIndex: 20,
                 background: "linear-gradient(135deg, transparent 40%, rgba(0,0,0,0.05) 50%, transparent 60%)",
               }}
             >
@@ -4058,22 +4295,10 @@ function LetterScene({
                   borderLeft: "1px solid rgba(139, 115, 85, 0.12)",
                 }}
               />
-            </motion.div>
+            </div>
 
-            {/* 4. Envelope Flap */}
-            <motion.div
-              style={{
-                zIndex: stage === "closed" || stage === "pulsing" || stage === "releasing" ? 30 : 5,
-                transformOrigin: "top center",
-                perspective: 1000,
-              }}
-              animate={open ? { rotateX: -180, opacity: 0 } : { rotateX: 0, opacity: 1 }}
-              transition={{ 
-                rotateX: { duration: 0.6, ease: "easeInOut" },
-                opacity: { duration: 0.5, delay: open ? 0.8 : 0 }
-              }}
-              className="absolute inset-x-0 top-0 h-[55%] pointer-events-none"
-            >
+            {/* 3. Top Flap with Wax Seal */}
+            <div className="absolute inset-x-0 top-0 h-[55%] pointer-events-none">
               <div 
                 className="w-full h-full"
                 style={{
@@ -4082,66 +4307,139 @@ function LetterScene({
                   filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))",
                 }}
               />
+              <div className="absolute left-1/2 bottom-0 -translate-x-1/2 translate-y-1/2 pointer-events-auto">
+                <motion.button
+                  onClick={handleOpenEnvelope}
+                  animate={{ 
+                    scale: [1, 1.08, 1], 
+                    boxShadow: [
+                      "0 4px 10px rgba(0,0,0,0.3), 0 0 10px rgba(185,28,28,0.25)",
+                      "0 4px 14px rgba(0,0,0,0.35), 0 0 25px rgba(185,28,28,0.6), 0 0 12px rgba(217,168,94,0.3)",
+                      "0 4px 10px rgba(0,0,0,0.3), 0 0 10px rgba(185,28,28,0.25)"
+                    ] 
+                  }}
+                  transition={{ repeat: Infinity, duration: 2.2, ease: "easeInOut" }}
+                  className="w-13 h-13 rounded-full flex items-center justify-center shadow-lg border border-rose-800/40 relative cursor-pointer hover:scale-110 active:scale-95 transition-transform"
+                  style={{
+                    background: "radial-gradient(circle at 35% 35%, #b91c1c 0%, #881337 70%, #4c0519 100%)",
+                    boxShadow: "0 4px 10px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.25)"
+                  }}
+                  aria-label="Open envelope"
+                >
+                  <Heart className="w-5 h-5 fill-rose-100/90 text-rose-100/90 filter drop-shadow-[0_1px_1px_rgba(0,0,0,0.4)]" />
+                </motion.button>
+              </div>
+            </div>
+            
+            <p className="absolute -bottom-10 inset-x-0 text-center text-xs sm:text-sm text-champagne/70 font-serif italic">
+              Tap the seal to open ♥
+            </p>
+          </div>
+        ) : (
+          /* Opened Letter Card: Flex Column Architecture */
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            className="flex flex-col min-h-0 w-full max-w-2xl h-[74vh] sm:h-[78vh] max-h-[660px] rounded-2xl p-4 sm:p-7 md:p-8 bg-[#fdfbf7] border border-amber-900/15 shadow-[0_25px_60px_rgba(0,0,0,0.5),_0_0_40px_rgba(217,168,94,0.12)] relative paper-texture letter-card-container overflow-hidden"
+          >
+            {/* Double-gold foil border frame */}
+            <div className="absolute inset-2.5 sm:inset-3 border border-[#d9a85e]/35 rounded-lg pointer-events-none" />
+            <div className="absolute inset-[11px] sm:inset-[15px] border-[0.5px] border-[#d9a85e]/20 rounded-lg pointer-events-none shadow-[0_0_8px_rgba(217,168,94,0.1)]" />
 
-              {/* Gold Wax Seal (Visible when closed/pulsing/releasing) */}
-              {(stage === "closed" || stage === "pulsing" || stage === "releasing") && (
-                <div className="absolute left-1/2 bottom-0 -translate-x-1/2 translate-y-1/2 pointer-events-auto">
-                  <motion.button
-                    onClick={handleOpenEnvelope}
-                    animate={
-                      stage === "closed"
-                        ? { 
-                            scale: [1, 1.06, 1], 
-                            boxShadow: [
-                              "0 4px 10px rgba(0,0,0,0.3), 0 0 10px rgba(185,28,28,0.25)",
-                              "0 4px 12px rgba(0,0,0,0.35), 0 0 20px rgba(185,28,28,0.55), 0 0 10px rgba(217,168,94,0.3)",
-                              "0 4px 10px rgba(0,0,0,0.3), 0 0 10px rgba(185,28,28,0.25)"
-                            ] 
-                          }
-                        : stage === "pulsing"
-                        ? { scale: [1, 1.12, 1], boxShadow: "0 0 25px rgba(185,28,28,0.8)" }
-                        : stage === "releasing"
-                        ? { scale: 0, opacity: 0, filter: "brightness(1.5)" }
-                        : { scale: 1 }
-                    }
-                    transition={
-                      stage === "closed"
-                        ? { repeat: Infinity, duration: 2.2, ease: "easeInOut" }
-                        : stage === "pulsing"
-                        ? { repeat: Infinity, duration: 0.6 }
-                        : stage === "releasing"
-                        ? { duration: 0.5, ease: "easeOut" }
-                        : { duration: 0.2 }
-                    }
-                    className="w-12 h-12 rounded-full flex items-center justify-center shadow-lg border border-rose-800/40 relative cursor-pointer hover:scale-105 active:scale-95 transition-transform"
+            {/* Corner flourishes */}
+            <div className="absolute top-2.5 left-2.5 pointer-events-none text-gold/40">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M 6,18 L 6,6 L 18,6" />
+              </svg>
+            </div>
+            <div className="absolute top-2.5 right-2.5 rotate-90 pointer-events-none text-gold/40">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M 6,18 L 6,6 L 18,6" />
+              </svg>
+            </div>
+            <div className="absolute bottom-2.5 left-2.5 -rotate-90 pointer-events-none text-gold/40">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M 6,18 L 6,6 L 18,6" />
+              </svg>
+            </div>
+            <div className="absolute bottom-2.5 right-2.5 rotate-180 pointer-events-none text-gold/40">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M 6,18 L 6,6 L 18,6" />
+              </svg>
+            </div>
+
+            {/* Scrollable Letter Content */}
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-2 sm:pr-4 custom-scrollbar select-text">
+              <HandwritingText
+                paragraphs={letterContent.paragraphs}
+                greeting={letterContent.greeting}
+                signature={letterContent.signature}
+                alreadyAnimated={state.letterAnimated}
+                onComplete={() => {
+                  setLetterFinished(true);
+                  if (!state.letterAnimated) {
+                    setState((s) => {
+                      const next = { ...s, letterAnimated: true };
+                      saveState(next);
+                      return next;
+                    });
+                  }
+                }}
+              />
+            </div>
+
+            {/* Navigation Actions: Flex-Shrink-0, never overlaps text */}
+            <div className="flex-shrink-0 pt-3 sm:pt-4 mt-2 border-t border-amber-900/15 flex items-center justify-between gap-3 relative z-30">
+              <div className="flex items-center gap-2">
+                {cameFromGifts && (
+                  <button
+                    onClick={onBack}
+                    className="px-4 py-2 min-h-[44px] rounded-xl text-xs sm:text-sm font-serif text-amber-900/80 bg-amber-100/70 hover:bg-amber-100 border border-amber-800/20 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  >
+                    <ChevronLeft size={16} /> Back to Gifts
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3">
+                {letterFinished && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8, rotate: -25 }}
+                    animate={{ 
+                      opacity: 1, 
+                      scale: 1, 
+                      rotate: -8,
+                      boxShadow: [
+                        "0 4px 8px rgba(0,0,0,0.3)",
+                        "0 0 25px rgba(185, 28, 28, 0.75), 0 0 15px rgba(217, 168, 94, 0.6)",
+                        "0 4px 8px rgba(0,0,0,0.3)"
+                      ]
+                    }}
+                    transition={{ duration: 0.6, ease: [0.34, 1.56, 0.64, 1] }}
+                    onAnimationComplete={spawnStampParticles}
+                    className="hidden sm:flex w-10 h-10 rounded-full items-center justify-center shadow-md border border-rose-800/40 relative shadow-[0_0_15px_rgba(185,28,28,0.4)]"
                     style={{
                       background: "radial-gradient(circle at 35% 35%, #b91c1c 0%, #881337 70%, #4c0519 100%)",
-                      boxShadow: "0 4px 10px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.25)"
+                      boxShadow: "0 4px 8px rgba(0,0,0,0.3), inset 0 2px 3px rgba(255,255,255,0.25)"
                     }}
-                    aria-label="Open envelope"
                   >
-                    <Heart className="w-5 h-5 fill-rose-100/90 text-rose-100/90 filter drop-shadow-[0_1px_1px_rgba(0,0,0,0.4)]" />
-                  </motion.button>
-                </div>
-              )}
-            </motion.div>
-          </div>
-        </div>
+                    <Heart className="w-3.5 h-3.5 fill-rose-100/90 text-rose-100/90 filter drop-shadow-[0_1px_1px_rgba(0,0,0,0.4)]" />
+                  </motion.div>
+                )}
 
-        {/* Action Buttons: Visible only after typing is finished */}
-        {letterFinished && (
-          <motion.div 
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="mt-8 flex flex-col gap-3 sm:flex-row z-30"
-          >
-            {cameFromGifts && (
-              <GlassButton onClick={onBack}>
-                <ChevronLeft size={16} className="mr-1 inline" /> Back to Gifts
-              </GlassButton>
-            )}
-            <PrimaryButton onClick={onContinue}>Continue →</PrimaryButton>
+                {letterFinished && (
+                  <motion.button
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    onClick={onContinue}
+                    className="px-6 py-2.5 min-h-[44px] rounded-xl text-xs sm:text-sm font-semibold tracking-wide bg-gradient-to-r from-[#d9a85e] to-[#b8862e] text-[#1a0f05] shadow-[0_4px_16px_rgba(217,168,94,0.35)] hover:shadow-[0_6px_22px_rgba(217,168,94,0.5)] hover:scale-105 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    Continue <ArrowRight size={16} />
+                  </motion.button>
+                )}
+              </div>
+            </div>
           </motion.div>
         )}
       </div>
@@ -4191,7 +4489,7 @@ function MemoriesScene({
       <div className="absolute top-6 left-6 right-6 flex items-center justify-between z-30">
         <button
           onClick={onBack}
-          className="flex h-10 px-4 items-center justify-center rounded-full glass border border-white/10 hover:border-gold/30 hover:scale-105 active:scale-95 text-white/95 text-sm transition-all duration-300 cursor-pointer gap-2"
+          className="flex min-h-[44px] min-w-[44px] px-4 items-center justify-center rounded-full glass border border-white/10 hover:border-gold/30 hover:scale-105 active:scale-95 text-white/95 text-sm transition-all duration-300 cursor-pointer gap-2"
         >
           <ChevronLeft size={16} /> Garden
         </button>
@@ -4199,7 +4497,7 @@ function MemoriesScene({
           {onPrev && (
             <button
               onClick={onPrev}
-              className="flex h-10 w-10 items-center justify-center rounded-full glass border border-white/10 hover:border-gold/30 hover:scale-105 active:scale-95 text-white/95 transition-all duration-300 cursor-pointer"
+              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full glass border border-white/10 hover:border-gold/30 hover:scale-105 active:scale-95 text-white/95 transition-all duration-300 cursor-pointer"
               aria-label="Previous present"
             >
               <ArrowLeft size={16} />
@@ -4208,7 +4506,7 @@ function MemoriesScene({
           {onNext && (
             <button
               onClick={onNext}
-              className="flex h-10 w-10 items-center justify-center rounded-full glass border border-white/10 hover:border-gold/30 hover:scale-105 active:scale-95 text-white/95 transition-all duration-300 cursor-pointer"
+              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full glass border border-white/10 hover:border-gold/30 hover:scale-105 active:scale-95 text-white/95 transition-all duration-300 cursor-pointer"
               aria-label="Next present"
             >
               <ArrowRight size={16} />
@@ -4219,7 +4517,7 @@ function MemoriesScene({
 
       <div className="relative z-10 flex min-h-full flex-1 flex-col items-center overflow-y-auto p-6 py-16">
         <h2 className="font-serif text-3xl font-semibold sm:text-5xl gradient-text glow-gold mt-6">
-          Mine & Me
+          {partnerName} & Me
         </h2>
         <p className="mt-2 text-white/70 text-sm">Tap a Polaroid to relive the moment</p>
 
@@ -4268,7 +4566,7 @@ function MemoriesScene({
                 {/* Close Button */}
                 <button
                   onClick={() => setSelected(null)}
-                  className="absolute right-3 top-3 z-30 flex h-8 w-8 items-center justify-center rounded-full bg-white text-slate-800 shadow-md hover:bg-slate-100 transition-colors border border-amber-900/10 cursor-pointer"
+                  className="absolute right-3 top-3 z-30 flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-white text-slate-800 shadow-md hover:bg-slate-100 transition-colors border border-amber-900/10 cursor-pointer"
                   aria-label="Close"
                 >
                   <X size={16} />
@@ -4311,13 +4609,13 @@ function MemoriesScene({
                 <div className="mt-6 flex justify-between gap-4 z-10 px-2">
                   <button
                     onClick={prev}
-                    className="flex-1 py-2 rounded-full text-xs font-medium border border-amber-900/20 text-slate-800 bg-amber-900/5 hover:bg-amber-900/10 hover:border-gold/30 active:scale-97 transition-all cursor-pointer"
+                    className="flex-1 py-2.5 min-h-[44px] rounded-full text-xs font-medium border border-amber-900/20 text-slate-800 bg-amber-900/5 hover:bg-amber-900/10 hover:border-gold/30 active:scale-97 transition-all cursor-pointer"
                   >
                     Previous
                   </button>
                   <button
                     onClick={next}
-                    className="flex-1 py-2 rounded-full text-xs font-medium border border-gold/40 text-gold bg-gold/5 hover:bg-gold/15 active:scale-97 transition-all cursor-pointer"
+                    className="flex-1 py-2.5 min-h-[44px] rounded-full text-xs font-medium border border-gold/40 text-gold bg-gold/5 hover:bg-gold/15 active:scale-97 transition-all cursor-pointer"
                   >
                     Next
                   </button>
@@ -4407,16 +4705,26 @@ function VoiceScene({
 }) {
   useEffect(() => () => audio.pauseVoiceMelody(), [audio]);
 
+  // Scrub progress handler for click & drag
+  const handleSeek = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+    const clickPos = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    audio.seek(clickPos);
+  };
+
   return (
-    <div className="scene-container relative">
-      <BackgroundLayer src={assets.recordPlayer} overlay />
+    <div className="scene-container relative bg-[#130d22] overflow-hidden select-none">
+      {/* Deep atmospheric purple/lavender gradient */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#190e2d] via-[#24133b] to-[#120a21] opacity-95" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(192,132,252,0.15)_0%,_transparent_65%)] pointer-events-none" />
       <ParticleField density="low" petals={true} dots={false} />
-      
+
       {/* Header controls */}
       <div className="absolute top-6 left-6 right-6 flex items-center justify-between z-30">
         <button
           onClick={onBack}
-          className="flex h-10 px-4 items-center justify-center rounded-full glass border border-white/10 hover:border-gold/30 hover:scale-105 active:scale-95 text-white/95 text-sm transition-all duration-300 cursor-pointer gap-2"
+          className="flex min-h-[44px] min-w-[44px] px-4 items-center justify-center rounded-full glass border border-white/10 hover:border-purple-300/40 hover:scale-105 active:scale-95 text-white/95 text-sm transition-all duration-300 cursor-pointer gap-2"
         >
           <ChevronLeft size={16} /> Garden
         </button>
@@ -4424,7 +4732,7 @@ function VoiceScene({
           {onPrev && (
             <button
               onClick={onPrev}
-              className="flex h-10 w-10 items-center justify-center rounded-full glass border border-white/10 hover:border-gold/30 hover:scale-105 active:scale-95 text-white/95 transition-all duration-300 cursor-pointer"
+              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full glass border border-white/10 hover:border-purple-300/40 hover:scale-105 active:scale-95 text-white/95 transition-all duration-300 cursor-pointer"
               aria-label="Previous present"
             >
               <ArrowLeft size={16} />
@@ -4433,7 +4741,7 @@ function VoiceScene({
           {onNext && (
             <button
               onClick={onNext}
-              className="flex h-10 w-10 items-center justify-center rounded-full glass border border-white/10 hover:border-gold/30 hover:scale-105 active:scale-95 text-white/95 transition-all duration-300 cursor-pointer"
+              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full glass border border-white/10 hover:border-purple-300/40 hover:scale-105 active:scale-95 text-white/95 transition-all duration-300 cursor-pointer"
               aria-label="Next present"
             >
               <ArrowRight size={16} />
@@ -4442,138 +4750,222 @@ function VoiceScene({
         </div>
       </div>
 
-      <div className="relative z-10 flex min-h-full flex-1 flex-col items-center justify-center overflow-y-auto p-6 py-12 text-center select-none">
+      <div className="relative z-10 flex min-h-full flex-1 flex-col items-center justify-center overflow-y-auto p-4 sm:p-6 py-12 text-center w-full max-w-5xl mx-auto">
         {/* Title */}
-        <div className="mt-8 mb-8 z-20">
-          <span className="text-xs uppercase tracking-[0.3em] text-gold font-medium">Private Journal</span>
-          <h2 className="font-serif text-3xl font-semibold sm:text-5xl gradient-text glow-gold mt-2">
-            Voice Notes & Melody
+        <div className="mt-6 mb-3 sm:mb-5 z-20">
+          <span className="text-xs uppercase tracking-[0.3em] text-purple-200/80 font-medium">Private Melody</span>
+          <h2 className="font-serif text-2xl sm:text-4xl lg:text-5xl gradient-text glow-gold mt-1">
+            Our Love Soundtrack ♥
           </h2>
         </div>
 
-        {/* Compact Premium Audio Card */}
-        <div className="my-auto w-full max-w-sm rounded-3xl p-0.5 bg-gradient-to-br from-[#d9a85e]/30 via-white/5 to-[#d9a85e]/15 border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] backdrop-blur-xl z-20">
-          <div className="rounded-[22px] bg-[#0c0d19]/95 border border-white/5 p-6 shadow-inner flex flex-col gap-4">
-            
-            {/* Metadata and tag */}
-            <div className="flex justify-between items-center">
-              <span className="px-3 py-1 rounded-full text-[9px] font-semibold tracking-wider uppercase border border-gold/20 text-gold bg-gold/5">
-                {(audio.currentTrack.src && !audio.audioError) ? "Private Recording" : "Synthesizer Fallback"}
-              </span>
-              <span className="text-[10px] text-white/40 font-serif italic">
-                My pandi & Me
-              </span>
+        {/* HERO PURPLE ROMANTIC ARTWORK CONTAINER */}
+        <div className="relative w-full max-w-4xl aspect-[16/9] rounded-2xl sm:rounded-3xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.65),_0_0_40px_rgba(192,132,252,0.2)] border border-purple-300/25 my-auto">
+          {/* Main Visual Artwork Image */}
+          <img
+            src="/assets/images/purple-audio-artwork.jpg"
+            alt="Romantic Couple Purple Artwork"
+            className="w-full h-full object-cover pointer-events-none"
+            loading="eager"
+          />
+
+          {/* ========================================================= */}
+          {/* TRANSPARENT HTML INTERACTIVE OVERLAY CONTROLS            */}
+          {/* Aligned via responsive % coordinates over visual artwork  */}
+          {/* ========================================================= */}
+
+          {/* Real Interactive Progress Bar Overlay */}
+          <div
+            onClick={handleSeek}
+            onTouchStart={handleSeek}
+            className="absolute z-20 cursor-pointer group/progress py-2"
+            style={{
+              left: "63.3%",
+              top: "74.0%",
+              width: "28.5%",
+              transform: "translateY(-50%)",
+            }}
+            title="Click or drag to seek"
+          >
+            {/* Real Progress Fill line that tracks audio playback */}
+            <div className="w-full h-[4px] rounded-full bg-white/10 relative overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-purple-200 via-pink-200 to-amber-200 rounded-full transition-[width] duration-150"
+                style={{ width: `${Math.min(100, Math.max(0, audio.voiceProgress * 100))}%` }}
+              />
             </div>
+            {/* Active glowing scrubber handle */}
+            <div
+              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.9),_0_0_5px_rgba(217,168,94,0.8)] pointer-events-none transition-transform group-hover/progress:scale-125"
+              style={{ left: `${Math.min(100, Math.max(0, audio.voiceProgress * 100))}%` }}
+            />
+          </div>
 
-            {/* Audio load error notification overlay */}
-            {audio.audioError && audio.currentTrack.src !== "" && (
-              <motion.div 
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="px-3 py-2 rounded-xl border border-rose-500/20 bg-rose-500/10 text-rose-300 text-[10px] sm:text-xs flex items-center justify-center gap-2 text-left leading-relaxed"
-              >
-                <svg className="h-4 w-4 shrink-0 text-rose-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="16" x2="12" y2="12" />
-                  <line x1="12" y1="8" x2="12.01" y2="8" />
-                </svg>
-                <span>Audio file not found. Falling back to synthetic melody player.</span>
-              </motion.div>
+          {/* Dynamic Left Timestamp Overlay (Current Time) */}
+          <div
+            className="absolute z-20 pointer-events-none"
+            style={{
+              left: "63.3%",
+              top: "77.2%",
+              transform: "translateY(0%)",
+            }}
+          >
+            <span className="text-[10px] sm:text-xs font-mono font-medium text-white/90 bg-[#836fa9]/80 backdrop-blur-xs px-1.5 py-0.5 rounded shadow-sm">
+              {formatTime(audio.currentTime)}
+            </span>
+          </div>
+
+          {/* Dynamic Right Timestamp Overlay (Total Duration) */}
+          <div
+            className="absolute z-20 pointer-events-none"
+            style={{
+              right: "8.2%",
+              top: "77.2%",
+              transform: "translateY(0%)",
+            }}
+          >
+            <span className="text-[10px] sm:text-xs font-mono font-medium text-white/90 bg-[#836fa9]/80 backdrop-blur-xs px-1.5 py-0.5 rounded shadow-sm">
+              {formatTime(audio.voiceDuration || 180)}
+            </span>
+          </div>
+
+          {/* Previous Song Hotspot */}
+          <button
+            type="button"
+            onClick={audio.prev}
+            className="absolute z-20 rounded-full cursor-pointer flex items-center justify-center transition-all duration-200 hover:bg-white/20 active:scale-90 hover:shadow-[0_0_15px_rgba(255,255,255,0.4)]"
+            style={{
+              left: "70.6%",
+              top: "84.8%",
+              transform: "translate(-50%, -50%)",
+              width: "7.5%",
+              height: "14%",
+              minWidth: "44px",
+              minHeight: "44px",
+              maxWidth: "56px",
+              maxHeight: "56px",
+            }}
+            aria-label="Previous song"
+            title="Previous song"
+          >
+            <span className="sr-only">Previous Song</span>
+          </button>
+
+          {/* Play/Pause Button Hotspot */}
+          <button
+            type="button"
+            onClick={audio.togglePlay}
+            className="absolute z-20 rounded-full cursor-pointer flex items-center justify-center transition-all duration-200 hover:bg-white/20 active:scale-95 hover:shadow-[0_0_25px_rgba(217,168,94,0.6)]"
+            style={{
+              left: "77.5%",
+              top: "84.8%",
+              transform: "translate(-50%, -50%)",
+              width: "9.5%",
+              height: "16%",
+              minWidth: "52px",
+              minHeight: "52px",
+              maxWidth: "68px",
+              maxHeight: "68px",
+            }}
+            aria-label={audio.isPlayingVoice ? "Pause song" : "Play song"}
+            title={audio.isPlayingVoice ? "Pause" : "Play"}
+          >
+            {audio.isPlayingVoice && (
+              <>
+                {/* Subtle soft pulse aura */}
+                <span className="absolute inset-0 rounded-full bg-white/25 animate-ping opacity-60 pointer-events-none" />
+                {/* Semi-transparent elegant pause icon overlay over the artwork's play icon */}
+                <span className="relative flex items-center justify-center bg-purple-950/70 rounded-full p-2 border border-white/30 shadow-md">
+                  <Pause size={18} className="text-white fill-current" />
+                </span>
+              </>
             )}
+            <span className="sr-only">{audio.isPlayingVoice ? "Pause" : "Play"}</span>
+          </button>
 
-            {/* Track Info */}
-            <div className="text-left mt-1">
-              <h3 className="font-serif text-xl font-bold text-champagne glow-gold leading-tight">
+          {/* Next Song Hotspot */}
+          <button
+            type="button"
+            onClick={audio.next}
+            className="absolute z-20 rounded-full cursor-pointer flex items-center justify-center transition-all duration-200 hover:bg-white/20 active:scale-90 hover:shadow-[0_0_15px_rgba(255,255,255,0.4)]"
+            style={{
+              left: "84.4%",
+              top: "84.8%",
+              transform: "translate(-50%, -50%)",
+              width: "7.5%",
+              height: "14%",
+              minWidth: "44px",
+              minHeight: "44px",
+              maxWidth: "56px",
+              maxHeight: "56px",
+            }}
+            aria-label="Next song"
+            title="Next song"
+          >
+            <span className="sr-only">Next Song</span>
+          </button>
+        </div>
+
+        {/* Tactile Track Info & Playlist Switcher Strip */}
+        <div className="mt-4 sm:mt-5 flex flex-wrap items-center justify-between gap-3 w-full max-w-4xl px-2 py-2 rounded-2xl bg-purple-950/50 border border-purple-300/15 backdrop-blur-md">
+          {/* Track title & status */}
+          <div className="flex items-center gap-2 text-left pl-2">
+            <Sparkles className="w-4 h-4 text-gold shrink-0 animate-pulse" />
+            <div>
+              <p className="text-xs sm:text-sm font-serif font-semibold text-champagne leading-tight">
                 {audio.currentTrack.title}
-              </h3>
-              <p className="text-xs text-white/50 mt-1">
+              </p>
+              <p className="text-[10px] text-purple-200/60 font-serif italic">
                 {audio.currentTrack.artist}
               </p>
             </div>
+          </div>
 
-            {/* Real Waveform Visualization */}
-            <div className="py-2 bg-white/[0.02] border border-white/[0.04] rounded-2xl p-2.5 shadow-inner">
-              <WaveformProgress
-                progress={audio.voiceProgress}
-                isPlaying={audio.isPlayingVoice}
-                onSeek={audio.seek}
-              />
-            </div>
-
-            {/* Playback time labels */}
-            <div className="flex justify-between text-[11px] tracking-wider text-white/40 font-mono -mt-1 px-1">
-              <span>{formatTime(audio.currentTime)}</span>
-              <span>{formatTime(audio.voiceDuration)}</span>
-            </div>
-
-            {/* Controls area */}
-            <div className="flex items-center justify-between mt-1 pt-3 border-t border-white/5">
-              
-              {/* Mute Button & Volume Slider Combo */}
-              <div className="flex items-center gap-1.5 group/volume">
+          {/* Playlist track buttons */}
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            {audio.playlist.map((track, idx) => {
+              const isActive = audio.currentTrackIndex === idx;
+              return (
                 <button
-                  onClick={() => audio.setVolume(audio.volume === 0 ? 0.5 : 0)}
-                  className="flex h-9 w-9 items-center justify-center rounded-full text-white/60 hover:text-white hover:bg-white/5 active:scale-95 transition-all cursor-pointer"
-                  aria-label={audio.volume === 0 ? "Unmute" : "Mute"}
-                >
-                  {audio.volume === 0 ? <VolumeX size={17} /> : <Volume2 size={17} />}
-                </button>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.05"
-                  value={audio.volume}
-                  onChange={(e) => audio.setVolume(parseFloat(e.target.value))}
-                  className="w-16 h-1 bg-white/15 rounded-lg appearance-none cursor-pointer accent-gold outline-none transition-all duration-300 opacity-40 group-hover/volume:opacity-100"
-                />
-              </div>
-
-              {/* Main Playback controls */}
-              <div className="flex items-center gap-2.5">
-                <button
-                  onClick={audio.prev}
-                  className="flex h-9 w-9 items-center justify-center rounded-full text-white/60 hover:text-gold hover:bg-white/5 active:scale-95 transition-all cursor-pointer"
-                  aria-label="Previous track"
-                >
-                  <SkipBack size={18} />
-                </button>
-
-                <button
-                  onClick={audio.togglePlay}
-                  className="flex h-11 w-11 items-center justify-center rounded-full bg-gold text-midnight hover:scale-105 hover:bg-gold/90 active:scale-95 transition-all shadow-lg cursor-pointer"
-                  aria-label={audio.isPlayingVoice ? "Pause" : "Play"}
-                >
-                  {audio.isPlayingVoice ? (
-                    <Pause size={18} fill="currentColor" />
-                  ) : (
-                    <Play size={18} fill="currentColor" className="ml-0.5" />
+                  key={idx}
+                  onClick={() => audio.loadTrack(idx, true)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-xl text-xs font-serif transition-all min-h-[36px] flex items-center gap-1.5 cursor-pointer",
+                    isActive
+                      ? "bg-purple-500/30 text-white border border-purple-300/40 shadow-[0_0_10px_rgba(192,132,252,0.3)] font-medium"
+                      : "text-white/60 hover:text-white hover:bg-white/5 border border-transparent"
                   )}
-                </button>
-
-                <button
-                  onClick={audio.next}
-                  className="flex h-9 w-9 items-center justify-center rounded-full text-white/60 hover:text-gold hover:bg-white/5 active:scale-95 transition-all cursor-pointer"
-                  aria-label="Next track"
                 >
-                  <SkipForward size={18} />
+                  <span className="text-[10px] font-mono text-purple-300/70">{idx + 1}</span>
+                  <span className="truncate max-w-[80px] sm:max-w-[120px]">{track.title}</span>
                 </button>
-              </div>
+              );
+            })}
+          </div>
 
-              {/* Restart Button */}
-              <button
-                onClick={audio.replayVoiceMelody}
-                className="flex h-9 w-9 items-center justify-center rounded-full text-white/60 hover:text-white hover:bg-white/5 active:scale-95 transition-all cursor-pointer"
-                aria-label="Restart track"
-              >
-                <RotateCcw size={15} />
-              </button>
-            </div>
+          {/* Volume Control */}
+          <div className="flex items-center gap-1.5 pr-2">
+            <button
+              onClick={() => audio.setVolume(audio.volume === 0 ? 0.5 : 0)}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-white/70 hover:text-white hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
+              aria-label={audio.volume === 0 ? "Unmute" : "Mute"}
+            >
+              {audio.volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
+            </button>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={audio.volume}
+              onChange={(e) => audio.setVolume(parseFloat(e.target.value))}
+              className="w-14 sm:w-16 h-1 bg-white/15 rounded-lg appearance-none cursor-pointer accent-purple-300 outline-none"
+            />
           </div>
         </div>
 
-        {/* Footer actions */}
-        <div className="mt-10 flex flex-col gap-3 sm:flex-row z-20">
+        {/* Footer Navigation */}
+        <div className="mt-6 sm:mt-8 flex flex-col gap-3 sm:flex-row z-20">
           <GlassButton onClick={onBack}>
             <ChevronLeft size={16} className="mr-1 inline" /> Back to Gifts
           </GlassButton>
@@ -4875,6 +5267,7 @@ function WishTreeScene({ onContinue }: { onContinue: () => void }) {
 
 function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [mobileChapter, setMobileChapter] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const milestones = stories;
@@ -4891,7 +5284,7 @@ function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
     "bg-[#1f1112] bg-[radial-gradient(circle_at_center,rgba(217,168,94,0.22),transparent_75%)]",  // 8 (Sunrise gold conclusion)
   ];
 
-  // Track the active milestone as the user scrolls
+  // Track the active milestone as the user scrolls on desktop
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -4908,8 +5301,8 @@ function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
       },
       {
         root: container,
-        rootMargin: "-25% 0px -40% 0px", // Trigger when card occupies middle viewport
-        threshold: 0.15,
+        rootMargin: "0px 0px -15% 0px",
+        threshold: 0.08,
       }
     );
 
@@ -4918,6 +5311,22 @@ function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
       cards.forEach((card) => observer.unobserve(card));
     };
   }, []);
+
+  const handleMobileNext = () => {
+    if (mobileChapter < milestones.length - 1) {
+      const next = mobileChapter + 1;
+      setMobileChapter(next);
+      setActiveIndex(next);
+    }
+  };
+
+  const handleMobilePrev = () => {
+    if (mobileChapter > 0) {
+      const prev = mobileChapter - 1;
+      setMobileChapter(prev);
+      setActiveIndex(prev);
+    }
+  };
 
   return (
     <div className="scene-container relative bg-[#05060d]">
@@ -4928,7 +5337,7 @@ function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
             key={idx}
             className={cn("absolute inset-0 transition-all duration-[1200ms]", style)}
             initial={{ opacity: 0 }}
-            animate={{ opacity: activeIndex === idx ? 1 : 0 }}
+            animate={{ opacity: (activeIndex === idx || mobileChapter === idx) ? 1 : 0 }}
             transition={{ duration: 1.2 }}
           />
         ))}
@@ -4940,23 +5349,159 @@ function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
 
       <div 
         ref={containerRef} 
-        className="relative z-10 flex min-h-full flex-1 flex-col items-center overflow-y-auto p-6 py-12"
+        className="relative z-10 flex min-h-full flex-1 flex-col items-center overflow-y-auto p-4 sm:p-6 py-10 sm:py-12"
       >
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-12 mt-6"
+          className="text-center mb-8 sm:mb-12 mt-4 sm:mt-6"
         >
           <span className="text-xs uppercase tracking-[0.3em] text-gold font-medium">Reliving Our Path</span>
-          <h2 className="font-serif text-3.5xl font-bold mt-2 sm:text-5xl gradient-text glow-gold">Our Story</h2>
-          <p className="mt-2 text-white/70 text-sm italic">"The moments that became us"</p>
+          <h2 className="font-serif text-3xl font-bold mt-2 sm:text-5xl gradient-text glow-gold">Our Story</h2>
+          <p className="mt-2 text-white/70 text-xs sm:text-sm italic">"The moments that became us"</p>
         </motion.div>
 
-        {/* Timeline container */}
-        <div className="relative w-full max-w-4xl px-4 space-y-24 mb-16">
+        {/* ======================================================== */}
+        {/* MOBILE STORYBOOK CHAPTER SCENES (< 640px)               */}
+        {/* ======================================================== */}
+        <div className="w-full max-w-sm sm:hidden flex flex-col items-center my-auto pb-8">
+          {/* Chapter indicator & progress segmented bar */}
+          <div className="w-full mb-5 flex flex-col items-center gap-2">
+            <div className="flex justify-between items-center w-full px-1 text-xs">
+              <span className="text-white/50 font-mono text-[11px]">Chapter {mobileChapter + 1} of {milestones.length}</span>
+              <span className="text-gold font-serif text-[11px] tracking-wide font-medium">
+                {milestones[mobileChapter].date}
+              </span>
+            </div>
+            <div className="grid grid-cols-8 gap-1.5 h-1.5 w-full">
+              {milestones.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    setMobileChapter(idx);
+                    setActiveIndex(idx);
+                  }}
+                  className={cn(
+                    "h-1.5 rounded-full transition-all duration-300 cursor-pointer",
+                    idx === mobileChapter
+                      ? "bg-gold shadow-[0_0_8px_rgba(217,168,94,0.8)] scale-y-125"
+                      : idx < mobileChapter
+                      ? "bg-gold/40"
+                      : "bg-white/15"
+                  )}
+                  aria-label={`Jump to Chapter ${idx + 1}`}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Active Chapter Card */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={mobileChapter}
+              initial={{ opacity: 0, x: 25, filter: "blur(4px)" }}
+              animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, x: -25, filter: "blur(4px)" }}
+              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              className="w-full flex flex-col items-center"
+            >
+              {milestones[mobileChapter].index === "08" ? (
+                /* Final Chapter Conclusion on Mobile */
+                <div className="w-full flex flex-col items-center text-center py-2">
+                  <span className="text-[11px] uppercase tracking-[0.25em] text-gold font-medium">Final Chapter</span>
+                  <h3 className="font-serif text-2xl font-bold text-champagne mt-1 glow-gold">
+                    {milestones[mobileChapter].label}
+                  </h3>
+                  <span className="font-script text-xl text-rose mt-1 block italic">
+                    "This isn't the end of our story."
+                  </span>
+
+                  <div className="relative w-full h-[240px] my-5 flex items-center justify-center">
+                    <div className="absolute w-[105px] -left-1 top-2">
+                      <Polaroid image="/story/story 1.png" caption="First Chat" rotate={-8} />
+                    </div>
+                    <div className="absolute w-[105px] -right-1 top-2">
+                      <Polaroid image="/story/story 2.png" caption="First Call" rotate={8} />
+                    </div>
+                    <div className="absolute w-[120px] z-10 shadow-2xl">
+                      <Polaroid image="/story/story 7.png" caption="Our Future" rotate={0} />
+                    </div>
+                  </div>
+
+                  <p className="font-serif italic text-base text-white/90 leading-relaxed px-4">
+                    "There are still so many moments waiting for us."
+                  </p>
+                  <p className="text-[10px] text-white/40 tracking-[0.2em] uppercase mt-1 mb-6">
+                    Our story is just beginning
+                  </p>
+
+                  <PrimaryButton onClick={onContinue} className="w-full min-h-[50px]">
+                    Continue Journey ♥
+                  </PrimaryButton>
+                </div>
+              ) : (
+                /* Standard Story Chapter on Mobile */
+                <div className="w-full flex flex-col items-center">
+                  <div className="text-center mb-3">
+                    <span className="text-[10px] uppercase tracking-[0.25em] text-gold/80 font-medium">
+                      Chapter {milestones[mobileChapter].index}
+                    </span>
+                    <h3 className="font-serif text-2xl font-bold text-white mt-0.5">
+                      {milestones[mobileChapter].label}
+                    </h3>
+                  </div>
+
+                  {/* Polaroid Frame */}
+                  <div className="w-[210px] my-1">
+                    <Polaroid
+                      image={milestones[mobileChapter].image}
+                      caption={milestones[mobileChapter].label}
+                      rotate={milestones[mobileChapter].rotate || 0}
+                      className="shadow-2xl"
+                    />
+                  </div>
+
+                  {/* Narrative Text */}
+                  <div className="mt-4 p-4 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-md text-left w-full shadow-lg">
+                    <p className="text-[13.5px] leading-relaxed text-white/90 font-serif">
+                      {milestones[mobileChapter].description}
+                    </p>
+                  </div>
+
+                  {/* Chapter Navigation Controls */}
+                  <div className="flex items-center justify-between w-full mt-5 gap-3">
+                    <button
+                      onClick={handleMobilePrev}
+                      disabled={mobileChapter === 0}
+                      className={cn(
+                        "flex-1 min-h-[48px] px-4 rounded-full border text-xs font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer",
+                        mobileChapter === 0
+                          ? "opacity-30 border-white/10 text-white/40 cursor-not-allowed"
+                          : "border-white/15 text-white/90 hover:border-gold/30 hover:bg-white/5 active:scale-95"
+                      )}
+                    >
+                      <ChevronLeft size={16} /> Prev
+                    </button>
+                    <button
+                      onClick={handleMobileNext}
+                      className="flex-1 min-h-[48px] px-4 rounded-full bg-gradient-to-r from-gold/90 to-amber-400 text-midnight text-xs font-semibold flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(217,168,94,0.3)] hover:scale-102 active:scale-95 transition-all cursor-pointer"
+                    >
+                      Next Chapter <ArrowRight size={16} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* ======================================================== */}
+        {/* DESKTOP TIMELINE ROADMAP (>= 640px)                      */}
+        {/* ======================================================== */}
+        <div className="hidden sm:block relative w-full max-w-4xl px-4 space-y-24 mb-16">
           
           {/* Curved glowing path (SVG) connecting the markers */}
-          <div className="absolute left-[33px] sm:left-1/2 top-10 bottom-10 -translate-x-1/2 pointer-events-none w-[20px] hidden sm:block">
+          <div className="absolute left-1/2 top-10 bottom-10 -translate-x-1/2 pointer-events-none w-[20px]">
             <svg className="w-full h-full" overflow="visible" preserveAspectRatio="none" viewBox="0 0 20 1000">
               <defs>
                 <linearGradient id="goldPathGrad" x1="0" y1="0" x2="0" y2="1">
@@ -4977,9 +5522,6 @@ function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
             </svg>
           </div>
 
-          {/* Fallback straight line for mobile */}
-          <div className="absolute left-[34px] top-10 bottom-24 w-0.5 -translate-x-1/2 bg-gradient-to-b from-gold/20 via-gold/50 to-rose/10 pointer-events-none sm:hidden" />
-
           {milestones.map((item, i) => {
             const isEven = i % 2 === 0;
             const isMarkerActive = activeIndex === i;
@@ -4993,11 +5535,10 @@ function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
                   data-index={i}
                   className="w-full flex flex-col items-center text-center py-12 relative min-h-[70vh] justify-center"
                 >
-                  {/* Chapter 08 Title */}
                   <motion.div
                     initial={{ opacity: 0, y: 30 }}
                     whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: "-100px" }}
+                    viewport={{ once: true, amount: 0.15 }}
                     transition={{ duration: 0.8 }}
                     className="max-w-2xl"
                   >
@@ -5012,9 +5553,7 @@ function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
                     </span>
                   </motion.div>
 
-                  {/* Scattered Floating Polaroids Collage */}
                   <div className="relative w-full max-w-lg h-[280px] sm:h-[340px] mt-10 overflow-visible flex items-center justify-center">
-                    {/* Fragment 1 (Top Left) */}
                     <motion.div
                       initial={{ opacity: 0, scale: 0.8, rotate: -20, x: 0 }}
                       whileInView={{ opacity: 1, scale: 1, rotate: -10, x: -90, y: -20 }}
@@ -5025,7 +5564,6 @@ function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
                       <Polaroid image="/story/story 1.png" caption="First Chat" rotate={-8} />
                     </motion.div>
                     
-                    {/* Fragment 2 (Top Right) */}
                     <motion.div
                       initial={{ opacity: 0, scale: 0.8, rotate: 20, x: 0 }}
                       whileInView={{ opacity: 1, scale: 1, rotate: 12, x: 90, y: -40 }}
@@ -5036,7 +5574,6 @@ function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
                       <Polaroid image="/story/story 2.png" caption="First Call" rotate={10} />
                     </motion.div>
 
-                    {/* Fragment 3 (Bottom Left) */}
                     <motion.div
                       initial={{ opacity: 0, scale: 0.8, rotate: -15, x: 0 }}
                       whileInView={{ opacity: 1, scale: 1, rotate: -6, x: -70, y: 70 }}
@@ -5047,7 +5584,6 @@ function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
                       <Polaroid image="/story/stoty 3.png" caption="First Meet" rotate={-4} />
                     </motion.div>
 
-                    {/* Fragment 4 (Bottom Right) */}
                     <motion.div
                       initial={{ opacity: 0, scale: 0.8, rotate: 15, x: 0 }}
                       whileInView={{ opacity: 1, scale: 1, rotate: 8, x: 70, y: 80 }}
@@ -5058,7 +5594,6 @@ function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
                       <Polaroid image="/story/story 4.png" caption="First Trip" rotate={6} />
                     </motion.div>
 
-                    {/* Center Main Polaroid */}
                     <motion.div
                       initial={{ opacity: 0, scale: 0.8, y: 30 }}
                       whileInView={{ opacity: 1, scale: 1.05, y: 10 }}
@@ -5070,11 +5605,10 @@ function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
                     </motion.div>
                   </div>
 
-                  {/* Hope scroll statement */}
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: "-50px" }}
+                    viewport={{ once: true, amount: 0.15 }}
                     transition={{ duration: 0.8, delay: 0.4 }}
                     className="mt-14 max-w-md px-4"
                   >
@@ -5099,7 +5633,6 @@ function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
                   isEven ? "sm:flex-row" : "sm:flex-row-reverse"
                 )}
               >
-                {/* Large Background Outline Index Number */}
                 <span 
                   className="absolute text-8xl sm:text-[10rem] font-serif font-black text-white/5 opacity-[0.03] pointer-events-none select-none"
                   style={{
@@ -5110,29 +5643,26 @@ function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
                   {item.index}
                 </span>
 
-                {/* Text Panel */}
-                <div className={cn(
-                  "w-full sm:w-1/2 flex flex-col justify-center px-4 pl-14 sm:pl-4",
-                  isEven ? "text-left sm:text-right sm:items-end" : "text-left sm:items-start"
-                )}>
-                  {/* Chapter number */}
+                {/* Text Content Panel */}
+                <div className={cn("w-full sm:w-1/2 flex flex-col px-4 text-center sm:text-left", isEven ? "sm:items-end sm:text-right" : "sm:items-start")}>
+                  {/* Subtle chapter tag */}
                   <motion.span 
-                    initial={{ opacity: 0, y: 15 }}
+                    initial={{ opacity: 0, y: 10 }}
                     whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: "-50px" }}
+                    viewport={{ once: true, amount: 0.15 }}
                     transition={{ duration: 0.6 }}
-                    className="text-xs uppercase tracking-widest text-gold font-medium mb-1"
+                    className="text-xs uppercase tracking-[0.2em] text-gold font-medium"
                   >
                     Chapter {item.index}
                   </motion.span>
                   
-                  {/* Label */}
+                  {/* Title */}
                   <motion.h3 
                     initial={{ opacity: 0, y: 15 }}
                     whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: "-50px" }}
-                    transition={{ duration: 0.6, delay: 0.1 }}
-                    className="font-serif text-2xl font-bold text-champagne/90 leading-tight"
+                    viewport={{ once: true, amount: 0.15 }}
+                    transition={{ duration: 0.7, delay: 0.1 }}
+                    className="font-serif text-2xl sm:text-3xl font-bold text-white mt-1"
                   >
                     {item.label}
                   </motion.h3>
@@ -5141,7 +5671,7 @@ function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
                   <motion.span 
                     initial={{ opacity: 0, y: 10 }}
                     whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: "-50px" }}
+                    viewport={{ once: true, amount: 0.15 }}
                     transition={{ duration: 0.6, delay: 0.2 }}
                     className="font-script text-xl text-rose mt-1 block"
                   >
@@ -5152,7 +5682,7 @@ function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
                   <motion.div 
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: "-50px" }}
+                    viewport={{ once: true, amount: 0.15 }}
                     transition={{ duration: 0.7, delay: 0.3 }}
                     className="mt-4 p-5 rounded-2xl glass-premium border border-white/5 max-w-sm shadow-md bg-midnight/35 min-h-[4.5rem]"
                   >
@@ -5163,7 +5693,7 @@ function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
                 </div>
 
                 {/* Connector point on line */}
-                <div className="absolute left-[34px] sm:left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
                   <motion.div
                     animate={isMarkerActive ? { scale: 1.35 } : { scale: 1 }}
                     className={cn(
@@ -5176,17 +5706,16 @@ function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
                 {/* Polaroid Photo Panel */}
                 <div className="w-full sm:w-1/2 flex justify-center px-4">
                   <div className="max-w-[210px] w-full">
-                    {/* Polaroid reveals with a blur-to-sharp animation and rotation */}
                     <motion.div
                       initial={{ opacity: 0, scale: 0.9, filter: "blur(8px)", rotate: 0 }}
                       whileInView={{ opacity: 1, scale: 1, filter: "blur(0px)", rotate: item.rotate }}
-                      viewport={{ once: true, margin: "-100px" }}
+                      viewport={{ once: true, amount: 0.15 }}
                       transition={{ duration: 1.0, ease: "easeOut" }}
                     >
                       <Polaroid
                         image={item.image}
                         caption={item.label}
-                        rotate={0} /* handled by parent motion div animation */
+                        rotate={0}
                         className="shadow-xl"
                       />
                     </motion.div>
@@ -5197,12 +5726,12 @@ function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
           })}
         </div>
 
-        {/* Scroll End Continue trigger */}
+        {/* Desktop Scroll End Continue trigger */}
         <motion.div 
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
-          className="mt-4 pb-12 relative z-30"
+          className="hidden sm:block mt-4 pb-12 relative z-30"
         >
           <PrimaryButton onClick={onContinue}>Continue →</PrimaryButton>
         </motion.div>
@@ -5384,13 +5913,16 @@ function SpecialVideoScene({
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [videoAspect, setVideoAspect] = useState("19 / 6");
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Timers for the intro text sequences
   useEffect(() => {
     const timer1 = setTimeout(() => {
       setPhase("intro-text-2");
-    }, 3800);
+    }, 3600);
     return () => clearTimeout(timer1);
   }, []);
 
@@ -5398,7 +5930,7 @@ function SpecialVideoScene({
     if (phase === "intro-text-2") {
       const timer2 = setTimeout(() => {
         setPhase("video-reveal");
-      }, 4200);
+      }, 3800);
       return () => clearTimeout(timer2);
     }
   }, [phase]);
@@ -5408,30 +5940,22 @@ function SpecialVideoScene({
     if (phase === "outro-text-1") {
       const timer3 = setTimeout(() => {
         setPhase("outro-text-2");
-      }, 3500);
+      }, 3200);
       return () => clearTimeout(timer3);
     }
   }, [phase]);
 
-  // Handle audio integration
+  // Audio integration
   useEffect(() => {
     const wasAmbientPlaying = audio.enabled;
     const wasMusicPlaying = audio.isPlayingVoice;
     
-    if (wasAmbientPlaying) {
-      audio.stopAmbient();
-    }
-    if (wasMusicPlaying) {
-      audio.pause();
-    }
+    if (wasAmbientPlaying) audio.stopAmbient();
+    if (wasMusicPlaying) audio.pause();
     
     return () => {
-      if (wasAmbientPlaying) {
-        audio.startAmbient();
-      }
-      if (wasMusicPlaying) {
-        audio.play();
-      }
+      if (wasAmbientPlaying) audio.startAmbient();
+      if (wasMusicPlaying) audio.play();
     };
   }, [audio]);
 
@@ -5445,8 +5969,8 @@ function SpecialVideoScene({
             setIsPlaying(true);
             setPhase("video-playing");
           })
-          .catch((err) => {
-            console.log("Autoplay blocked, attempting muted autoplay", err);
+          .catch(() => {
+            // If autoplay with sound is blocked, fallback to muted autoplay
             video.muted = true;
             setIsMuted(true);
             video.play()
@@ -5454,8 +5978,9 @@ function SpecialVideoScene({
                 setIsPlaying(true);
                 setPhase("video-playing");
               })
-              .catch((mutedErr) => {
-                console.log("Muted autoplay also blocked", mutedErr);
+              .catch(() => {
+                // User click needed
+                setIsPlaying(false);
               });
           });
       }
@@ -5464,9 +5989,7 @@ function SpecialVideoScene({
 
   const handlePlay = () => {
     setIsPlaying(true);
-    if (phase === "video-reveal") {
-      setPhase("video-playing");
-    }
+    if (phase === "video-reveal") setPhase("video-playing");
   };
 
   const handlePause = () => {
@@ -5478,7 +6001,7 @@ function SpecialVideoScene({
     setPhase("video-ended");
     setTimeout(() => {
       setPhase("outro-text-1");
-    }, 1500);
+    }, 1200);
   };
 
   const handleUnmute = () => {
@@ -5488,78 +6011,115 @@ function SpecialVideoScene({
     }
   };
 
+  const handleLoadedMetadata = () => {
+    if (videoRef.current && videoRef.current.videoWidth && videoRef.current.videoHeight) {
+      setVideoAspect(`${videoRef.current.videoWidth} / ${videoRef.current.videoHeight}`);
+    }
+    setHasError(false);
+  };
+
+  const toggleFullscreen = () => {
+    if (!containerRef.current) return;
+    if (!document.fullscreenElement) {
+      containerRef.current.requestFullscreen?.().then(() => setIsFullscreen(true)).catch(() => {});
+    } else {
+      document.exitFullscreen?.().then(() => setIsFullscreen(false)).catch(() => {});
+    }
+  };
+
   const isVideoVisible = phase === "video-reveal" || phase === "video-playing" || phase === "video-ended";
 
   return (
-    <div className="scene-container bg-[#0b0c16]">
-      {/* Dark cinematic background and golden radial gradient */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#0b0c16] via-[#1c0a1a] to-[#0b0c16] opacity-95" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(217,168,94,0.08)_0%,_transparent_75%)] pointer-events-none" />
+    <div ref={containerRef} className="scene-container bg-[#070811] relative overflow-hidden flex flex-col items-center justify-center">
+      {/* Deep cinematic background with subtle warm burgundy and golden radial lighting */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#05060e] via-[#160814] to-[#070811] opacity-95" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_rgba(217,168,94,0.12)_0%,_transparent_75%)] pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(212,134,154,0.06)_0%,_transparent_60%)] pointer-events-none" />
       
       {/* Soft floating golden particles */}
       <ParticleField density="low" petals={false} dots={true} />
 
       {/* Main Content Area */}
-      <div className="relative z-10 flex flex-1 flex-col items-center justify-center p-4">
+      <div className="relative z-10 flex flex-1 flex-col items-center justify-center w-full h-full p-2 sm:p-6 md:p-8">
         
-        {/* Video Player wrapper (always mounted to prevent restarts on state change) */}
+        {/* Responsive Full-Viewport Cinematic Video Theater Wrapper */}
         <div className={cn(
-          "relative flex flex-col items-center justify-center w-full max-w-4xl mx-auto transition-all duration-[1200ms] ease-out",
+          "relative flex flex-col items-center justify-center w-full h-[100dvh] max-h-[100dvh] mx-auto transition-all duration-[1200ms] ease-out",
           isVideoVisible ? "opacity-100 scale-100 pointer-events-auto" : "opacity-0 scale-95 pointer-events-none absolute"
         )}>
-          <video
-            ref={videoRef}
-            src={assets.specialVideo}
-            className="w-full max-h-[60vh] aspect-[19/6] object-contain rounded-2xl shadow-[0_0_50px_rgba(217,168,94,0.12),_0_20px_50px_rgba(0,0,0,0.85)] border border-white/5 bg-black"
-            playsInline
-            controls={isVideoVisible && !hasError}
-            onPlay={handlePlay}
-            onPause={handlePause}
-            onEnded={handleEnded}
-            onError={() => setHasError(true)}
-          />
+          {/* Outer glow & shadow frame */}
+          <div className="relative w-full h-full flex items-center justify-center bg-black/95">
+            <video
+              ref={videoRef}
+              src="/assets/special_video.mp4"
+              className="w-full h-full max-h-[100dvh] object-contain shadow-[0_0_80px_rgba(0,0,0,0.9)]"
+              playsInline
+              preload="metadata"
+              controls={isVideoVisible && isPlaying}
+              onLoadedMetadata={handleLoadedMetadata}
+              onPlay={handlePlay}
+              onPause={handlePause}
+              onEnded={handleEnded}
+              onError={() => {
+                console.error("Failed to load video at /assets/special_video.mp4");
+                setHasError(true);
+              }}
+            />
 
-          {/* Cinematic Play overlay when paused */}
-          {!isPlaying && isVideoVisible && !hasError && (
-            <motion.button
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              onClick={() => videoRef.current?.play().catch(e => console.log(e))}
-              className="absolute flex h-20 w-20 items-center justify-center rounded-full bg-[#1b0a1d]/85 border border-gold/30 shadow-[0_0_35px_rgba(217,168,94,0.35)] hover:border-gold/60 cursor-pointer transition-all duration-300 active:scale-95 z-20"
-              aria-label="Play video"
-            >
-              <Play className="h-8 w-8 fill-gold text-gold ml-1 filter drop-shadow-[0_0_8px_rgba(217,168,94,0.6)]" />
-            </motion.button>
-          )}
+            {/* Cinematic Center Play Overlay when paused or beginning */}
+            {!isPlaying && isVideoVisible && !hasError && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                onClick={() => {
+                  if (videoRef.current) {
+                    videoRef.current.play().then(() => {
+                      setIsPlaying(true);
+                      setPhase("video-playing");
+                    }).catch(() => {
+                      // Muted play fallback
+                      if (videoRef.current) {
+                        videoRef.current.muted = true;
+                        setIsMuted(true);
+                        videoRef.current.play().then(() => {
+                          setIsPlaying(true);
+                          setPhase("video-playing");
+                        }).catch(() => {});
+                      }
+                    });
+                  }
+                }}
+                className="absolute flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-full bg-[#1b0a1d]/85 border border-gold/40 shadow-[0_0_40px_rgba(217,168,94,0.45)] hover:border-gold/70 hover:scale-105 cursor-pointer transition-all duration-300 active:scale-95 z-20"
+                aria-label="Play video"
+              >
+                <Play className="h-8 w-8 sm:h-10 sm:w-10 fill-gold text-gold ml-1 filter drop-shadow-[0_0_10px_rgba(217,168,94,0.7)]" />
+              </motion.button>
+            )}
 
-          {/* Floating Unmute indicator */}
-          {isMuted && isPlaying && isVideoVisible && (
-            <motion.button
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              onClick={handleUnmute}
-              className="absolute bottom-4 right-8 z-30 flex items-center gap-2 rounded-full bg-[#1a0a1d]/90 border border-gold/30 px-4 py-2 text-xs font-medium text-gold shadow-md hover:bg-[#25102a] active:scale-95 transition-all"
-            >
-              <VolumeX size={14} /> Tap to Unmute
-            </motion.button>
-          )}
+            {/* Floating Unmute indicator on mobile / autoplay */}
+            {isMuted && isPlaying && isVideoVisible && (
+              <motion.button
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                onClick={handleUnmute}
+                className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 z-30 flex items-center gap-2 rounded-full bg-[#1b0a1d]/90 border border-gold/40 px-4 py-2.5 text-xs font-medium text-gold shadow-lg hover:bg-[#28102b] active:scale-95 transition-all cursor-pointer"
+              >
+                <VolumeX size={15} /> Tap to Unmute
+              </motion.button>
+            )}
 
-          {/* Fallback instructions when video has error (i.e. is missing) */}
-          {hasError && isVideoVisible && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-midnight/95 border border-white/5 rounded-2xl shadow-2xl z-20">
-              <Sparkles className="h-10 w-10 text-gold mb-3 animate-pulse" />
-              <h4 className="font-serif text-lg font-semibold text-gold mb-2">Cinematic Video Placeholder</h4>
-              <p className="text-xs text-white/70 max-w-sm mb-5 leading-relaxed">
-                Please place your 19:6 landscape video file at:<br />
-                <code className="bg-white/10 px-1.5 py-0.5 rounded text-[11px] select-all">public/assets/special_video.mp4</code>
-              </p>
-              <PrimaryButton onClick={onContinue} className="text-xs py-2.5 px-6">
-                Skip Video to Final Surprise
-              </PrimaryButton>
-            </div>
-          )}
+            {/* Clean Romantic Error State if video file is missing or unplayable */}
+            {hasError && isVideoVisible && (
+              <div className="absolute inset-0 z-30 flex flex-col items-center justify-center p-6 text-center bg-black/90 backdrop-blur-md">
+                <Sparkles className="w-10 h-10 text-gold mb-3 animate-pulse" />
+                <h4 className="font-serif text-xl sm:text-2xl text-champagne mb-2">Our Special Moments Video</h4>
+                <p className="text-white/70 text-sm max-w-md mb-6">A collection of our cherished memories together ♥</p>
+                <PrimaryButton onClick={onContinue}>Continue to Final Surprise →</PrimaryButton>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Text phases overlay */}
@@ -5568,11 +6128,11 @@ function SpecialVideoScene({
             {phase === "intro-text-1" && (
               <motion.div
                 key="intro1"
-                initial={{ opacity: 0, y: 15, filter: "blur(6px)" }}
+                initial={{ opacity: 0, y: 18, filter: "blur(6px)" }}
                 animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                exit={{ opacity: 0, y: -12, filter: "blur(6px)" }}
-                transition={{ duration: 1.5, ease: [0.22, 1, 0.36, 1] }}
-                className="max-w-xl"
+                exit={{ opacity: 0, y: -14, filter: "blur(6px)" }}
+                transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
+                className="max-w-xl px-4"
               >
                 <h3 className="font-serif text-3xl sm:text-4xl lg:text-5xl text-champagne/90 tracking-wide glow-gold font-light">
                   Before the final surprise...
@@ -5583,11 +6143,11 @@ function SpecialVideoScene({
             {phase === "intro-text-2" && (
               <motion.div
                 key="intro2"
-                initial={{ opacity: 0, y: 15, filter: "blur(6px)" }}
+                initial={{ opacity: 0, y: 18, filter: "blur(6px)" }}
                 animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                exit={{ opacity: 0, y: -12, filter: "blur(6px)" }}
-                transition={{ duration: 1.5, ease: [0.22, 1, 0.36, 1] }}
-                className="max-w-xl"
+                exit={{ opacity: 0, y: -14, filter: "blur(6px)" }}
+                transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
+                className="max-w-xl px-4"
               >
                 <h3 className="font-script text-4xl sm:text-5xl lg:text-6xl text-gold glow-gold leading-relaxed">
                   I made something special for you. ♥
@@ -5598,11 +6158,11 @@ function SpecialVideoScene({
             {phase === "outro-text-1" && (
               <motion.div
                 key="outro1"
-                initial={{ opacity: 0, y: 15, filter: "blur(6px)" }}
+                initial={{ opacity: 0, y: 18, filter: "blur(6px)" }}
                 animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                exit={{ opacity: 0, y: -12, filter: "blur(6px)" }}
-                transition={{ duration: 1.5, ease: [0.22, 1, 0.36, 1] }}
-                className="max-w-xl"
+                exit={{ opacity: 0, y: -14, filter: "blur(6px)" }}
+                transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
+                className="max-w-xl px-4"
               >
                 <h3 className="font-script text-4xl sm:text-5xl lg:text-6xl text-gold glow-gold leading-relaxed">
                   That was just for you. ♥
@@ -5613,10 +6173,10 @@ function SpecialVideoScene({
             {phase === "outro-text-2" && (
               <motion.div
                 key="outro2"
-                initial={{ opacity: 0, y: 15, filter: "blur(6px)" }}
+                initial={{ opacity: 0, y: 18, filter: "blur(6px)" }}
                 animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                transition={{ duration: 1.5, ease: [0.22, 1, 0.36, 1] }}
-                className="max-w-xl flex flex-col items-center gap-8 pointer-events-auto"
+                transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
+                className="max-w-xl flex flex-col items-center gap-8 pointer-events-auto px-4"
               >
                 <h3 className="font-serif text-3xl sm:text-4xl lg:text-5xl text-champagne/90 tracking-wide glow-gold font-light">
                   Ready for the final surprise?

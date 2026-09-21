@@ -250,19 +250,19 @@ export const birthdayContent = {
 
   playlist: [
     {
-      title: "Our Synth Melody",
-      artist: "Synthesized with Love ♥",
-      src: "", // Empty src triggers synthetic playback
-    },
-    {
       title: "Dreamy Memories",
-      artist: "Instrumental ♥",
-      src: "/audio/song1.mp3",
+      artist: "Instrumental Melody ♥",
+      src: "/assets/music/song-1.mp3",
     },
     {
       title: "A Golden Sunset",
-      artist: "Acoustic ♥",
-      src: "/audio/song2.mp3",
+      artist: "Acoustic Warmth ♥",
+      src: "/assets/music/song-2.mp3",
+    },
+    {
+      title: "Our Synth Melody",
+      artist: "Synthesized with Love ♥",
+      src: "", // Empty src triggers synthetic playback
     },
   ] as PlaylistItem[],
 
@@ -274,12 +274,20 @@ export const birthdayContent = {
     birthdayCake: "/images/birthday-cake.jpg",
     loveLetter: "/images/love-letter.jpg",
     recordPlayer: "/images/record-player.jpg",
+    purpleAudioArtwork: "/assets/images/purple-audio-artwork.jpg",
     wishTree: "/images/wish-tree.jpg",
     lanternSky: "/images/lantern-sky.jpg",
     finalSunset: "/images/final-sunset.jpg",
     specialVideo: "/assets/special_video.mp4",
+    stickers: {
+      teddy1: "/assets/stickers/teddy-1.gif",
+      teddy2: "/assets/stickers/teddy-2.gif",
+      teddy3: "/assets/stickers/teddy-3.gif",
+    },
   },
 };
+
+export const songs = birthdayContent.playlist;
 
 // ==========================================
 // BACKWARD COMPATIBILITY EXPORTS
