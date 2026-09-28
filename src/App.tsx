@@ -20,6 +20,7 @@ import {
   Smile,
   Laugh,
   Eye,
+  EyeOff,
   Compass,
   SkipBack,
   SkipForward,
@@ -283,27 +284,51 @@ function PrimaryButton({
   type?: "button" | "submit";
   disabled?: boolean;
 }) {
+  const isNavigatingRef = useRef(false);
+  const handleClick = (e: React.MouseEvent) => {
+    if (disabled || isNavigatingRef.current) return;
+    isNavigatingRef.current = true;
+    setTimeout(() => {
+      isNavigatingRef.current = false;
+    }, 600);
+    onClick?.();
+  };
+
   return (
     <motion.button
       type={type}
       disabled={disabled}
-      onClick={onClick}
-      whileHover={disabled ? {} : { 
-        y: -2, 
-        scale: 1.02,
-        boxShadow: "0 10px 25px -5px rgba(217, 168, 94, 0.45), 0 0 18px rgba(217, 168, 94, 0.3)" 
-      }}
-      whileTap={disabled ? {} : { 
-        scale: 0.97, 
-        y: 0 
-      }}
-      transition={{ type: "spring", stiffness: 400, damping: 25 }}
+      onClick={handleClick}
+      whileHover={
+        disabled
+          ? {}
+          : {
+              y: -2.5,
+              scale: 1.025,
+              boxShadow:
+                "0 12px 30px -5px rgba(217, 168, 94, 0.5), 0 0 24px rgba(217, 168, 94, 0.35)",
+            }
+      }
+      whileTap={
+        disabled
+          ? {}
+          : {
+              scale: 0.96,
+              y: 0,
+            }
+      }
+      transition={{ type: "spring", stiffness: 450, damping: 25 }}
       className={cn(
-        "btn-primary inline-flex min-h-[48px] items-center justify-center rounded-full px-8 py-3 font-medium tracking-wide shadow-md transition-shadow duration-300",
+        "btn-primary relative group inline-flex min-h-[48px] items-center justify-center rounded-full px-8 py-3 font-serif font-semibold tracking-wider shadow-md transition-all duration-300 cursor-pointer overflow-hidden select-none",
+        disabled && "opacity-50 cursor-not-allowed filter grayscale",
         className
       )}
     >
-      {children}
+      {/* Soft shine shimmer sweep across button */}
+      <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out bg-gradient-to-r from-transparent via-white/30 to-transparent pointer-events-none" />
+      <span className="relative z-10 flex items-center justify-center gap-2">
+        {children}
+      </span>
     </motion.button>
   );
 }
@@ -1103,9 +1128,18 @@ export default function App() {
   const audio = useAudioEngine();
   const [targetDate] = useState(() => getTargetBirthdayDate());
   const [countdown, setCountdown] = useState({ d: 0, h: 0, m: 0, s: 0 });
+  const [direction, setDirection] = useState<number>(1);
 
+  const isTransitioningRef = useRef(false);
   const goTo = useCallback((scene: number) => {
+    if (isTransitioningRef.current) return;
+    isTransitioningRef.current = true;
+    setTimeout(() => {
+      isTransitioningRef.current = false;
+    }, 450);
+
     setState((s) => {
+      setDirection(scene >= s.scene ? 1 : -1);
       const next = { ...s, scene };
       saveState(next);
       return next;
@@ -1155,7 +1189,10 @@ export default function App() {
       const visited = s.visitedGifts.includes(giftId)
         ? s.visitedGifts
         : [...s.visitedGifts, giftId];
-      const next = { ...s, scene: sceneIndex, visitedGifts: visited };
+      const opened = s.openedGifts.includes(giftId)
+        ? s.openedGifts
+        : [...s.openedGifts, giftId];
+      const next = { ...s, scene: sceneIndex, visitedGifts: visited, openedGifts: opened };
       saveState(next);
       return next;
     });
@@ -1277,7 +1314,7 @@ export default function App() {
       <GiftsScene key="gifts" opened={state.openedGifts} onOpen={openGift} onContinue={() => goTo(13)} goToGift={goToGift} />,
       <LetterScene
         key="letter"
-        onBack={() => goTo(9)}
+        onBack={() => handleGiftContinue("letter")}
         onContinue={() => handleGiftContinue("letter")}
         cameFromGifts={true}
         onNext={() => goToGift(11, "memories")}
@@ -1285,7 +1322,7 @@ export default function App() {
       />,
       <MemoriesScene
         key="memories"
-        onBack={() => goTo(9)}
+        onBack={() => handleGiftContinue("memories")}
         onContinue={() => handleGiftContinue("memories")}
         onNext={() => goToGift(12, "voice")}
         onPrev={() => goToGift(10, "letter")}
@@ -1293,7 +1330,7 @@ export default function App() {
       <VoiceScene
         key="voice"
         audio={audio}
-        onBack={() => goTo(9)}
+        onBack={() => handleGiftContinue("voice")}
         onContinue={() => handleGiftContinue("voice")}
         onNext={() => goToGift(10, "letter")}
         onPrev={() => goToGift(11, "memories")}
@@ -1330,14 +1367,105 @@ export default function App() {
     <div className="relative h-full w-full overflow-hidden bg-midnight text-white safe-top safe-bottom">
 
 
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="wait" custom={direction}>
         <motion.div
           key={state.scene}
-          initial={{ opacity: 0, scale: 0.98, y: 10, filter: "blur(4px)" }}
-          animate={{ opacity: 1, scale: 1, y: 0, filter: "blur(0px)" }}
-          exit={{ opacity: 0, scale: 0.98, y: -10, filter: "blur(4px)" }}
-          transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
-          className="absolute inset-0"
+          custom={direction}
+          variants={
+            state.reducedMotion
+              ? {
+                  initial: { opacity: 0 },
+                  animate: { opacity: 1, transition: { duration: 0.2 } },
+                  exit: { opacity: 0, transition: { duration: 0.2 } },
+                }
+              : (() => {
+                  switch (state.scene) {
+                    // Password Scene: Romantic glow & scale expansion into Wishes
+                    case 4:
+                      return {
+                        initial: { opacity: 0, scale: 0.94, filter: "blur(8px)" },
+                        animate: { opacity: 1, scale: 1, filter: "blur(0px)", transition: { duration: 0.65, ease: [0.16, 1, 0.3, 1] } },
+                        exit: { opacity: 0, scale: 1.05, filter: "blur(6px)", transition: { duration: 0.45, ease: "easeInOut" } },
+                      };
+                    // Wishes / Birthday Reveal
+                    case 3:
+                    case 5:
+                      return {
+                        initial: (dir: number) => ({ opacity: 0, y: dir > 0 ? 22 : -22, scale: 0.98, filter: "blur(6px)" }),
+                        animate: { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] } },
+                        exit: (dir: number) => ({ opacity: 0, y: dir > 0 ? -18 : 18, scale: 1.02, filter: "blur(5px)", transition: { duration: 0.4, ease: "easeInOut" } }),
+                      };
+                    // Cake & Cutting: Warm candlelight bloom fade
+                    case 6:
+                    case 7:
+                      return {
+                        initial: { opacity: 0, scale: 1.03, filter: "blur(6px)" },
+                        animate: { opacity: 1, scale: 1, filter: "blur(0px)", transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } },
+                        exit: { opacity: 0, scale: 0.97, filter: "blur(5px)", transition: { duration: 0.4, ease: "easeInOut" } },
+                      };
+                    // Share Happiness Cards: Sparkle scale & fade
+                    case 8:
+                      return {
+                        initial: { opacity: 0, scale: 0.95, y: 16, filter: "blur(6px)" },
+                        animate: { opacity: 1, scale: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } },
+                        exit: { opacity: 0, scale: 1.03, y: -16, filter: "blur(5px)", transition: { duration: 0.4, ease: "easeInOut" } },
+                      };
+                    // Gifts & Gift details (Letter, Memories, Voice): Elegant slide with depth
+                    case 9:
+                    case 10:
+                    case 11:
+                    case 12:
+                      return {
+                        initial: (dir: number) => ({ opacity: 0, x: dir > 0 ? 32 : -32, scale: 0.98, filter: "blur(4px)" }),
+                        animate: { opacity: 1, x: 0, scale: 1, filter: "blur(0px)", transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] } },
+                        exit: (dir: number) => ({ opacity: 0, x: dir > 0 ? -32 : 32, scale: 0.98, filter: "blur(4px)", transition: { duration: 0.4, ease: "easeInOut" } }),
+                      };
+                    // Wish Tree (13) & Memory Journey (14): Botanical curtain crossfade
+                    case 13:
+                    case 14:
+                      return {
+                        initial: { opacity: 0, scale: 1.04, filter: "blur(8px)" },
+                        animate: { opacity: 1, scale: 1, filter: "blur(0px)", transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] } },
+                        exit: { opacity: 0, scale: 0.96, filter: "blur(6px)", transition: { duration: 0.45, ease: "easeInOut" } },
+                      };
+                    // Special Video & Final Scene (16, 17): Cinematic starlight fade-through-dark
+                    case 16:
+                    case 17:
+                      return {
+                        initial: { opacity: 0, scale: 0.95, filter: "blur(10px)" },
+                        animate: { opacity: 1, scale: 1, filter: "blur(0px)", transition: { duration: 0.85, ease: [0.16, 1, 0.3, 1] } },
+                        exit: { opacity: 0, scale: 1.04, filter: "blur(8px)", transition: { duration: 0.5, ease: "easeInOut" } },
+                      };
+                    default:
+                      return {
+                        initial: (dir: number) => ({
+                          opacity: 0,
+                          scale: dir > 0 ? 0.97 : 1.02,
+                          y: dir > 0 ? 14 : -14,
+                          filter: "blur(6px)",
+                        }),
+                        animate: {
+                          opacity: 1,
+                          scale: 1,
+                          y: 0,
+                          filter: "blur(0px)",
+                          transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] },
+                        },
+                        exit: (dir: number) => ({
+                          opacity: 0,
+                          scale: dir > 0 ? 1.02 : 0.97,
+                          y: dir > 0 ? -12 : 12,
+                          filter: "blur(5px)",
+                          transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] },
+                        }),
+                      };
+                  }
+                })()
+          }
+          initial="initial"
+          animate="animate"
+          exit="exit"
+          className="absolute inset-0 overflow-hidden"
         >
           {scenes[state.scene]}
         </motion.div>
@@ -1672,7 +1800,7 @@ function BirthdayRevealScene({ onContinue }: { onContinue: () => void }) {
                 className="mt-10"
               >
                 <PrimaryButton onClick={onContinue}>
-                  Step Inside ♥
+                  Step Inside Our Universe ♥
                 </PrimaryButton>
               </motion.div>
             </motion.div>
@@ -1701,128 +1829,296 @@ function PasswordScene({ onUnlock }: { onUnlock: () => void }) {
   const [value, setValue] = useState("");
   const [error, setError] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const isButtonActive = value.trim().length > 0 && !success && !isValidating;
 
   const submit = (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (value.trim() === config.password) {
-      setError(false);
-      setSuccess(true);
-      setTimeout(() => onUnlock(), 1200);
-    } else {
-      setError(true);
-      setSuccess(false);
-      // Let the hearts scatter outwards by clearing typed text after a delay
-      setTimeout(() => {
-        setValue("");
+    if (!value.trim() || isValidating || success) return;
+
+    setIsValidating(true);
+    setError(false);
+
+    // Validation delay for smooth cinematic feel and repeated click prevention
+    setTimeout(() => {
+      const isCorrect =
+        value.trim().toLowerCase() === config.password.toLowerCase() ||
+        value.trim() === config.password;
+
+      setIsValidating(false);
+
+      if (isCorrect) {
         setError(false);
-      }, 700);
-    }
+        setSuccess(true);
+        setTimeout(() => onUnlock(), 1200);
+      } else {
+        setError(true);
+        setSuccess(false);
+        setTimeout(() => {
+          setValue("");
+          setError(false);
+          inputRef.current?.focus();
+        }, 1100);
+      }
+    }, 450);
   };
 
+  const characters = useMemo(() => value.split(""), [value]);
+
   return (
-    <div className="scene-container">
+    <div className="scene-container relative overflow-hidden">
       <BackgroundLayer src={assets.couplePhoto} overlay />
-      <div className="absolute inset-0 bg-gradient-to-t from-[#0b0d1c]/92 via-[#1a0f1a]/55 to-[#0b0d1c]/80" />
+
+      {/* Ambient background depth: deep burgundy & night sky gradient with radial rose-gold pools */}
+      <div className="absolute inset-0 bg-gradient-to-t from-[#0e030a]/95 via-[#230816]/80 to-[#090207]/95 pointer-events-none" />
+      <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[520px] h-[520px] rounded-full bg-rose-600/15 blur-[130px] pointer-events-none" />
+      <div className="absolute -bottom-32 left-1/2 -translate-x-1/2 w-[520px] h-[520px] rounded-full bg-amber-500/12 blur-[140px] pointer-events-none" />
+
+      {/* Background romantic floating petals */}
       <ParticleField density="low" petals />
-      <div className="relative z-10 flex min-h-full flex-1 flex-col items-center justify-center overflow-y-auto p-6 py-10 text-center">
+
+      <div className="relative z-10 flex min-h-full flex-1 flex-col items-center justify-center overflow-y-auto p-4 sm:p-6 py-8 text-center select-none">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1 }}
+          initial={{ opacity: 0, y: 30, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
           className="w-full max-w-sm"
         >
-          {/* Main Card Container */}
+          {/* Main Card Container with Controlled Glassmorphism */}
           <motion.div
-            animate={error ? { x: [-10, 10, -10, 10, -5, 5, 0] } : {}}
-            transition={{ duration: 0.5 }}
-            className={cn(
-              "w-full rounded-3xl glass-premium border p-8 transition-all duration-500",
-              error ? "border-rose-500/40 shadow-[0_0_30px_rgba(244,63,94,0.25)] bg-rose-950/5" : "border-white/10",
-              success ? "border-gold/40 shadow-[0_0_40px_rgba(217,168,94,0.35)] bg-gold/5" : ""
-            )}
+            animate={
+              error
+                ? { x: [-10, 10, -7, 7, -3, 3, 0] }
+                : success
+                ? { scale: [1, 1.04, 1.02] }
+                : { y: [0, -4, 0] }
+            }
+            transition={
+              error
+                ? { duration: 0.55, ease: "easeInOut" }
+                : success
+                ? { duration: 0.7, ease: [0.16, 1, 0.3, 1] }
+                : { duration: 5, repeat: Infinity, ease: "easeInOut" }
+            }
+            style={{
+              background:
+                "linear-gradient(155deg, rgba(68, 16, 34, 0.92) 0%, rgba(36, 8, 19, 0.95) 55%, rgba(18, 4, 10, 0.98) 100%)",
+              boxShadow: success
+                ? "0 25px 60px rgba(0,0,0,0.85), 0 0 55px rgba(217, 168, 94, 0.6), inset 0 1px 2px rgba(255,255,255,0.3)"
+                : error
+                ? "0 25px 60px rgba(0,0,0,0.85), 0 0 35px rgba(244, 63, 94, 0.45), inset 0 1px 2px rgba(255,255,255,0.15)"
+                : "0 25px 60px rgba(0,0,0,0.75), 0 0 30px rgba(217, 168, 94, 0.15), inset 0 1px 2px rgba(255,255,255,0.15)",
+              borderColor: success
+                ? "rgba(217, 168, 94, 0.85)"
+                : error
+                ? "rgba(244, 63, 94, 0.65)"
+                : "rgba(217, 168, 94, 0.35)",
+            }}
+            className="w-full rounded-3xl border p-6 sm:p-8 transition-all duration-400 backdrop-blur-2xl relative overflow-hidden"
           >
-            {/* Lock / Unlock Icon */}
-            <motion.div
-              animate={success ? { scale: [1, 1.25, 1], rotate: [0, 15, -15, 0] } : {}}
-              transition={{ duration: 0.8 }}
-              className={cn(
-                "mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full glass-strong border transition-all duration-300",
-                success ? "border-gold/30 text-gold shadow-gold" : "border-white/10 text-white/70"
-              )}
-            >
-              {success ? <Unlock className="h-8 w-8" /> : <Lock className="h-8 w-8" />}
-            </motion.div>
+            {/* Inner filigree dashed border */}
+            <div className="absolute inset-2.5 rounded-2xl border border-dashed border-[#d9a85e]/25 pointer-events-none" />
 
-            <h2 className="font-serif text-3xl font-bold gradient-text glow-gold">
-              Only one person
-            </h2>
-            <p className="mt-2 text-base text-white/80">can unlock this...</p>
+            {/* Top romantic badge */}
+            <div className="mb-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.06] border border-[#d9a85e]/30 text-[10px] tracking-[0.25em] text-[#fed7aa] uppercase font-serif">
+              <Sparkles className="w-3 h-3 text-gold" />
+              Secret Portal
+              <Sparkles className="w-3 h-3 text-gold" />
+            </div>
 
-            <form onSubmit={submit} className="mt-8 space-y-5">
-              {/* Custom Input Wrapper */}
-              <div 
-                onClick={() => inputRef.current?.focus()}
+            {/* Lock / Unlock Emblem with radiant glow */}
+            <div className="relative mx-auto mb-4 flex items-center justify-center">
+              <motion.div
+                animate={{ scale: [1, 1.15, 1], opacity: [0.35, 0.65, 0.35] }}
+                transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
                 className={cn(
-                  "w-full rounded-2xl border px-5 py-4 flex items-center justify-center min-h-[64px] relative transition-all duration-300 cursor-text",
-                  isFocused ? "border-gold/40 ring-2 ring-gold/25" : "border-white/20 bg-white/5 hover:border-white/30"
+                  "absolute inset-0 m-auto w-20 h-20 rounded-full blur-md pointer-events-none",
+                  success ? "bg-amber-400/50" : error ? "bg-rose-500/45" : "bg-rose-500/25"
+                )}
+              />
+
+              <motion.div
+                animate={
+                  success
+                    ? { scale: [1, 1.25, 1.1], rotate: [0, -8, 8, 0] }
+                    : error
+                    ? { rotate: [-10, 10, -7, 7, 0] }
+                    : { scale: [1, 1.03, 1] }
+                }
+                transition={{ duration: 0.6 }}
+                style={{
+                  background:
+                    "radial-gradient(circle at 35% 35%, #4a1226 0%, #2a0815 70%, #15030b 100%)",
+                  boxShadow: success
+                    ? "0 0 35px rgba(217,168,94,0.7), inset 0 1px 2px rgba(255,255,255,0.3)"
+                    : error
+                    ? "0 0 25px rgba(244,63,94,0.5), inset 0 1px 2px rgba(255,255,255,0.2)"
+                    : "0 8px 24px rgba(0,0,0,0.5), inset 0 1px 2px rgba(255,255,255,0.2)",
+                }}
+                className={cn(
+                  "relative flex h-18 w-18 sm:h-20 sm:w-20 items-center justify-center rounded-full border-2 transition-all duration-400",
+                  success
+                    ? "border-gold text-gold"
+                    : error
+                    ? "border-rose-400 text-rose-300"
+                    : "border-[#d9a85e]/50 text-gold/90 hover:border-gold hover:text-gold"
                 )}
               >
-                {/* Hidden Real Input */}
+                {success ? (
+                  <Unlock className="h-8 w-8 text-gold drop-shadow-[0_0_14px_rgba(217,168,94,0.95)]" />
+                ) : (
+                  <Lock className="h-8 w-8 transition-colors duration-300 drop-shadow-[0_0_8px_rgba(217,168,94,0.5)]" />
+                )}
+              </motion.div>
+            </div>
+
+            <h2 className="font-serif text-2xl sm:text-3xl font-bold gradient-text glow-gold">
+              Only One Person
+            </h2>
+            <p className="mt-1 text-xs sm:text-sm text-rose-100/80 font-serif italic">
+              can unlock this secret experience...
+            </p>
+
+            <form onSubmit={submit} className="mt-6 space-y-4">
+              {/* Interactive Masked Heart Input Container */}
+              <div
+                onClick={() => inputRef.current?.focus()}
+                className={cn(
+                  "relative flex items-center justify-center min-h-[58px] w-full rounded-2xl border px-3 py-2.5 transition-all duration-300 cursor-text",
+                  "bg-black/45 backdrop-blur-md",
+                  isFocused
+                    ? "border-gold ring-2 ring-gold/30 shadow-[0_0_24px_rgba(217,168,94,0.3)]"
+                    : error
+                    ? "border-rose-500/70 shadow-[0_0_18px_rgba(244,63,94,0.25)]"
+                    : "border-[#d9a85e]/35 hover:border-[#d9a85e]/60"
+                )}
+              >
+                {/* Real input positioned over the container with invisible text for flawless typing */}
                 <input
                   ref={inputRef}
-                  type="password"
+                  type="text"
                   value={value}
                   onChange={(e) => setValue(e.target.value)}
                   onFocus={() => setIsFocused(true)}
                   onBlur={() => setIsFocused(false)}
-                  disabled={success}
-                  className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-text outline-none"
-                  aria-label="Enter Password"
+                  disabled={success || isValidating}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck="false"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-text px-4 z-10"
+                  aria-label="Enter Secret Password"
+                  autoFocus
                 />
 
-                {/* Masked Hearts Visual Layer */}
-                <div className="flex items-center justify-center gap-2 flex-wrap">
-                  <AnimatePresence>
-                    {Array.from({ length: value.length }).map((_, idx) => (
-                      <motion.div
-                        key={idx}
-                        initial={{ scale: 0.4, opacity: 0 }}
-                        animate={{ scale: [0.4, 1.25, 1], opacity: 1 }}
-                        exit={error ? {
-                          scale: 0.2,
-                          opacity: 0,
-                          x: (Math.random() - 0.5) * 120,
-                          y: (Math.random() - 0.5) * 120,
-                          rotate: (Math.random() - 0.5) * 180
-                        } : { scale: 0, opacity: 0 }}
-                        transition={{ type: "spring", stiffness: 350, damping: 16 }}
-                      >
-                        <Heart className={cn(
-                          "h-6 w-6", 
-                          success ? "fill-gold text-gold" : "fill-rose text-rose"
-                        )} />
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
-                  
-                  {value.length === 0 && (
-                    <span className="text-white/40 text-sm font-sans tracking-wide">
-                      Tap here to type
+                {/* Masked Hearts Display — Centered inside the input field with typing scale pop animation */}
+                <div className="flex-1 flex items-center justify-center flex-wrap gap-1.5 px-3 overflow-hidden pointer-events-none z-0">
+                  {characters.length === 0 ? (
+                    <span className="text-white/40 text-xs sm:text-sm font-serif italic tracking-wide">
+                      Type our secret password...
                     </span>
+                  ) : (
+                    <AnimatePresence mode="popLayout">
+                      {characters.map((char, idx) => (
+                        <motion.span
+                          key={`${idx}-${char}`}
+                          initial={{ scale: 0, y: 8, rotate: -15 }}
+                          animate={{ scale: [1.35, 1], y: 0, rotate: 0 }}
+                          exit={{ scale: 0, opacity: 0 }}
+                          transition={{ type: "spring", stiffness: 480, damping: 22 }}
+                          className={cn(
+                            "inline-flex items-center justify-center select-none transition-transform",
+                            showPassword
+                              ? "text-gold font-serif font-bold text-lg sm:text-xl tracking-wider px-1 drop-shadow-[0_0_8px_rgba(217,168,94,0.6)] uppercase"
+                              : "text-rose-400 text-xl sm:text-2xl px-0.5 drop-shadow-[0_0_10px_rgba(244,63,94,0.7)]"
+                          )}
+                        >
+                          {showPassword ? char : "♥"}
+                        </motion.span>
+                      ))}
+                    </AnimatePresence>
+                  )}
+
+                  {/* Blinking Romantic Caret */}
+                  {isFocused && !success && !isValidating && (
+                    <motion.span
+                      animate={{ opacity: [1, 0, 1] }}
+                      transition={{ repeat: Infinity, duration: 0.9, ease: "easeInOut" }}
+                      className="inline-block w-0.5 h-4 bg-gold/90 ml-0.5 rounded-full"
+                    />
                   )}
                 </div>
+
+                {/* Eye toggle button on the right */}
+                {value.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowPassword(!showPassword);
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-colors cursor-pointer"
+                    title={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                )}
               </div>
 
-              {/* Feedback messages */}
-              <div className="min-h-[20px] text-xs">
-                {error && <p className="text-rose/90 glow-rose animate-bounce">Not quite... that&apos;s our little secret ♥</p>}
-                {success && <p className="text-gold glow-gold">Welcome, Into my Heart ♥</p>}
+              {/* Status / Feedback messages */}
+              <div className="min-h-[26px] flex items-center justify-center text-xs">
+                {error && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-rose-300 glow-rose font-medium"
+                  >
+                    That's not quite our secret password, my love. Try again ♥
+                  </motion.p>
+                )}
+                {success && (
+                  <motion.p
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="text-gold glow-gold font-serif italic text-sm font-semibold"
+                  >
+                    ✨ Unlocked with love! Welcome, my love ✨
+                  </motion.p>
+                )}
               </div>
 
-              <PrimaryButton type="submit" className="w-full" disabled={success}>
-                Unlock <Heart className="ml-2 inline-block h-4 w-4 fill-current" />
+              {/* Unlock Primary Button — Enabled only when characters entered */}
+              <PrimaryButton
+                type="submit"
+                className={cn(
+                  "w-full min-h-[50px] transition-all duration-300 font-serif tracking-widest",
+                  !isButtonActive && "opacity-45 cursor-not-allowed filter grayscale"
+                )}
+                disabled={!isButtonActive}
+              >
+                {isValidating ? (
+                  <span className="inline-flex items-center gap-2 text-midnight font-bold">
+                    <motion.span
+                      animate={{ scale: [1, 1.3, 1] }}
+                      transition={{ repeat: Infinity, duration: 0.7 }}
+                      className="inline-block text-rose-900"
+                    >
+                      ♥
+                    </motion.span>
+                    Opening with love...
+                  </span>
+                ) : success ? (
+                  <span className="inline-flex items-center gap-2 text-midnight font-bold">
+                    ✨ Welcome, My Love ✨
+                  </span>
+                ) : (
+                  <>
+                    Open Our Story <Heart className="ml-1 inline-block h-4 w-4 fill-current text-rose-900" />
+                  </>
+                )}
               </PrimaryButton>
             </form>
           </motion.div>
@@ -1853,6 +2149,8 @@ function AnimatedSticker({
   rotate = 0,
   floatY = 8,
 }: AnimatedStickerProps) {
+  const [loadError, setLoadError] = useState(false);
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.75, y: 15 }}
@@ -1883,16 +2181,26 @@ function AnimatedSticker({
       whileHover={{ scale: 1.1, rotate: 0 }}
       whileTap={{ scale: 0.95 }}
       className={cn(
-        "relative flex items-center justify-center select-none filter drop-shadow-[0_8px_20px_rgba(0,0,0,0.35)] transition-transform duration-300",
+        "relative flex items-center justify-center select-none transition-transform duration-300 pointer-events-auto",
         className
       )}
     >
-      <img
-        src={src}
-        alt={alt}
-        className="w-full h-full object-contain pointer-events-none"
-        loading="eager"
-      />
+      {!loadError ? (
+        <picture className="w-full h-full flex items-center justify-center pointer-events-none">
+          <source srcSet={src.replace(/\.(gif|webp)$/, ".webp")} type="image/webp" />
+          <img
+            src={src}
+            alt={alt}
+            onError={() => setLoadError(true)}
+            className="w-full h-full object-contain pointer-events-none filter drop-shadow-[0_8px_20px_rgba(0,0,0,0.35)] drop-shadow-[0_0_18px_rgba(251,113,133,0.35)]"
+            loading="eager"
+          />
+        </picture>
+      ) : (
+        <div className="w-full h-full rounded-2xl bg-rose-500/10 border border-rose-400/30 flex items-center justify-center text-rose-300 font-serif text-2xl">
+          ♥
+        </div>
+      )}
     </motion.div>
   );
 }
@@ -1920,12 +2228,12 @@ function WishesScene({ onContinue }: { onContinue: () => void }) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.9, duration: 1 }}
-            className="mt-6 sm:mt-8 flex flex-row items-center justify-center gap-3 sm:gap-8 md:gap-12 w-full px-2 max-w-2xl mx-auto"
+            className="mt-6 sm:mt-8 flex flex-row items-center justify-center gap-3 sm:gap-6 md:gap-8 w-full px-2 max-w-xl mx-auto"
           >
             <AnimatedSticker
               src="/assets/stickers/teddy-1.gif"
               alt="Cute teddy animation blowing love kisses"
-              className="w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 shrink-0"
+              className="w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 max-w-[28vw] sm:max-w-none shrink-0"
               delay={0.2}
               rotate={-3}
               floatY={7}
@@ -1933,7 +2241,7 @@ function WishesScene({ onContinue }: { onContinue: () => void }) {
             <AnimatedSticker
               src="/assets/stickers/teddy-2.gif"
               alt="Cute teddy bears hugging animation"
-              className="w-24 h-24 sm:w-32 sm:h-32 md:w-44 md:h-44 -mt-2 sm:-mt-3 shrink-0"
+              className="w-24 h-24 sm:w-32 sm:h-32 md:w-42 md:h-42 -mt-2 sm:-mt-3 max-w-[32vw] sm:max-w-none shrink-0"
               delay={0.4}
               rotate={2}
               floatY={10}
@@ -1941,7 +2249,7 @@ function WishesScene({ onContinue }: { onContinue: () => void }) {
             <AnimatedSticker
               src="/assets/stickers/teddy-3.gif"
               alt="Cute teddy cuddles animation"
-              className="w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 shrink-0"
+              className="w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 max-w-[28vw] sm:max-w-none shrink-0"
               delay={0.6}
               rotate={4}
               floatY={8}
@@ -1956,7 +2264,7 @@ function WishesScene({ onContinue }: { onContinue: () => void }) {
           </motion.p>
 
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 7.2, duration: 0.8 }} className="mt-8">
-            <PrimaryButton onClick={onContinue}>Continue →</PrimaryButton>
+            <PrimaryButton onClick={onContinue}>Begin Our Journey →</PrimaryButton>
           </motion.div>
         </motion.div>
       </div>
@@ -2426,7 +2734,7 @@ function CakeScene({ onBlown }: { onBlown: () => void }) {
                   transition={{ delay: 0.1, duration: 0.5 }}
                 >
                   <PrimaryButton onClick={onBlown}>
-                    Continue →
+                    Cut the Birthday Cake 🍰
                   </PrimaryButton>
                 </motion.div>
               )}
@@ -2761,7 +3069,7 @@ function CakeCuttingScene({ stage, onStage }: { stage: number; onStage: (n: numb
               Yay! Let's share the happiness ❤️
             </p>
             <PrimaryButton onClick={() => onStage(6)}>
-              Continue →
+              Taste the Sweetness ✦
             </PrimaryButton>
           </motion.div>
         )}
@@ -2893,6 +3201,31 @@ function ShareHappinessScene({
 }) {
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
   const [isFlipped, setIsFlipped] = useState(false);
+  const isFlippingRef = useRef(false);
+
+  // Body scroll lock and Escape key listener
+  useEffect(() => {
+    if (activeIdx !== null) {
+      document.body.style.overflow = "hidden";
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") setActiveIdx(null);
+      };
+      window.addEventListener("keydown", handleKeyDown);
+      return () => {
+        document.body.style.overflow = "";
+        window.removeEventListener("keydown", handleKeyDown);
+      };
+    }
+  }, [activeIdx]);
+
+  const handleFlip = useCallback(() => {
+    if (isFlippingRef.current) return;
+    isFlippingRef.current = true;
+    setIsFlipped((f) => !f);
+    setTimeout(() => {
+      isFlippingRef.current = false;
+    }, 450);
+  }, []);
 
   const handleOpen = (idx: number) => {
     setActiveIdx(idx);
@@ -2902,70 +3235,121 @@ function ShareHappinessScene({
       onOpen(item.id);
     }
     
-    // Play sequential 3D flip animation in the modal:
-    // 1. Lift slightly (handled by modal initial y-offset)
-    // 2. Glow activates (modal animations)
-    // 3. Rotate 3D (after a small delay)
+    // Auto-flip to reason after initial reveal
     setTimeout(() => {
       setIsFlipped(true);
-    }, 450);
+    }, 550);
   };
 
-  // Card configuration colors and gradients
+  // 6 Distinct Light & Medium-Tone Luxury Themes
   const cardThemes = [
     {
-      accent: "warm rose/pink",
-      colorCode: "#f43f5e",
-      glowClass: "shadow-[0_0_30px_rgba(244,63,94,0.45)]",
-      borderClass: "border-rose-500/40",
-      bgGradient: "from-[#3b0b12] to-[#120306]",
-      bgStyle: "linear-gradient(135deg, #3b0b12 0%, #120306 100%)",
-      glowBorderClass: "shadow-[0_0_15px_rgba(244,63,94,0.5)]",
+      id: "smile",
+      title: "Your Smile",
+      themeSubtitle: "Soft Blush & Gentle Petals",
+      primaryColor: "#831843", // Deep rich rose
+      subtitleColor: "#9d174d",
+      borderColor: "#f472b6",
+      accentBg: "#fce7f3",
+      cardBg: "linear-gradient(145deg, #fff0f3 0%, #ffd6e0 50%, #fecdd3 100%)",
+      unopenedBg: "linear-gradient(145deg, #fff8fa 0%, #feeef3 100%)",
+      popupCoverBg: "linear-gradient(150deg, #fff5f7 0%, #fedee5 55%, #fecad5 100%)",
+      popupBackBg: "linear-gradient(150deg, #fff0f3 0%, #fde2e8 55%, #fed4dc 100%)",
+      badgeColor: "#be185d",
+      badgeBg: "rgba(190, 24, 93, 0.12)",
+      shadowColor: "rgba(244, 114, 182, 0.35)",
+      seal: "Keepsake Love Card",
+      type: "smile",
     },
     {
-      accent: "lavender/purple",
-      colorCode: "#c084fc",
-      glowClass: "shadow-[0_0_30px_rgba(192,132,252,0.45)]",
-      borderClass: "border-purple-400/40",
-      bgGradient: "from-[#220c38] to-[#0a0314]",
-      bgStyle: "linear-gradient(135deg, #220c38 0%, #0a0314 100%)",
-      glowBorderClass: "shadow-[0_0_15px_rgba(192,132,252,0.5)]",
+      id: "laugh",
+      title: "Your Laugh",
+      themeSubtitle: "Warm Champagne & Sparkles",
+      primaryColor: "#7c2d12", // Warm cognac/amber
+      subtitleColor: "#9a3412",
+      borderColor: "#fb923c",
+      accentBg: "#ffedd5",
+      cardBg: "linear-gradient(145deg, #fffbeb 0%, #fef3c7 50%, #fed7aa 100%)",
+      unopenedBg: "linear-gradient(145deg, #fffdf7 0%, #fef8eb 100%)",
+      popupCoverBg: "linear-gradient(150deg, #fffaf0 0%, #feeecf 55%, #fde4b8 100%)",
+      popupBackBg: "linear-gradient(150deg, #fffcf5 0%, #fef0d7 55%, #fde6c1 100%)",
+      badgeColor: "#c2410c",
+      badgeBg: "rgba(194, 65, 12, 0.12)",
+      shadowColor: "rgba(251, 146, 60, 0.35)",
+      seal: "Celebration Card",
+      type: "laugh",
     },
     {
-      accent: "champagne/gold",
-      colorCode: "#f3e2c7",
-      glowClass: "shadow-[0_0_30px_rgba(243,226,199,0.35)]",
-      borderClass: "border-amber-200/40",
-      bgGradient: "from-[#2d2416] to-[#0e0b07]",
-      bgStyle: "linear-gradient(135deg, #2d2416 0%, #0e0b07 100%)",
-      glowBorderClass: "shadow-[0_0_15px_rgba(243,226,199,0.5)]",
+      id: "eyes",
+      title: "Your Eyes",
+      themeSubtitle: "Lavender & Starlight Dream",
+      primaryColor: "#3b0764", // Royal deep violet
+      subtitleColor: "#581c87",
+      borderColor: "#c084fc",
+      accentBg: "#f3e8ff",
+      cardBg: "linear-gradient(145deg, #faf5ff 0%, #f3e8ff 50%, #e9d5ff 100%)",
+      unopenedBg: "linear-gradient(145deg, #fdfbfe 0%, #f8f2fd 100%)",
+      popupCoverBg: "linear-gradient(150deg, #fbf7ff 0%, #edd8ff 55%, #e2ceff 100%)",
+      popupBackBg: "linear-gradient(150deg, #faf5ff 0%, #ede3ff 55%, #e4d3ff 100%)",
+      badgeColor: "#6b21a8",
+      badgeBg: "rgba(107, 33, 168, 0.12)",
+      shadowColor: "rgba(192, 132, 252, 0.35)",
+      seal: "Moonlight Dream Card",
+      type: "eyes",
     },
     {
-      accent: "peach/coral",
-      colorCode: "#fb923c",
-      glowClass: "shadow-[0_0_30px_rgba(251,146,60,0.45)]",
-      borderClass: "border-orange-400/40",
-      bgGradient: "from-[#381608] to-[#140602]",
-      bgStyle: "linear-gradient(135deg, #381608 0%, #140602 100%)",
-      glowBorderClass: "shadow-[0_0_15px_rgba(251,146,60,0.5)]",
+      id: "memories",
+      title: "Our Memories",
+      themeSubtitle: "Warm Ivory Scrapbook",
+      primaryColor: "#451a03", // Vintage dark sepia
+      subtitleColor: "#78350f",
+      borderColor: "#d9a85e",
+      accentBg: "#fef3c7",
+      cardBg: "linear-gradient(145deg, #fefce8 0%, #fef9c3 50%, #fef08a 100%)",
+      unopenedBg: "linear-gradient(145deg, #fffef7 0%, #fefbe8 100%)",
+      popupCoverBg: "linear-gradient(150deg, #fffdf2 0%, #fef6cf 55%, #fdecb2 100%)",
+      popupBackBg: "linear-gradient(150deg, #fffef5 0%, #fef8db 55%, #fdedbf 100%)",
+      badgeColor: "#854d0e",
+      badgeBg: "rgba(133, 77, 14, 0.12)",
+      shadowColor: "rgba(217, 168, 94, 0.35)",
+      seal: "Scrapbook Keepsake",
+      type: "memories",
     },
     {
-      accent: "deep burgundy",
-      colorCode: "#881337",
-      glowClass: "shadow-[0_0_30px_rgba(136,19,55,0.45)]",
-      borderClass: "border-rose-700/40",
-      bgGradient: "from-[#4c0519] to-[#160005]",
-      bgStyle: "linear-gradient(135deg, #4c0519 0%, #160005 100%)",
-      glowBorderClass: "shadow-[0_0_15px_rgba(136,19,55,0.55)]",
+      id: "adventures",
+      title: "Our Adventures",
+      themeSubtitle: "Sage & Travel Postcard",
+      primaryColor: "#14331e", // Deep forest green
+      subtitleColor: "#1b4324",
+      borderColor: "#86a789",
+      accentBg: "#e7efe4",
+      cardBg: "linear-gradient(145deg, #f4f7f2 0%, #e7efe4 50%, #d8e5d4 100%)",
+      unopenedBg: "linear-gradient(145deg, #fafbf9 0%, #eff5ee 100%)",
+      popupCoverBg: "linear-gradient(150deg, #f6f9f4 0%, #e1ebd9 55%, #d1e2cb 100%)",
+      popupBackBg: "linear-gradient(150deg, #f8faf6 0%, #e5eedf 55%, #d6e5d1 100%)",
+      badgeColor: "#2d5a37",
+      badgeBg: "rgba(45, 90, 55, 0.12)",
+      shadowColor: "rgba(134, 167, 137, 0.35)",
+      seal: "Travel Postcard",
+      type: "adventures",
     },
     {
-      accent: "soft violet/gold",
-      colorCode: "#ddd6fe",
-      glowClass: "shadow-[0_0_30px_rgba(221,214,254,0.35)]",
-      borderClass: "border-violet-300/40",
-      bgGradient: "from-[#20163b] via-[#2d2416] to-[#07050e]",
-      bgStyle: "linear-gradient(135deg, #20163b 0%, #2d2416 50%, #07050e 100%)",
-      glowBorderClass: "shadow-[0_0_15px_rgba(221,214,254,0.45)]",
+      id: "future",
+      title: "Our Future",
+      themeSubtitle: "Rose Gold & Constellations",
+      primaryColor: "#4c0519", // Deep romantic burgundy
+      subtitleColor: "#881337",
+      borderColor: "#fb7185",
+      accentBg: "#ffe4e6",
+      cardBg: "linear-gradient(145deg, #fff1f2 0%, #ffe4e6 50%, #fecdd3 100%)",
+      unopenedBg: "linear-gradient(145deg, #fff8f9 0%, #fdf0f2 100%)",
+      popupCoverBg: "linear-gradient(150deg, #fff2f4 0%, #fed8df 55%, #fcc1cd 100%)",
+      popupBackBg: "linear-gradient(150deg, #fff5f6 0%, #fedfe5 55%, #fcc9d4 100%)",
+      badgeColor: "#9f1239",
+      badgeBg: "rgba(159, 18, 57, 0.12)",
+      shadowColor: "rgba(251, 113, 133, 0.35)",
+      seal: "Constellation Card",
+      type: "future",
     },
   ];
 
@@ -2976,7 +3360,6 @@ function ShareHappinessScene({
       <ParticleField density="low" petals={true} dots={false} />
 
       <div className="relative z-10 flex min-h-full flex-1 flex-col items-center justify-start overflow-y-auto p-4 py-8 select-none">
-        
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -15 }}
@@ -2992,8 +3375,8 @@ function ShareHappinessScene({
           </p>
         </motion.div>
 
-        {/* 6 Cards Grid - Main Visual Focus */}
-        <div className="mt-12 grid w-full max-w-4xl grid-cols-2 gap-5 sm:grid-cols-3 px-2 sm:px-6">
+        {/* 6 Cards Grid - 6 Unique Light & Medium Luxury Cards */}
+        <div className="mt-8 sm:mt-12 grid w-full max-w-4xl grid-cols-2 gap-3.5 sm:gap-6 sm:grid-cols-3 px-1.5 sm:px-6">
           {happiness.map((h, i) => {
             const isOpened = opened.includes(h.id);
             const theme = cardThemes[i];
@@ -3002,43 +3385,136 @@ function ShareHappinessScene({
                 key={h.id}
                 initial={{ opacity: 0, y: 25 }}
                 animate={{ opacity: 1, y: 0 }}
-                whileHover={{ 
-                  y: -5, 
-                  scale: 1.03, 
-                  boxShadow: `0 12px 30px rgba(0, 0, 0, 0.4)`,
-                  borderColor: theme.colorCode
+                whileHover={{
+                  y: -6,
+                  scale: 1.03,
+                  boxShadow: `0 18px 36px rgba(0, 0, 0, 0.25), 0 0 25px ${theme.shadowColor}`,
+                  borderColor: theme.borderColor,
                 }}
                 whileTap={{ scale: 0.97 }}
                 transition={{ delay: i * 0.08, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
                 onClick={() => handleOpen(i)}
+                style={{
+                  background: isOpened ? theme.cardBg : theme.unopenedBg,
+                  boxShadow: isOpened
+                    ? `0 12px 28px rgba(0,0,0,0.22), 0 0 20px ${theme.shadowColor}, inset 0 1px 1px rgba(255,255,255,0.9)`
+                    : "0 8px 20px rgba(0,0,0,0.18), inset 0 1px 1px rgba(255,255,255,0.8)",
+                  borderColor: isOpened ? theme.borderColor : "rgba(255,255,255,0.5)",
+                }}
                 className={cn(
-                  "relative flex flex-col items-center justify-center rounded-2xl p-6 text-center border cursor-pointer select-none transition-all duration-300 min-h-[9rem] sm:min-h-[11rem]",
-                  "glass-premium border-white/5 shadow-md",
-                  isOpened 
-                    ? `bg-gradient-to-br ${theme.bgGradient} ${theme.borderClass} ${theme.glowClass}` 
-                    : "hover:border-white/20 hover:bg-white/[0.03]"
+                  "group relative flex flex-col items-center justify-between rounded-2xl p-3.5 sm:p-6 text-center border-2 cursor-pointer select-none transition-all duration-300 min-h-[11.5rem] sm:min-h-[13rem] overflow-hidden shadow-lg",
+                  "backdrop-blur-md"
                 )}
               >
-                {isOpened && (
-                  <div className="absolute top-3.5 right-3.5">
-                    <Heart className="h-4.5 w-4.5 fill-rose text-rose animate-pulse" />
-                  </div>
+                {/* Unique decorative elements per card */}
+                {theme.type === "smile" && (
+                  <>
+                    <div className="absolute top-2.5 left-2.5 opacity-95 group-hover:scale-110 transition-transform">
+                      <picture>
+                        <source srcSet="/assets/stickers/teddy-1.webp" type="image/webp" />
+                        <img
+                          src="/assets/stickers/teddy-1.gif"
+                          alt="Teddy"
+                          className="w-7 h-7 sm:w-8 sm:h-8 object-contain filter drop-shadow-[0_2px_6px_rgba(244,114,182,0.4)]"
+                        />
+                      </picture>
+                    </div>
+                    <div className="absolute top-3 right-3">
+                      <Heart className={cn("h-4 w-4", isOpened ? "fill-rose-500 text-rose-500 animate-pulse" : "text-rose-300")} />
+                    </div>
+                  </>
                 )}
-                <div className={cn(
-                  "flex h-11 w-11 items-center justify-center rounded-full bg-white/5 border mb-3 transition-colors duration-300",
-                  isOpened ? "border-white/20 text-white" : "border-white/10 text-white/50"
+
+                {theme.type === "laugh" && (
+                  <>
+                    <div className="absolute top-2.5 left-3 text-amber-600 text-xs font-serif font-bold animate-pulse">
+                      ✨ ♥
+                    </div>
+                    <div className="absolute top-3 right-3 flex items-center gap-0.5">
+                      <Sparkles className="h-4 w-4 text-amber-500" />
+                    </div>
+                  </>
                 )}
-                style={isOpened ? { color: theme.colorCode, borderColor: theme.colorCode } : {}}
+
+                {theme.type === "eyes" && (
+                  <>
+                    <div className="absolute top-2.5 left-3 text-sm text-purple-600">
+                      🌙
+                    </div>
+                    <div className="absolute top-3 right-3 text-xs text-purple-400 font-serif">
+                      ✧ ✦
+                    </div>
+                  </>
+                )}
+
+                {theme.type === "memories" && (
+                  <>
+                    <div className="absolute top-2 left-2 text-[11px] font-mono text-amber-800/60 font-bold">⌜</div>
+                    <div className="absolute top-2 right-2 text-[11px] font-mono text-amber-800/60 font-bold">⌝</div>
+                    <div className="absolute bottom-2 left-2 text-[11px] font-mono text-amber-800/40 font-bold">⌞</div>
+                    <div className="absolute bottom-2 right-2 text-[11px] font-mono text-amber-800/40 font-bold">⌟</div>
+                  </>
+                )}
+
+                {theme.type === "adventures" && (
+                  <>
+                    <div className="absolute top-2.5 left-2.5">
+                      <Compass className="h-4 w-4 text-emerald-700 group-hover:rotate-45 transition-transform duration-500" />
+                    </div>
+                    <div className="absolute top-3 right-3 text-[10px] tracking-widest text-emerald-800/70 font-mono font-bold">
+                      ✈ • •
+                    </div>
+                  </>
+                )}
+
+                {theme.type === "future" && (
+                  <>
+                    <div className="absolute top-2.5 left-3 text-xs font-bold text-rose-700">
+                      ∞
+                    </div>
+                    <div className="absolute top-3 right-3">
+                      <Heart className={cn("h-4 w-4", isOpened ? "fill-rose-600 text-rose-600 animate-pulse" : "text-rose-400")} />
+                    </div>
+                  </>
+                )}
+
+                {/* Card Icon in Thematic Medallion */}
+                <div
+                  className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full border transition-all duration-300 mt-2 bg-white/90 shadow-sm"
+                  style={{
+                    color: theme.primaryColor,
+                    borderColor: theme.borderColor,
+                    boxShadow: `0 4px 12px ${theme.shadowColor}`,
+                  }}
                 >
-                  <HappinessIcon icon={h.icon} className="transition-transform duration-500 group-hover:scale-110" />
+                  <HappinessIcon icon={h.icon} className="h-6 w-6 sm:h-7 sm:w-7 transition-transform duration-500 group-hover:scale-110" />
                 </div>
-                <h3 className={cn(
-                  "font-serif text-sm sm:text-base font-semibold tracking-wide transition-colors duration-300",
-                  isOpened ? "text-white glow-gold" : "text-champagne/70"
-                )}>{h.title}</h3>
-                <span className="text-[9px] uppercase tracking-widest text-white/40 mt-1.5 block">
-                  {isOpened ? "Relive Memory" : "Tap to open"}
-                </span>
+
+                {/* Card Title & Subtitle with high-contrast text */}
+                <div className="w-full my-auto py-1 px-1">
+                  <h3
+                    className="font-serif text-base sm:text-lg font-bold tracking-wide transition-colors duration-300 drop-shadow-sm"
+                    style={{ color: theme.primaryColor }}
+                  >
+                    {h.title}
+                  </h3>
+                  <p
+                    className="text-[11px] font-sans tracking-wide mt-0.5 font-medium truncate"
+                    style={{ color: theme.subtitleColor }}
+                  >
+                    {theme.themeSubtitle}
+                  </p>
+                </div>
+
+                {/* Bottom Status Callout */}
+                <div className="w-full pt-1">
+                  <span
+                    className="text-[10px] uppercase tracking-widest block font-bold transition-colors"
+                    style={{ color: theme.primaryColor }}
+                  >
+                    {isOpened ? "♥ Relive Memory" : "✦ Tap to open"}
+                  </span>
+                </div>
               </motion.button>
             );
           })}
@@ -3049,16 +3525,16 @@ function ShareHappinessScene({
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-14 mb-8 text-center z-20"
+            className="mt-12 sm:mt-14 mb-8 text-center z-20"
           >
             <PrimaryButton onClick={onContinue}>
-              Continue Journey ♥
+              Discover More Memories ✦
             </PrimaryButton>
           </motion.div>
         )}
       </div>
 
-      {/* 3D Collectible Card Modal popup */}
+      {/* 3D Collectible Card Modal popup with Theme Extension */}
       <AnimatePresence>
         {activeIdx !== null && (
           <motion.div
@@ -3066,116 +3542,252 @@ function ShareHappinessScene({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setActiveIdx(null)}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-6 backdrop-blur-md"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 sm:p-6 backdrop-blur-md"
           >
-            {/* The 3D Perspective Card Wrapper */}
-            <div 
-              className="relative w-full max-w-sm h-[450px] perspective-1000"
+            {/* 3D Perspective Card Wrapper */}
+            <div
+              className="relative w-full max-w-[340px] sm:max-w-md h-[480px] sm:h-[510px] max-h-[86vh] perspective-1000"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Card Container holding both faces */}
+              {/* Card Container holding both faces with Accessible Flip */}
               <motion.div
                 animate={{ rotateY: isFlipped ? 180 : 0, scale: isFlipped ? 1.02 : 1 }}
                 transition={{ type: "spring", stiffness: 90, damping: 14 }}
-                className="w-full h-full preserve-3d relative cursor-pointer"
-                onClick={() => setIsFlipped(!isFlipped)}
+                className="w-full h-full preserve-3d relative cursor-pointer outline-none"
+                tabIndex={0}
+                role="button"
+                aria-label="Flip collectible memory card"
+                onClick={handleFlip}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    handleFlip();
+                  }
+                }}
               >
                 {/* 1. FRONT FACE (Card Cover) */}
-                <div 
-                  className={cn(
-                    "absolute inset-0 rounded-2xl glass-premium border p-8 flex flex-col items-center justify-between text-center backface-hidden",
-                    cardThemes[activeIdx].borderClass
-                  )}
+                <div
+                  className="absolute inset-0 rounded-3xl border-2 p-6 sm:p-8 flex flex-col items-center justify-between text-center backface-hidden overflow-hidden shadow-2xl"
                   style={{
-                    background: `linear-gradient(135deg, rgba(18,20,38,0.92) 0%, rgba(8,4,12,0.98) 100%)`,
-                    boxShadow: `0 15px 40px rgba(0,0,0,0.6)`
+                    background: cardThemes[activeIdx].popupCoverBg,
+                    borderColor: cardThemes[activeIdx].borderColor,
+                    boxShadow: `0 25px 60px rgba(0,0,0,0.6), 0 0 35px ${cardThemes[activeIdx].shadowColor}`,
                   }}
                 >
-                  <div className="w-full flex justify-between items-center opacity-60">
-                    <span className="text-[9px] uppercase tracking-widest text-white/50">NO. 0{activeIdx + 1}</span>
-                    <Heart className="h-4 w-4 text-white/40" />
-                  </div>
+                  {/* Decorative corner filigrees */}
+                  <div className="absolute top-3.5 left-3.5 text-xs font-mono font-bold" style={{ color: cardThemes[activeIdx].subtitleColor }}>✦</div>
+                  <div className="absolute top-3.5 right-3.5 text-xs font-mono font-bold" style={{ color: cardThemes[activeIdx].subtitleColor }}>✦</div>
+                  <div className="absolute bottom-3.5 left-3.5 text-xs font-mono font-bold" style={{ color: cardThemes[activeIdx].subtitleColor }}>✦</div>
+                  <div className="absolute bottom-3.5 right-3.5 text-xs font-mono font-bold" style={{ color: cardThemes[activeIdx].subtitleColor }}>✦</div>
 
-                  <div className="flex flex-col items-center gap-4">
-                    <motion.div 
-                      animate={{ scale: [1, 1.06, 1] }}
-                      transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
-                      className="flex h-20 w-20 items-center justify-center rounded-full bg-white/5 border border-white/10 text-white"
-                      style={{ borderColor: cardThemes[activeIdx].colorCode, boxShadow: `inset 0 0 20px rgba(255,255,255,0.05), ${cardThemes[activeIdx].glowBorderClass}` }}
-                    >
-                      <HappinessIcon icon={happiness[activeIdx].icon} className="h-10 w-10" style={{ color: cardThemes[activeIdx].colorCode }} />
-                    </motion.div>
-                    <h3 className="font-serif text-2xl font-bold tracking-wide text-white">
-                      {happiness[activeIdx].title}
-                    </h3>
-                  </div>
-
-                  <div className="flex flex-col items-center gap-1.5">
-                    <span className="text-[10px] uppercase tracking-[0.2em] font-medium" style={{ color: cardThemes[activeIdx].colorCode }}>
-                      Tap to Unveil ♥
-                    </span>
-                    <div className="w-8 h-0.5 rounded-full" style={{ backgroundColor: cardThemes[activeIdx].colorCode }} />
-                  </div>
-                </div>
-
-                {/* 2. BACK FACE (Premium Collectible Inner Details) */}
-                <div 
-                  className={cn(
-                    "absolute inset-0 rounded-2xl p-8 flex flex-col justify-between text-center backface-hidden rotate-y-180 border overflow-hidden",
-                    cardThemes[activeIdx].borderClass,
-                    cardThemes[activeIdx].glowClass
-                  )}
-                  style={{
-                    background: cardThemes[activeIdx].bgStyle,
-                  }}
-                >
-                  {/* Subtle inner animated gradient & soft glow bloom */}
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.01),_transparent_75%)] pointer-events-none" />
-                  <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-tr from-transparent via-white/[0.01] to-transparent" />
-                  
-                  {/* Glowing inner border accent */}
-                  <div 
-                    className="absolute inset-4 rounded-xl border border-dashed opacity-25 pointer-events-none" 
-                    style={{ borderColor: cardThemes[activeIdx].colorCode }}
+                  {/* Inner dashed border */}
+                  <div
+                    className="absolute inset-3 rounded-2xl border border-dashed opacity-40 pointer-events-none"
+                    style={{ borderColor: cardThemes[activeIdx].borderColor }}
                   />
 
-                  {/* Header */}
-                  <div className="relative z-10 flex justify-between items-center">
-                    <span className="text-[8px] font-sans tracking-[0.35em] text-white/40 uppercase">Collectible Card</span>
-                    <button 
+                  {/* Top Bar with Number, Seal, and Close Button */}
+                  <div className="w-full flex justify-between items-center z-10 px-1 pt-1">
+                    <span
+                      className="text-[10px] uppercase tracking-[0.25em] font-bold"
+                      style={{ color: cardThemes[activeIdx].subtitleColor }}
+                    >
+                      NO. 0{activeIdx + 1} / 06
+                    </span>
+                    <span
+                      className="text-[10px] uppercase tracking-wider px-2.5 py-0.5 rounded-full border font-bold shadow-sm"
+                      style={{
+                        color: cardThemes[activeIdx].badgeColor,
+                        backgroundColor: cardThemes[activeIdx].badgeBg,
+                        borderColor: cardThemes[activeIdx].borderColor,
+                      }}
+                    >
+                      {cardThemes[activeIdx].seal}
+                    </span>
+                    <button
                       onClick={(e) => {
                         e.stopPropagation();
                         setActiveIdx(null);
                       }}
-                      className="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-white/70 hover:text-white transition-colors cursor-pointer"
+                      className="p-1.5 rounded-full bg-black/10 hover:bg-black/20 text-neutral-800 transition-colors cursor-pointer"
+                      title="Close Card"
                     >
-                      <X size={14} />
+                      <X size={16} />
                     </button>
                   </div>
 
-                  {/* Content details with custom typographic styling */}
-                  <div className="relative z-10 my-auto py-2 flex flex-col items-center select-text">
+                  {/* Center Themed Feature Medallion */}
+                  <div className="flex flex-col items-center gap-4 z-10 my-auto">
+                    <motion.div
+                      animate={{ scale: [1, 1.05, 1] }}
+                      transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
+                      className="relative flex h-24 w-24 sm:h-28 sm:w-28 items-center justify-center rounded-full bg-white/95 border-2 shadow-lg"
+                      style={{
+                        borderColor: cardThemes[activeIdx].borderColor,
+                        boxShadow: `0 8px 25px ${cardThemes[activeIdx].shadowColor}`,
+                      }}
+                    >
+                      {/* Individual Theme Feature Element */}
+                      {cardThemes[activeIdx].type === "smile" && (
+                        <div className="flex flex-col items-center justify-center">
+                          <picture>
+                            <source srcSet="/assets/stickers/teddy-1.webp" type="image/webp" />
+                            <img
+                              src="/assets/stickers/teddy-1.gif"
+                              alt="Teddy blowing kisses"
+                              className="w-16 h-16 sm:w-20 sm:h-20 object-contain filter drop-shadow-[0_2px_8px_rgba(244,114,182,0.5)]"
+                            />
+                          </picture>
+                        </div>
+                      )}
+
+                      {cardThemes[activeIdx].type === "laugh" && (
+                        <div className="flex flex-col items-center justify-center">
+                          <picture>
+                            <source srcSet="/assets/stickers/teddy-2.webp" type="image/webp" />
+                            <img
+                              src="/assets/stickers/teddy-2.gif"
+                              alt="Teddy joyful laugh"
+                              className="w-16 h-16 sm:w-20 sm:h-20 object-contain filter drop-shadow-[0_2px_8px_rgba(251,146,60,0.5)]"
+                            />
+                          </picture>
+                        </div>
+                      )}
+
+                      {cardThemes[activeIdx].type === "eyes" && (
+                        <div className="relative flex items-center justify-center">
+                          <span className="absolute -top-3 -right-2 text-xl">🌙</span>
+                          <Eye className="h-12 w-12 text-purple-700 drop-shadow-sm" />
+                          <span className="absolute -bottom-2 -left-2 text-xs text-purple-400">✦</span>
+                        </div>
+                      )}
+
+                      {cardThemes[activeIdx].type === "memories" && (
+                        <div className="relative flex flex-col items-center justify-center p-2 rounded-xl border border-amber-300/80 bg-white shadow-md rotate-[-2deg]">
+                          <div className="w-16 h-11 bg-amber-100/60 rounded-md overflow-hidden flex items-center justify-center">
+                            <ImageIcon className="h-7 w-7 text-amber-800/80" />
+                          </div>
+                          <span className="text-[8px] font-serif text-amber-900 mt-0.5 font-bold">Us Forever ♥</span>
+                          <Heart className="h-3 w-3 absolute -top-1 -right-1 fill-rose-500 text-rose-500 animate-pulse" />
+                        </div>
+                      )}
+
+                      {cardThemes[activeIdx].type === "adventures" && (
+                        <div className="relative flex items-center justify-center p-2 rounded-2xl bg-emerald-50 border border-emerald-300">
+                          <Compass className="h-12 w-12 text-emerald-800 drop-shadow-sm animate-[spin_16s_linear_infinite]" />
+                          <span className="absolute -bottom-1 -right-1 text-[9px] font-mono font-bold text-emerald-900 bg-emerald-200/80 px-1 rounded-sm">TRAVEL</span>
+                        </div>
+                      )}
+
+                      {cardThemes[activeIdx].type === "future" && (
+                        <div className="relative flex flex-col items-center justify-center">
+                          <div className="relative flex items-center justify-center">
+                            <Sparkles className="h-10 w-10 text-rose-600 drop-shadow-sm animate-pulse" />
+                            <span className="text-lg absolute">✨</span>
+                          </div>
+                          <span className="text-[10px] font-serif font-bold text-rose-800 mt-0.5 tracking-widest">∞ FOREVER</span>
+                        </div>
+                      )}
+                    </motion.div>
+
+                    <div>
+                      <h3
+                        className="font-serif text-2xl sm:text-3xl font-bold tracking-wide drop-shadow-sm"
+                        style={{ color: cardThemes[activeIdx].primaryColor }}
+                      >
+                        {happiness[activeIdx].title}
+                      </h3>
+                      <p
+                        className="text-xs font-sans tracking-wide mt-1 font-semibold"
+                        style={{ color: cardThemes[activeIdx].subtitleColor }}
+                      >
+                        {cardThemes[activeIdx].themeSubtitle}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Tap to Unveil Callout */}
+                  <div className="flex flex-col items-center gap-1.5 z-10 pb-1">
+                    <motion.span
+                      animate={{ y: [0, -3, 0] }}
+                      transition={{ repeat: Infinity, duration: 1.8, ease: "easeInOut" }}
+                      className="text-xs uppercase tracking-[0.2em] font-bold"
+                      style={{ color: cardThemes[activeIdx].primaryColor }}
+                    >
+                      Tap to Unveil Reason ♥
+                    </motion.span>
+                    <div
+                      className="w-14 h-0.5 rounded-full"
+                      style={{ backgroundColor: cardThemes[activeIdx].borderColor }}
+                    />
+                  </div>
+                </div>
+
+                {/* 2. BACK FACE (Revealed Reason Details with Premium Typography) */}
+                <div
+                  className="absolute inset-0 rounded-3xl border-2 p-6 sm:p-8 flex flex-col justify-between text-center backface-hidden rotate-y-180 overflow-hidden shadow-2xl"
+                  style={{
+                    background: cardThemes[activeIdx].popupBackBg,
+                    borderColor: cardThemes[activeIdx].borderColor,
+                    boxShadow: `0 25px 60px rgba(0,0,0,0.6), 0 0 35px ${cardThemes[activeIdx].shadowColor}`,
+                  }}
+                >
+                  {/* Glowing inner border accent */}
+                  <div
+                    className="absolute inset-3 rounded-2xl border border-dashed opacity-40 pointer-events-none"
+                    style={{ borderColor: cardThemes[activeIdx].borderColor }}
+                  />
+
+                  {/* Header */}
+                  <div className="relative z-10 flex justify-between items-center px-1">
+                    <span
+                      className="text-[10px] font-sans tracking-[0.3em] uppercase font-bold"
+                      style={{ color: cardThemes[activeIdx].subtitleColor }}
+                    >
+                      Reason #{activeIdx + 1} of 6
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveIdx(null);
+                      }}
+                      className="p-1.5 rounded-full bg-black/10 hover:bg-black/20 text-neutral-800 transition-colors cursor-pointer"
+                      title="Close Card"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+
+                  {/* Content details with custom typographic styling & guaranteed high contrast */}
+                  <div className="relative z-10 my-auto py-3 flex flex-col items-center select-text">
                     <motion.div
                       animate={{ y: [0, -4, 0] }}
                       transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
-                      className="mb-4 text-white/90"
-                      style={{ color: cardThemes[activeIdx].colorCode }}
+                      className="mb-3"
+                      style={{ color: cardThemes[activeIdx].primaryColor }}
                     >
-                      <HappinessIcon icon={happiness[activeIdx].icon} className="h-9 w-9" />
+                      <HappinessIcon icon={happiness[activeIdx].icon} className="h-10 w-10 drop-shadow-sm" />
                     </motion.div>
 
-                    <h4 className="font-serif text-sm tracking-[0.2em] font-semibold text-white/50 uppercase mb-3">
+                    <h4
+                      className="font-serif text-sm tracking-[0.25em] font-bold uppercase mb-3"
+                      style={{ color: cardThemes[activeIdx].subtitleColor }}
+                    >
                       {happiness[activeIdx].title}
                     </h4>
 
-                    <p className="font-serif italic text-xl sm:text-2xl leading-relaxed text-white/95 pr-1 pl-1 font-medium">
+                    {/* Clear, readable, high-contrast message */}
+                    <p
+                      className="font-serif italic text-xl sm:text-2xl leading-relaxed font-semibold px-2 py-1 drop-shadow-sm"
+                      style={{ color: cardThemes[activeIdx].primaryColor }}
+                    >
                       "{happiness[activeIdx].message}"
                     </p>
                   </div>
 
                   {/* Footer */}
                   <div className="relative z-10 flex flex-col items-center gap-2">
-                    <span className="text-[8px] uppercase tracking-widest text-white/30">
+                    <span className="text-[10px] uppercase tracking-widest font-medium text-neutral-600">
                       Tap card to flip back
                     </span>
                     <button
@@ -3183,8 +3795,11 @@ function ShareHappinessScene({
                         e.stopPropagation();
                         setActiveIdx(null);
                       }}
-                      className="rounded-full px-5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white border bg-white/5 hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
-                      style={{ borderColor: `${cardThemes[activeIdx].colorCode}50` }}
+                      className="rounded-full px-6 py-2 text-xs font-bold uppercase tracking-wider text-white border shadow-md active:scale-95 transition-all cursor-pointer"
+                      style={{
+                        backgroundColor: cardThemes[activeIdx].primaryColor,
+                        borderColor: cardThemes[activeIdx].borderColor,
+                      }}
                     >
                       Close Reason ♥
                     </button>
@@ -3515,6 +4130,10 @@ function GiftsScene({
   const [mobileRevealed, setMobileRevealed] = useState(() => opened.length > 0);
   const [burstParticles, setBurstParticles] = useState<{ id: number; x: number; y: number; vx: number; vy: number; color: string; size: number }[]>([]);
 
+  const requiredGiftIds = useMemo(() => ["letter", "memories", "voice"], []);
+  const allGiftsOpened = useMemo(() => requiredGiftIds.every((id) => opened.includes(id)), [opened, requiredGiftIds]);
+  const openedCount = useMemo(() => requiredGiftIds.filter((id) => opened.includes(id)).length, [opened, requiredGiftIds]);
+
   // Scene 10: LetterScene, Scene 11: MemoriesScene, Scene 12: VoiceScene
   const handleExplore = (id: string) => {
     if (id === "letter") goToGift(10, "letter");
@@ -3800,21 +4419,29 @@ function GiftsScene({
                 </span>
               </div>
 
-              {/* Continue button appears once at least 1 gift is opened */}
-              {opened.length >= 1 && (
+              {/* Continue button appears ONLY once all 3 gifts are opened */}
+              {!allGiftsOpened && (
+                <div className="mt-4 text-center px-4 py-2.5 rounded-2xl bg-white/[0.04] border border-white/10 shadow-sm">
+                  <span className="text-[11px] text-white/70 tracking-wide flex items-center justify-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-gold shrink-0 animate-pulse" />
+                    Unwrap all 3 gifts to continue ({openedCount} of 3 opened)
+                  </span>
+                </div>
+              )}
+
+              {allGiftsOpened && (
                 <motion.div
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mt-4 flex flex-col items-center gap-1.5"
+                  initial={{ opacity: 0, y: 12, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ duration: 0.5 }}
+                  className="mt-4 flex flex-col items-center gap-2"
                 >
+                  <p className="text-xs text-gold glow-gold font-serif italic text-center px-2">
+                    ✨ All three gifts unwrapped with love — our journey continues ✨
+                  </p>
                   <PrimaryButton onClick={onContinue} className="w-full min-h-[48px]">
-                    {opened.length === 3 ? "Continue Journey ♥" : "Continue to Wish Tree →"}
+                    Continue to Wish Tree →
                   </PrimaryButton>
-                  {opened.length < 3 && (
-                    <span className="text-[11px] text-white/40">
-                      You can return to explore the remaining {3 - opened.length} gift{3 - opened.length > 1 ? "s" : ""}
-                    </span>
-                  )}
                 </motion.div>
               )}
             </motion.div>
@@ -3852,23 +4479,30 @@ function GiftsScene({
           })}
         </div>
 
-        {/* Desktop Continue Button shown when at least 1 gift is opened (highlighted when all 3) */}
+        {/* Desktop Continue Button shown ONLY when all 3 gifts are opened */}
         <div className="hidden sm:block">
-          {opened.length >= 1 && (
+          {!allGiftsOpened && (
+            <div className="mt-12 text-center">
+              <span className="text-xs text-white/70 tracking-wider inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/[0.04] border border-white/10 shadow-sm">
+                <Sparkles className="w-4 h-4 text-gold shrink-0 animate-pulse" />
+                Unwrap all 3 gifts to continue ({openedCount} of 3 opened)
+              </span>
+            </div>
+          )}
+
+          {allGiftsOpened && (
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
-              className="mt-14 z-30 text-center flex flex-col items-center gap-2"
+              className="mt-14 z-30 text-center flex flex-col items-center gap-3"
             >
+              <p className="text-sm font-serif italic text-gold glow-gold tracking-wide">
+                ✨ All three gifts unwrapped with love — our journey continues ✨
+              </p>
               <PrimaryButton onClick={onContinue}>
-                {opened.length === 3 ? "Continue Journey ♥" : "Continue to Wish Tree →"}
+                Continue to Wish Tree →
               </PrimaryButton>
-              {opened.length < 3 && (
-                <span className="text-xs text-white/50">
-                  ({opened.length} of 3 opened — you can explore more or continue anytime)
-                </span>
-              )}
             </motion.div>
           )}
         </div>
@@ -4433,9 +5067,9 @@ function LetterScene({
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     onClick={onContinue}
-                    className="px-6 py-2.5 min-h-[44px] rounded-xl text-xs sm:text-sm font-semibold tracking-wide bg-gradient-to-r from-[#d9a85e] to-[#b8862e] text-[#1a0f05] shadow-[0_4px_16px_rgba(217,168,94,0.35)] hover:shadow-[0_6px_22px_rgba(217,168,94,0.5)] hover:scale-105 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+                    className="px-6 py-2.5 min-h-[44px] rounded-xl text-xs sm:text-sm font-serif font-bold tracking-wide bg-gradient-to-r from-[#d9a85e] to-[#b8862e] text-[#1a0f05] shadow-[0_4px_16px_rgba(217,168,94,0.35)] hover:shadow-[0_6px_22px_rgba(217,168,94,0.5)] hover:scale-105 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
                   >
-                    Continue <ArrowRight size={16} />
+                    Cherish This Letter ♥
                   </motion.button>
                 )}
               </div>
@@ -4541,7 +5175,7 @@ function MemoriesScene({
         </div>
 
         <div className="my-8">
-          <PrimaryButton onClick={onContinue}>Continue ♥</PrimaryButton>
+          <PrimaryButton onClick={onContinue}>Cherish Every Memory →</PrimaryButton>
         </div>
       </div>
 
@@ -4633,56 +5267,61 @@ function MemoriesScene({
 /* Scene 12 — Voice Message                                           */
 /* ------------------------------------------------------------------ */
 
-function WaveformProgress({
-  progress,
+function AnimatedEqualizerWaveform({
   isPlaying,
+  progress,
   onSeek,
 }: {
-  progress: number;
   isPlaying: boolean;
+  progress: number;
   onSeek: (p: number) => void;
 }) {
-  const barsCount = 38;
-  const barHeights = useMemo(() => {
-    const heights = [];
-    const pattern = [25, 40, 30, 55, 70, 45, 60, 80, 95, 75, 85, 60, 40, 50, 75, 90, 80, 55, 30, 45, 65, 85, 95, 80, 60, 75, 50, 35, 45, 60, 50, 30, 40, 25, 35, 20, 15, 10];
-    for (let i = 0; i < barsCount; i++) {
-      heights.push(pattern[i % pattern.length]);
-    }
-    return heights;
+  const barsCount = 32;
+  const baseHeights = useMemo(() => {
+    const pattern = [25, 45, 35, 65, 80, 50, 70, 90, 100, 85, 70, 95, 60, 45, 75, 90, 85, 65, 40, 55, 75, 95, 80, 65, 85, 55, 40, 50, 65, 45, 30, 20];
+    return Array.from({ length: barsCount }, (_, i) => pattern[i % pattern.length]);
   }, []);
 
   return (
-    <div 
-      className="flex items-end justify-between h-14 w-full cursor-pointer group px-1"
+    <div
+      className="flex items-end justify-between h-14 w-full cursor-pointer group px-2 py-1 bg-black/25 rounded-xl border border-white/10"
       onClick={(e) => {
         const rect = e.currentTarget.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
         onSeek(Math.max(0, Math.min(1, clickX / rect.width)));
       }}
+      title="Click to seek"
     >
-      {barHeights.map((h, i) => {
+      {baseHeights.map((h, i) => {
         const barProgress = i / barsCount;
-        const active = progress >= barProgress;
+        const passed = progress >= barProgress;
         return (
           <motion.div
             key={i}
             className={cn(
-              "w-[3px] rounded-full transition-all duration-200",
-              active 
-                ? "bg-gradient-to-t from-pink-500 via-rose-500 to-red-500" 
-                : "bg-white/10 group-hover:bg-white/20"
+              "w-[4px] rounded-full transition-colors duration-200",
+              passed
+                ? "bg-gradient-to-t from-rose-500 via-pink-400 to-amber-300 shadow-[0_0_8px_rgba(244,63,94,0.5)]"
+                : "bg-white/15 group-hover:bg-white/30"
             )}
             style={{ height: `${h}%` }}
-            animate={isPlaying && active ? {
-              scaleY: [1, 1.18, 1],
-            } : { scaleY: 1 }}
-            transition={{
-              repeat: Infinity,
-              duration: 1.1 + (i % 3) * 0.1,
-              delay: i * 0.02,
-              ease: "easeInOut"
-            }}
+            animate={
+              isPlaying
+                ? {
+                    scaleY: [0.35, 1.1, 0.45],
+                  }
+                : { scaleY: 0.6 }
+            }
+            transition={
+              isPlaying
+                ? {
+                    repeat: Infinity,
+                    duration: 0.8 + (i % 4) * 0.15,
+                    delay: (i % 5) * 0.08,
+                    ease: "easeInOut",
+                  }
+                : { duration: 0.3 }
+            }
           />
         );
       })}
@@ -4703,8 +5342,6 @@ function VoiceScene({
   onNext?: () => void;
   onPrev?: () => void;
 }) {
-  useEffect(() => () => audio.pauseVoiceMelody(), [audio]);
-
   // Scrub progress handler for click & drag
   const handleSeek = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -4714,25 +5351,25 @@ function VoiceScene({
   };
 
   return (
-    <div className="scene-container relative bg-[#130d22] overflow-hidden select-none">
+    <div className="scene-container relative bg-[#0e0717] overflow-hidden select-none">
       {/* Deep atmospheric purple/lavender gradient */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#190e2d] via-[#24133b] to-[#120a21] opacity-95" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(192,132,252,0.15)_0%,_transparent_65%)] pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-b from-[#180a2b] via-[#10051e] to-[#08020e] opacity-95" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(192,132,252,0.18)_0%,_transparent_65%)] pointer-events-none" />
       <ParticleField density="low" petals={true} dots={false} />
 
-      {/* Header controls */}
-      <div className="absolute top-6 left-6 right-6 flex items-center justify-between z-30">
+      {/* Top Header controls */}
+      <div className="absolute top-5 left-5 right-5 flex items-center justify-between z-30">
         <button
           onClick={onBack}
-          className="flex min-h-[44px] min-w-[44px] px-4 items-center justify-center rounded-full glass border border-white/10 hover:border-purple-300/40 hover:scale-105 active:scale-95 text-white/95 text-sm transition-all duration-300 cursor-pointer gap-2"
+          className="flex min-h-[44px] min-w-[44px] px-4 items-center justify-center rounded-full glass border border-white/15 hover:border-purple-300/40 hover:scale-105 active:scale-95 text-white/90 text-sm transition-all duration-300 cursor-pointer gap-2"
         >
-          <ChevronLeft size={16} /> Garden
+          <ChevronLeft size={16} /> Gifts
         </button>
         <div className="flex gap-2">
           {onPrev && (
             <button
               onClick={onPrev}
-              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full glass border border-white/10 hover:border-purple-300/40 hover:scale-105 active:scale-95 text-white/95 transition-all duration-300 cursor-pointer"
+              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full glass border border-white/15 hover:border-purple-300/40 hover:scale-105 active:scale-95 text-white/90 transition-all duration-300 cursor-pointer"
               aria-label="Previous present"
             >
               <ArrowLeft size={16} />
@@ -4741,7 +5378,7 @@ function VoiceScene({
           {onNext && (
             <button
               onClick={onNext}
-              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full glass border border-white/10 hover:border-purple-300/40 hover:scale-105 active:scale-95 text-white/95 transition-all duration-300 cursor-pointer"
+              className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full glass border border-white/15 hover:border-purple-300/40 hover:scale-105 active:scale-95 text-white/90 transition-all duration-300 cursor-pointer"
               aria-label="Next present"
             >
               <ArrowRight size={16} />
@@ -4750,226 +5387,299 @@ function VoiceScene({
         </div>
       </div>
 
-      <div className="relative z-10 flex min-h-full flex-1 flex-col items-center justify-center overflow-y-auto p-4 sm:p-6 py-12 text-center w-full max-w-5xl mx-auto">
+      <div className="relative z-10 flex min-h-full flex-1 flex-col items-center justify-start overflow-y-auto p-4 sm:p-6 py-16 text-center w-full max-w-4xl mx-auto my-auto">
         {/* Title */}
-        <div className="mt-6 mb-3 sm:mb-5 z-20">
-          <span className="text-xs uppercase tracking-[0.3em] text-purple-200/80 font-medium">Private Melody</span>
-          <h2 className="font-serif text-2xl sm:text-4xl lg:text-5xl gradient-text glow-gold mt-1">
+        <div className="mb-6 z-20">
+          <span className="text-xs uppercase tracking-[0.3em] text-purple-200/80 font-medium">Romantic Serenade</span>
+          <h2 className="font-serif text-3xl sm:text-5xl gradient-text glow-gold mt-1.5 font-bold">
             Our Love Soundtrack ♥
           </h2>
+          <p className="mt-1 text-xs sm:text-sm text-purple-200/70 font-sans">
+            A melody crafted from the sweetest beats of my heart
+          </p>
         </div>
 
-        {/* HERO PURPLE ROMANTIC ARTWORK CONTAINER */}
-        <div className="relative w-full max-w-4xl aspect-[16/9] rounded-2xl sm:rounded-3xl overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.65),_0_0_40px_rgba(192,132,252,0.2)] border border-purple-300/25 my-auto">
-          {/* Main Visual Artwork Image */}
-          <img
-            src="/assets/images/purple-audio-artwork.jpg"
-            alt="Romantic Couple Purple Artwork"
-            className="w-full h-full object-cover pointer-events-none"
-            loading="eager"
-          />
+        {/* Main Luxury Player Card */}
+        <div className="w-full rounded-3xl border border-purple-400/25 bg-gradient-to-b from-[#24123a]/80 via-[#180b27]/85 to-[#0f041a]/95 backdrop-blur-2xl p-5 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.8),0_0_35px_rgba(192,132,252,0.18)]">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 sm:gap-8 items-center">
+            
+            {/* Left: Spinning Vinyl Turntable Display */}
+            <div className="md:col-span-5 flex flex-col items-center justify-center relative">
+              {/* Turntable Base / Aura */}
+              <div className="relative flex items-center justify-center p-3">
+                {/* Glow ring */}
+                <motion.div
+                  animate={{
+                    scale: audio.isPlayingVoice ? [1, 1.08, 1] : 1,
+                    opacity: audio.isPlayingVoice ? [0.4, 0.7, 0.4] : 0.2,
+                  }}
+                  transition={{ repeat: Infinity, duration: 2.8, ease: "easeInOut" }}
+                  className="absolute inset-0 m-auto w-44 h-44 sm:w-56 sm:h-56 rounded-full bg-gradient-to-tr from-purple-500/30 via-rose-500/25 to-amber-400/25 blur-xl pointer-events-none"
+                />
 
-          {/* ========================================================= */}
-          {/* TRANSPARENT HTML INTERACTIVE OVERLAY CONTROLS            */}
-          {/* Aligned via responsive % coordinates over visual artwork  */}
-          {/* ========================================================= */}
-
-          {/* Real Interactive Progress Bar Overlay */}
-          <div
-            onClick={handleSeek}
-            onTouchStart={handleSeek}
-            className="absolute z-20 cursor-pointer group/progress py-2"
-            style={{
-              left: "63.3%",
-              top: "74.0%",
-              width: "28.5%",
-              transform: "translateY(-50%)",
-            }}
-            title="Click or drag to seek"
-          >
-            {/* Real Progress Fill line that tracks audio playback */}
-            <div className="w-full h-[4px] rounded-full bg-white/10 relative overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-purple-200 via-pink-200 to-amber-200 rounded-full transition-[width] duration-150"
-                style={{ width: `${Math.min(100, Math.max(0, audio.voiceProgress * 100))}%` }}
-              />
-            </div>
-            {/* Active glowing scrubber handle */}
-            <div
-              className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.9),_0_0_5px_rgba(217,168,94,0.8)] pointer-events-none transition-transform group-hover/progress:scale-125"
-              style={{ left: `${Math.min(100, Math.max(0, audio.voiceProgress * 100))}%` }}
-            />
-          </div>
-
-          {/* Dynamic Left Timestamp Overlay (Current Time) */}
-          <div
-            className="absolute z-20 pointer-events-none"
-            style={{
-              left: "63.3%",
-              top: "77.2%",
-              transform: "translateY(0%)",
-            }}
-          >
-            <span className="text-[10px] sm:text-xs font-mono font-medium text-white/90 bg-[#836fa9]/80 backdrop-blur-xs px-1.5 py-0.5 rounded shadow-sm">
-              {formatTime(audio.currentTime)}
-            </span>
-          </div>
-
-          {/* Dynamic Right Timestamp Overlay (Total Duration) */}
-          <div
-            className="absolute z-20 pointer-events-none"
-            style={{
-              right: "8.2%",
-              top: "77.2%",
-              transform: "translateY(0%)",
-            }}
-          >
-            <span className="text-[10px] sm:text-xs font-mono font-medium text-white/90 bg-[#836fa9]/80 backdrop-blur-xs px-1.5 py-0.5 rounded shadow-sm">
-              {formatTime(audio.voiceDuration || 180)}
-            </span>
-          </div>
-
-          {/* Previous Song Hotspot */}
-          <button
-            type="button"
-            onClick={audio.prev}
-            className="absolute z-20 rounded-full cursor-pointer flex items-center justify-center transition-all duration-200 hover:bg-white/20 active:scale-90 hover:shadow-[0_0_15px_rgba(255,255,255,0.4)]"
-            style={{
-              left: "70.6%",
-              top: "84.8%",
-              transform: "translate(-50%, -50%)",
-              width: "7.5%",
-              height: "14%",
-              minWidth: "44px",
-              minHeight: "44px",
-              maxWidth: "56px",
-              maxHeight: "56px",
-            }}
-            aria-label="Previous song"
-            title="Previous song"
-          >
-            <span className="sr-only">Previous Song</span>
-          </button>
-
-          {/* Play/Pause Button Hotspot */}
-          <button
-            type="button"
-            onClick={audio.togglePlay}
-            className="absolute z-20 rounded-full cursor-pointer flex items-center justify-center transition-all duration-200 hover:bg-white/20 active:scale-95 hover:shadow-[0_0_25px_rgba(217,168,94,0.6)]"
-            style={{
-              left: "77.5%",
-              top: "84.8%",
-              transform: "translate(-50%, -50%)",
-              width: "9.5%",
-              height: "16%",
-              minWidth: "52px",
-              minHeight: "52px",
-              maxWidth: "68px",
-              maxHeight: "68px",
-            }}
-            aria-label={audio.isPlayingVoice ? "Pause song" : "Play song"}
-            title={audio.isPlayingVoice ? "Pause" : "Play"}
-          >
-            {audio.isPlayingVoice && (
-              <>
-                {/* Subtle soft pulse aura */}
-                <span className="absolute inset-0 rounded-full bg-white/25 animate-ping opacity-60 pointer-events-none" />
-                {/* Semi-transparent elegant pause icon overlay over the artwork's play icon */}
-                <span className="relative flex items-center justify-center bg-purple-950/70 rounded-full p-2 border border-white/30 shadow-md">
-                  <Pause size={18} className="text-white fill-current" />
-                </span>
-              </>
-            )}
-            <span className="sr-only">{audio.isPlayingVoice ? "Pause" : "Play"}</span>
-          </button>
-
-          {/* Next Song Hotspot */}
-          <button
-            type="button"
-            onClick={audio.next}
-            className="absolute z-20 rounded-full cursor-pointer flex items-center justify-center transition-all duration-200 hover:bg-white/20 active:scale-90 hover:shadow-[0_0_15px_rgba(255,255,255,0.4)]"
-            style={{
-              left: "84.4%",
-              top: "84.8%",
-              transform: "translate(-50%, -50%)",
-              width: "7.5%",
-              height: "14%",
-              minWidth: "44px",
-              minHeight: "44px",
-              maxWidth: "56px",
-              maxHeight: "56px",
-            }}
-            aria-label="Next song"
-            title="Next song"
-          >
-            <span className="sr-only">Next Song</span>
-          </button>
-        </div>
-
-        {/* Tactile Track Info & Playlist Switcher Strip */}
-        <div className="mt-4 sm:mt-5 flex flex-wrap items-center justify-between gap-3 w-full max-w-4xl px-2 py-2 rounded-2xl bg-purple-950/50 border border-purple-300/15 backdrop-blur-md">
-          {/* Track title & status */}
-          <div className="flex items-center gap-2 text-left pl-2">
-            <Sparkles className="w-4 h-4 text-gold shrink-0 animate-pulse" />
-            <div>
-              <p className="text-xs sm:text-sm font-serif font-semibold text-champagne leading-tight">
-                {audio.currentTrack.title}
-              </p>
-              <p className="text-[10px] text-purple-200/60 font-serif italic">
-                {audio.currentTrack.artist}
-              </p>
-            </div>
-          </div>
-
-          {/* Playlist track buttons */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            {audio.playlist.map((track, idx) => {
-              const isActive = audio.currentTrackIndex === idx;
-              return (
-                <button
-                  key={idx}
-                  onClick={() => audio.loadTrack(idx, true)}
-                  className={cn(
-                    "px-3 py-1.5 rounded-xl text-xs font-serif transition-all min-h-[36px] flex items-center gap-1.5 cursor-pointer",
-                    isActive
-                      ? "bg-purple-500/30 text-white border border-purple-300/40 shadow-[0_0_10px_rgba(192,132,252,0.3)] font-medium"
-                      : "text-white/60 hover:text-white hover:bg-white/5 border border-transparent"
-                  )}
+                {/* Spinning Vinyl Record */}
+                <motion.div
+                  animate={audio.isPlayingVoice ? { rotate: 360 } : { rotate: 0 }}
+                  transition={
+                    audio.isPlayingVoice
+                      ? { repeat: Infinity, duration: 9, ease: "linear" }
+                      : { duration: 0.8, ease: "easeOut" }
+                  }
+                  className="relative w-44 h-44 sm:w-52 sm:h-52 rounded-full bg-neutral-950 border-4 border-neutral-900 shadow-2xl flex items-center justify-center select-none overflow-hidden"
+                  style={{
+                    boxShadow: "0 15px 35px rgba(0,0,0,0.9), inset 0 0 15px rgba(255,255,255,0.08)",
+                  }}
                 >
-                  <span className="text-[10px] font-mono text-purple-300/70">{idx + 1}</span>
-                  <span className="truncate max-w-[80px] sm:max-w-[120px]">{track.title}</span>
-                </button>
-              );
-            })}
+                  {/* Subtle Vinyl Grooves Texture */}
+                  <div className="absolute inset-2 rounded-full border border-white/5 pointer-events-none" />
+                  <div className="absolute inset-5 rounded-full border border-white/5 pointer-events-none" />
+                  <div className="absolute inset-8 rounded-full border border-white/5 pointer-events-none" />
+                  <div className="absolute inset-11 rounded-full border border-white/5 pointer-events-none" />
+                  <div className="absolute inset-14 rounded-full border border-white/5 pointer-events-none" />
+
+                  {/* Shiny Sheen Reflection */}
+                  <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.04] to-transparent pointer-events-none" />
+
+                  {/* Center Label with Couple Photo */}
+                  <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full border-2 border-gold/70 overflow-hidden shadow-inner flex items-center justify-center bg-purple-950">
+                    <img
+                      src={assets.purpleAudioArtwork || assets.couplePhoto}
+                      alt="Album Artwork"
+                      className="w-full h-full object-cover"
+                    />
+                    {/* Center spindle hole */}
+                    <div className="absolute w-4 h-4 rounded-full bg-neutral-950 border border-gold/80 shadow-md" />
+                  </div>
+                </motion.div>
+
+                {/* Stylized Tonearm */}
+                <motion.div
+                  animate={{ rotate: audio.isPlayingVoice ? 22 : 0 }}
+                  transition={{ duration: 0.8, ease: "easeInOut" }}
+                  className="absolute -top-1 right-2 sm:right-4 w-12 sm:w-16 h-28 pointer-events-none"
+                  style={{ transformOrigin: "top right" }}
+                >
+                  <div className="absolute top-0 right-0 w-4 h-4 rounded-full bg-neutral-800 border border-gold/60 shadow-md" />
+                  <div className="absolute top-3 right-1.5 w-1 h-20 bg-gradient-to-b from-neutral-400 to-gold/70 rounded-full shadow" />
+                  <div className="absolute bottom-4 left-0 w-3 h-5 bg-neutral-900 border border-gold/50 rounded-xs shadow-sm rotate-12" />
+                </motion.div>
+              </div>
+
+              {/* Status pill */}
+              <div className="mt-3 flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-purple-300/20 text-[10px] uppercase tracking-widest text-purple-200">
+                <span className={cn("w-1.5 h-1.5 rounded-full", audio.isPlayingVoice ? "bg-rose-400 animate-ping" : "bg-neutral-500")} />
+                {audio.isPlayingVoice ? "Playing with Love" : "Paused"}
+              </div>
+            </div>
+
+            {/* Right: Controls, Animated Waveform & Scrubber */}
+            <div className="md:col-span-7 flex flex-col justify-between text-left space-y-4">
+              
+              {/* Current Track Heading */}
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[10px] uppercase font-mono tracking-widest text-gold px-2 py-0.5 rounded-full border border-gold/30 bg-gold/10">
+                    Track 0{audio.currentTrackIndex + 1}
+                  </span>
+                  <span className="text-xs text-purple-200/60 font-sans">
+                    {audio.currentTrackIndex === 0 ? "Acoustic Warmth" : "Sweet Melody"}
+                  </span>
+                </div>
+                <h3 className="font-serif text-2xl sm:text-3xl font-bold text-white tracking-wide leading-tight drop-shadow-sm">
+                  {audio.currentTrack.title}
+                </h3>
+                <p className="font-serif italic text-xs sm:text-sm text-rose-200/80 mt-0.5">
+                  {audio.currentTrack.artist}
+                </p>
+              </div>
+
+              {/* Animated Equalizer Waveform (Clickable & Active) */}
+              <div className="w-full">
+                <div className="flex justify-between items-center text-[10px] uppercase tracking-wider text-purple-200/60 font-mono mb-1.5">
+                  <span>Sound Waveform</span>
+                  <span className="text-gold font-semibold">{audio.isPlayingVoice ? "Live Audio" : "Ready"}</span>
+                </div>
+                <AnimatedEqualizerWaveform
+                  isPlaying={audio.isPlayingVoice}
+                  progress={audio.voiceProgress}
+                  onSeek={audio.seek}
+                />
+              </div>
+
+              {/* Scrubber Bar and Timestamps */}
+              <div className="space-y-1">
+                <div
+                  onClick={handleSeek}
+                  onTouchStart={handleSeek}
+                  className="relative w-full h-4 flex items-center cursor-pointer group/scrub"
+                  title="Drag or click to seek"
+                >
+                  <div className="w-full h-1.5 rounded-full bg-white/15 overflow-hidden relative">
+                    <div
+                      className="h-full bg-gradient-to-r from-rose-500 via-pink-400 to-amber-300 rounded-full transition-[width] duration-100"
+                      style={{ width: `${Math.min(100, Math.max(0, audio.voiceProgress * 100))}%` }}
+                    />
+                  </div>
+                  {/* Glowing scrubber handle */}
+                  <div
+                    className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-white border border-gold shadow-[0_0_10px_rgba(255,255,255,0.9),_0_0_6px_rgba(217,168,94,0.8)] pointer-events-none group-hover/scrub:scale-125 transition-transform"
+                    style={{ left: `${Math.min(100, Math.max(0, audio.voiceProgress * 100))}%` }}
+                  />
+                </div>
+
+                <div className="flex justify-between items-center text-xs font-mono text-white/70">
+                  <span>{formatTime(audio.currentTime)}</span>
+                  <span>{formatTime(audio.voiceDuration || 180)}</span>
+                </div>
+              </div>
+
+              {/* Transport Buttons & Volume */}
+              <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
+                
+                {/* Playback Controls (Min 48px target size for touch accessibility) */}
+                <div className="flex items-center gap-3 sm:gap-4">
+                  {/* Previous Button */}
+                  <button
+                    type="button"
+                    onClick={audio.prev}
+                    className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-white transition-all cursor-pointer border border-white/10"
+                    title="Previous Track"
+                    aria-label="Previous Track"
+                  >
+                    <SkipBack size={20} className="fill-current" />
+                  </button>
+
+                  {/* Play / Pause Primary Button */}
+                  <button
+                    type="button"
+                    onClick={audio.togglePlay}
+                    className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-gradient-to-tr from-rose-500 via-rose-400 to-amber-300 text-purple-950 font-bold shadow-[0_0_25px_rgba(244,63,94,0.6)] hover:shadow-[0_0_35px_rgba(244,63,94,0.8)] active:scale-95 transition-all cursor-pointer border-2 border-white/40"
+                    title={audio.isPlayingVoice ? "Pause" : "Play"}
+                    aria-label={audio.isPlayingVoice ? "Pause" : "Play"}
+                  >
+                    {audio.isPlayingVoice ? (
+                      <Pause size={26} className="fill-current text-purple-950" />
+                    ) : (
+                      <Play size={26} className="fill-current text-purple-950 ml-1" />
+                    )}
+                  </button>
+
+                  {/* Next Button */}
+                  <button
+                    type="button"
+                    onClick={audio.next}
+                    className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 hover:bg-white/20 active:scale-95 text-white transition-all cursor-pointer border border-white/10"
+                    title="Next Track"
+                    aria-label="Next Track"
+                  >
+                    <SkipForward size={20} className="fill-current" />
+                  </button>
+                </div>
+
+                {/* Volume Slider with Mute Toggle */}
+                <div className="flex items-center gap-2 bg-black/30 px-3 py-2 rounded-2xl border border-white/10">
+                  <button
+                    type="button"
+                    onClick={() => audio.setVolume(audio.volume === 0 ? 0.5 : 0)}
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                    aria-label={audio.volume === 0 ? "Unmute" : "Mute"}
+                    title={audio.volume === 0 ? "Unmute" : "Mute"}
+                  >
+                    {audio.volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                  </button>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={audio.volume}
+                    onChange={(e) => audio.setVolume(parseFloat(e.target.value))}
+                    className="w-16 sm:w-20 h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer accent-rose-400 outline-none"
+                    aria-label="Volume Slider"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Volume Control */}
-          <div className="flex items-center gap-1.5 pr-2">
-            <button
-              onClick={() => audio.setVolume(audio.volume === 0 ? 0.5 : 0)}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-white/70 hover:text-white hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
-              aria-label={audio.volume === 0 ? "Unmute" : "Mute"}
-            >
-              {audio.volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
-            </button>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={audio.volume}
-              onChange={(e) => audio.setVolume(parseFloat(e.target.value))}
-              className="w-14 sm:w-16 h-1 bg-white/15 rounded-lg appearance-none cursor-pointer accent-purple-300 outline-none"
-            />
+          {/* Interactive Playlist Section */}
+          <div className="mt-8 pt-6 border-t border-white/10 text-left">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs uppercase font-serif tracking-[0.25em] text-gold font-semibold flex items-center gap-1.5">
+                <Sparkles size={14} /> Playlist Collection
+              </span>
+              <span className="text-[10px] text-white/50 font-sans">
+                {audio.playlist.length} Songs Available
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+              {audio.playlist.map((track, idx) => {
+                const isActive = audio.currentTrackIndex === idx;
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => audio.loadTrack(idx, true)}
+                    className={cn(
+                      "p-3 rounded-2xl text-left border transition-all cursor-pointer flex items-center justify-between min-h-[52px]",
+                      isActive
+                        ? "bg-purple-500/25 border-gold shadow-[0_0_15px_rgba(217,168,94,0.3)] text-white"
+                        : "bg-white/[0.04] border-white/10 text-white/70 hover:bg-white/10 hover:text-white"
+                    )}
+                  >
+                    <div className="flex items-center gap-3 overflow-hidden pr-2">
+                      <span className={cn(
+                        "text-xs font-mono font-bold w-5 text-center shrink-0",
+                        isActive ? "text-gold" : "text-white/40"
+                      )}>
+                        {idx + 1}
+                      </span>
+                      <div className="truncate">
+                        <p className={cn("text-xs font-serif font-semibold truncate", isActive ? "text-white" : "text-white/85")}>
+                          {track.title}
+                        </p>
+                        <p className="text-[10px] text-white/50 truncate font-sans">
+                          {track.artist}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Active song wave indicator */}
+                    {isActive && (
+                      <div className="flex items-end gap-0.5 h-3.5 shrink-0 pl-1">
+                        <motion.span
+                          animate={audio.isPlayingVoice ? { height: [3, 14, 5] } : { height: 4 }}
+                          transition={{ repeat: Infinity, duration: 0.6, ease: "easeInOut" }}
+                          className="w-1 bg-gold rounded-full"
+                        />
+                        <motion.span
+                          animate={audio.isPlayingVoice ? { height: [12, 4, 14] } : { height: 8 }}
+                          transition={{ repeat: Infinity, duration: 0.7, ease: "easeInOut" }}
+                          className="w-1 bg-rose-400 rounded-full"
+                        />
+                        <motion.span
+                          animate={audio.isPlayingVoice ? { height: [5, 14, 3] } : { height: 6 }}
+                          transition={{ repeat: Infinity, duration: 0.5, ease: "easeInOut" }}
+                          className="w-1 bg-purple-300 rounded-full"
+                        />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
         {/* Footer Navigation */}
-        <div className="mt-6 sm:mt-8 flex flex-col gap-3 sm:flex-row z-20">
-          <GlassButton onClick={onBack}>
+        <div className="mt-8 flex flex-col sm:flex-row gap-4 z-20">
+          <GlassButton onClick={onBack} className="min-w-[140px]">
             <ChevronLeft size={16} className="mr-1 inline" /> Back to Gifts
           </GlassButton>
-          <PrimaryButton onClick={onContinue}>Continue →</PrimaryButton>
+          <PrimaryButton onClick={onContinue} className="min-w-[140px]">
+            Carry This Melody With You ♫
+          </PrimaryButton>
         </div>
       </div>
     </div>
@@ -4990,16 +5700,96 @@ function VoiceScene({
 /* Scene 14 — Wish Tree                                               */
 /* ------------------------------------------------------------------ */
 
+const collectibleCardDetails: Record<
+  number,
+  {
+    title: string;
+    edition: string;
+    cornerSymbol: string;
+    stickerSrc: string;
+    stickerAlt: string;
+    themeSubtitle: string;
+    sealColor: string;
+    tagAccent: string;
+  }
+> = {
+  1: {
+    title: "Starry Radiance",
+    edition: "TREE WISH NO. 01 / 06",
+    cornerSymbol: "🌿",
+    stickerSrc: "/assets/stickers/teddy-1.webp",
+    stickerAlt: "Teddy blowing sweet kisses",
+    themeSubtitle: "Golden Stardust & Sweet Kisses",
+    sealColor: "#c2410c",
+    tagAccent: "#fef08a",
+  },
+  2: {
+    title: "Endless Dreams",
+    edition: "TREE WISH NO. 02 / 06",
+    cornerSymbol: "🌸",
+    stickerSrc: "/assets/stickers/teddy-2.webp",
+    stickerAlt: "Teddy bears hugging lovingly",
+    themeSubtitle: "Warm Hugs & Tender Dreams",
+    sealColor: "#be185d",
+    tagAccent: "#fbcfe8",
+  },
+  3: {
+    title: "Blossoming Joy",
+    edition: "TREE WISH NO. 03 / 06",
+    cornerSymbol: "🍃",
+    stickerSrc: "/assets/stickers/teddy-1.webp",
+    stickerAlt: "Teddy sharing sweet blooms",
+    themeSubtitle: "Spring Petals & Pure Laughter",
+    sealColor: "#15803d",
+    tagAccent: "#bbf7d0",
+  },
+  4: {
+    title: "Forever & Always",
+    edition: "TREE WISH NO. 04 / 06",
+    cornerSymbol: "❦",
+    stickerSrc: "/assets/stickers/teddy-3.webp",
+    stickerAlt: "Teddy sweet cuddles",
+    themeSubtitle: "Hand in Hand • Heart to Heart",
+    sealColor: "#b45309",
+    tagAccent: "#fed7aa",
+  },
+  5: {
+    title: "Golden Blessings",
+    edition: "TREE WISH NO. 05 / 06",
+    cornerSymbol: "✧",
+    stickerSrc: "/assets/stickers/teddy-2.webp",
+    stickerAlt: "Teddy celebrating blessings",
+    themeSubtitle: "Radiant Light & Blessings",
+    sealColor: "#a16207",
+    tagAccent: "#fde68a",
+  },
+  6: {
+    title: "Eternal Devotion",
+    edition: "TREE WISH NO. 06 / 06",
+    cornerSymbol: "♥",
+    stickerSrc: "/assets/stickers/teddy-3.webp",
+    stickerAlt: "Teddy infinite love",
+    themeSubtitle: "Deepest Love • My Whole Heart",
+    sealColor: "#991b1b",
+    tagAccent: "#fecdd3",
+  },
+};
+
 function WishTreePopupCard({ 
   text, 
+  id = 1,
   onClose 
 }: { 
   text: string; 
+  id?: number;
   onClose: () => void; 
 }) {
   const [isFlipped, setIsFlipped] = useState(false);
   const [showSparkles, setShowSparkles] = useState(false);
 
+  const cardMeta = collectibleCardDetails[id] || collectibleCardDetails[1];
+
+  // Auto flip and sparkles
   useEffect(() => {
     const tFlip = setTimeout(() => {
       setIsFlipped(true);
@@ -5017,114 +5807,180 @@ function WishTreePopupCard({
 
   return (
     <div 
-      className="relative w-full max-w-sm h-[400px] perspective-1000"
+      className="relative w-full max-w-[340px] sm:max-w-[400px] h-[480px] sm:h-[500px] perspective-1000 select-none"
       onClick={(e) => e.stopPropagation()}
     >
       <motion.div
         animate={{
           rotateY: isFlipped ? 180 : 0,
           y: isFlipped ? -5 : 0,
-          boxShadow: isFlipped 
-            ? "0 25px 55px rgba(217,168,94,0.35), 0 0 35px rgba(244,63,94,0.25)" 
-            : "0 15px 35px rgba(0,0,0,0.4)"
         }}
+        whileHover={{ scale: 1.02, y: -8 }}
+        whileTap={{ scale: 0.98 }}
         transition={{ duration: 0.85, ease: [0.34, 1.56, 0.64, 1] }}
         className="w-full h-full preserve-3d relative cursor-pointer"
         onClick={() => setIsFlipped(!isFlipped)}
       >
-        {/* FRONT FACE (Closed Card Cover) */}
+        {/* FRONT FACE (Handmade Botanical Paper Tag Cover) */}
         <div 
-          className="absolute inset-0 rounded-2xl p-6 flex flex-col items-center justify-between text-center backface-hidden border border-gold/25 shadow-[0_15px_35px_rgba(0,0,0,0.5)] bg-[#fdfbf7]"
+          className="absolute inset-0 rounded-3xl p-6 sm:p-7 flex flex-col items-center justify-between text-center backface-hidden border-2 border-[#cbb085] overflow-hidden shadow-2xl"
           style={{
-            boxShadow: "0 15px 35px rgba(0,0,0,0.5), inset 0 0 25px rgba(217,168,94,0.06)"
+            background: "linear-gradient(150deg, #fffcf6 0%, #fcf5e5 50%, #f4e9d0 100%)",
+            boxShadow: "0 25px 50px rgba(0,0,0,0.45), 0 0 30px rgba(217,168,94,0.25), inset 0 1px 2px rgba(255,255,255,0.9)",
           }}
         >
-          <div className="absolute inset-3 border border-[#d9a85e]/30 rounded-lg pointer-events-none" />
-          
-          <div className="w-full flex justify-between items-center opacity-40">
-            <Sparkles className="h-4 w-4 text-gold" />
-            <span className="text-[9px] uppercase tracking-widest text-amber-950 font-serif">A Wish For You</span>
-            <Sparkles className="h-4 w-4 text-gold" />
+          {/* Top Hanging Twine Hole Grommet */}
+          <div className="absolute top-2.5 left-1/2 -translate-x-1/2 flex items-center justify-center">
+            <div className="w-4 h-4 rounded-full border-2 border-[#b38a53] bg-[#452b14] flex items-center justify-center shadow-inner">
+              <div className="w-1.5 h-1.5 rounded-full bg-white/70" />
+            </div>
           </div>
 
-          <div className="flex flex-col items-center gap-3">
+          {/* Botanical Deckled Border */}
+          <div className="absolute inset-3 border border-dashed border-[#b38a53]/40 rounded-2xl pointer-events-none" />
+
+          {/* Corner Botanical Symbols */}
+          <span className="absolute top-4 left-4 text-[#8c6d3b] text-sm select-none pointer-events-none font-serif">{cardMeta.cornerSymbol}</span>
+          <span className="absolute top-4 right-4 text-[#8c6d3b] text-sm select-none pointer-events-none font-serif">{cardMeta.cornerSymbol}</span>
+          <span className="absolute bottom-4 left-4 text-[#8c6d3b] text-sm select-none pointer-events-none font-serif">{cardMeta.cornerSymbol}</span>
+          <span className="absolute bottom-4 right-4 text-[#8c6d3b] text-sm select-none pointer-events-none font-serif">{cardMeta.cornerSymbol}</span>
+          
+          {/* Top Header */}
+          <div className="w-full flex justify-between items-center relative z-10 px-1 pt-3">
+            <div className="flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-[#a16207]" />
+              <span className="text-[10px] uppercase tracking-[0.25em] text-[#78350f] font-serif font-bold">Tree of Wishes</span>
+            </div>
+            <span className="text-[10px] font-mono font-bold tracking-widest text-[#78350f] px-2.5 py-0.5 rounded-full border border-[#b38a53]/50 bg-[#b38a53]/15">
+              0{id} / 06
+            </span>
+          </div>
+
+          {/* Center Medallion & Uncropped Visible Teddy */}
+          <div className="flex flex-col items-center gap-2.5 relative z-10 my-auto py-1">
+            {/* Medallion with Teddy Animation */}
             <motion.div 
               animate={{ scale: [1, 1.05, 1] }}
-              transition={{ repeat: Infinity, duration: 2.2, ease: "easeInOut" }}
-              className="w-16 h-16 rounded-full flex items-center justify-center border border-rose-800/40 relative shadow-[0_4px_10px_rgba(185,28,28,0.2)]"
-              style={{
-                background: "radial-gradient(circle at 35% 35%, #b91c1c 0%, #881337 70%, #4c0519 100%)",
-              }}
+              transition={{ repeat: Infinity, duration: 2.6, ease: "easeInOut" }}
+              className="w-24 h-24 sm:w-28 sm:h-28 rounded-full flex items-center justify-center border-2 border-[#b38a53]/60 relative bg-white/95 shadow-md p-2"
             >
-              <Heart className="w-6 h-6 fill-rose-100/90 text-rose-100/90" />
+              <picture className="w-full h-full flex items-center justify-center pointer-events-none">
+                <source srcSet={cardMeta.stickerSrc} type="image/webp" />
+                <img 
+                  src={cardMeta.stickerSrc.replace(".webp", ".gif")} 
+                  alt={cardMeta.stickerAlt} 
+                  className="w-full h-full object-contain filter drop-shadow-[0_2px_8px_rgba(0,0,0,0.15)]" 
+                />
+              </picture>
             </motion.div>
-            <h3 className="font-serif text-xl font-bold text-amber-950 mt-2">
-              Open My Wish
-            </h3>
+
+            <div className="text-center mt-1">
+              <h3 className="font-serif text-2xl sm:text-3xl font-bold text-[#451a03] tracking-wide">
+                {cardMeta.title}
+              </h3>
+              <p className="text-xs font-serif text-[#78350f] tracking-wider mt-1 italic font-medium">
+                {cardMeta.themeSubtitle}
+              </p>
+            </div>
           </div>
 
-          <span className="text-[10px] uppercase tracking-widest text-amber-900/60 font-serif mb-1">
-            Tap to Flip Open ♥
-          </span>
+          {/* Bottom Card Footer */}
+          <div className="relative z-10 flex flex-col items-center gap-1.5 pb-1">
+            <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-[#78350f] font-serif font-bold">
+              <span>✦</span>
+              <span>Tap to Flip Wish</span>
+              <span>✦</span>
+            </div>
+            <span className="text-[9px] text-[#92400e] font-sans font-medium">
+              Reveals Secret Wish for You
+            </span>
+          </div>
         </div>
 
-        {/* BACK FACE (Opened Card Content) */}
+        {/* BACK FACE (Handmade Botanical Paper Wish Content) */}
         <div 
-          className="absolute inset-0 rounded-2xl p-7 flex flex-col justify-between text-center backface-hidden rotate-y-180 border border-gold/40 bg-[#fdfbf7] overflow-hidden"
+          className="absolute inset-0 rounded-3xl p-6 sm:p-7 flex flex-col justify-between text-center backface-hidden rotate-y-180 border-2 border-[#cbb085] overflow-hidden shadow-2xl"
           style={{
-            boxShadow: "0 20px 45px rgba(217,168,94,0.18), inset 0 0 35px rgba(217,168,94,0.08)"
+            background: "linear-gradient(150deg, #fffdf8 0%, #fcf4e2 50%, #f5e8cd 100%)",
+            boxShadow: "0 25px 50px rgba(0,0,0,0.45), 0 0 30px rgba(217,168,94,0.25), inset 0 1px 2px rgba(255,255,255,0.9)",
           }}
         >
-          <div className="absolute inset-3 border border-[#d9a85e]/30 rounded-lg pointer-events-none" />
-          <div className="absolute inset-[16px] border-[0.5px] border-dashed border-[#d9a85e]/15 rounded-lg pointer-events-none" />
+          {/* Deckled Border Frame */}
+          <div className="absolute inset-3 border border-dashed border-[#b38a53]/40 rounded-2xl pointer-events-none" />
 
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(253,230,138,0.18),_transparent_70%)] pointer-events-none" />
+          {/* Corner Motifs */}
+          <span className="absolute top-4 left-4 text-[#8c6d3b] text-sm select-none pointer-events-none font-serif">{cardMeta.cornerSymbol}</span>
+          <span className="absolute bottom-4 left-4 text-[#8c6d3b] text-sm select-none pointer-events-none font-serif">{cardMeta.cornerSymbol}</span>
 
-          {showSparkles && Array.from({ length: 8 }).map((_, idx) => (
+          {/* Floating Warm Golden Sparkles */}
+          {showSparkles && Array.from({ length: 6 }).map((_, idx) => (
             <motion.div
               key={idx}
-              initial={{ opacity: 0, y: 30, scale: 0.5 }}
-              animate={{ opacity: [0, 0.8, 0], y: -80, scale: [0.5, 1.2, 0.5] }}
-              transition={{ repeat: Infinity, duration: 2.0 + idx * 0.3, ease: "easeOut" }}
-              className={cn("absolute h-1.5 w-1.5 rounded-full", idx % 2 === 0 ? "bg-[#d9a85e]" : "bg-[#fb7185]")}
+              initial={{ opacity: 0, y: 15, scale: 0.5 }}
+              animate={{ opacity: [0, 0.9, 0], y: -50, scale: [0.5, 1.2, 0.5] }}
+              transition={{ repeat: Infinity, duration: 2.2 + idx * 0.4, ease: "easeOut", delay: idx * 0.2 }}
+              className="absolute h-1.5 w-1.5 rounded-full pointer-events-none bg-[#b45309]"
               style={{
-                left: `${15 + ((idx * 93) % 70)}%`,
-                bottom: "20%",
-                boxShadow: idx % 2 === 0 ? "0 0 8px #d9a85e" : "0 0 8px #fb7185"
+                left: `${15 + ((idx * 83) % 70)}%`,
+                bottom: "16%",
+                boxShadow: "0 0 8px rgba(180,83,9,0.5)",
               }}
             />
           ))}
 
-          <div className="relative z-10 flex justify-between items-center opacity-40">
-            <span className="text-[8px] tracking-[0.2em] font-serif text-amber-950 uppercase">Hanging Wish</span>
+          {/* Top Header Row with Clear Contrast Close Button */}
+          <div className="relative z-10 flex justify-between items-center px-1 pt-1">
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-[#b45309]" />
+              <span className="text-[10px] tracking-[0.2em] font-serif text-[#78350f] uppercase font-bold">
+                {cardMeta.edition}
+              </span>
+            </div>
             <button 
               onClick={(e) => {
                 e.stopPropagation();
                 onClose();
               }}
-              className="p-1 rounded-full hover:bg-amber-900/5 text-amber-950 transition-colors"
+              className="p-1.5 rounded-full bg-black/10 hover:bg-black/20 text-[#451a03] transition-colors cursor-pointer"
+              aria-label="Close card"
             >
-              <X size={14} />
+              <X size={16} />
             </button>
           </div>
 
-          <div className="relative z-10 my-auto py-2 flex flex-col items-center">
-            <div className="absolute w-44 h-44 rounded-full bg-gold/5 blur-2xl -z-10" />
-            <p className="font-serif italic text-lg sm:text-xl text-amber-950 leading-relaxed font-bold px-2 select-text">
-              &quot;{text}&quot;
+          {/* Dedicated Wish Message Container with Warm Parchment Look */}
+          <div className="relative z-10 my-auto py-5 px-5 sm:px-6 rounded-2xl bg-white/70 border border-[#b38a53]/30 shadow-sm flex flex-col items-center justify-center mx-1">
+            <span className="font-serif text-3xl text-[#b45309] leading-none mb-1 select-none font-bold">“</span>
+            <p className="font-serif italic text-lg sm:text-xl text-[#3d1a08] leading-relaxed font-semibold px-1 select-text text-center">
+              {text}
             </p>
+            <span className="font-serif text-3xl text-[#b45309] leading-none mt-1 select-none font-bold">”</span>
           </div>
 
-          <div className="relative z-10 flex flex-col items-center gap-2">
-            <span className="text-[8px] uppercase tracking-widest text-amber-900/40 font-serif">
-              Tap to close
-            </span>
+          {/* Bottom Footer Row with Miniature Uncropped Teddy Accent & Action */}
+          <div className="relative z-10 flex flex-col items-center gap-2.5 pb-1">
+            <div className="flex items-center justify-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-white/90 border border-[#b38a53]/40 p-1 flex items-center justify-center shadow-sm">
+                <picture className="w-full h-full flex items-center justify-center pointer-events-none">
+                  <source srcSet={cardMeta.stickerSrc} type="image/webp" />
+                  <img 
+                    src={cardMeta.stickerSrc.replace(".webp", ".gif")} 
+                    alt={cardMeta.stickerAlt} 
+                    className="w-full h-full object-contain filter drop-shadow-sm" 
+                  />
+                </picture>
+              </div>
+              <span className="text-[10px] uppercase tracking-widest text-[#78350f] font-serif font-bold">
+                {cardMeta.title}
+              </span>
+            </div>
+
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onClose();
               }}
-              className="rounded-full px-5 py-1.5 text-[9px] font-bold uppercase tracking-wider text-amber-950 border border-gold/40 bg-gold/5 hover:bg-gold/15 active:scale-95 transition-all"
+              className="rounded-full px-6 py-2 text-[10px] font-serif font-bold uppercase tracking-widest text-white bg-[#78350f] hover:bg-[#58260a] border border-[#b38a53] active:scale-95 transition-all shadow-md cursor-pointer"
             >
               Close Wish ♥
             </button>
@@ -5138,6 +5994,21 @@ function WishTreePopupCard({
 function WishTreeScene({ onContinue }: { onContinue: () => void }) {
   const [active, setActive] = useState<{ text: string; id: number } | null>(null);
   const [discovered, setDiscovered] = useState<number[]>([]);
+
+  // Body scroll lock and Escape key listener for Wish Tree popup
+  useEffect(() => {
+    if (active !== null) {
+      document.body.style.overflow = "hidden";
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") setActive(null);
+      };
+      window.addEventListener("keydown", handleKeyDown);
+      return () => {
+        document.body.style.overflow = "";
+        window.removeEventListener("keydown", handleKeyDown);
+      };
+    }
+  }, [active]);
 
   const positions = useMemo(
     () => [
@@ -5178,10 +6049,10 @@ function WishTreeScene({ onContinue }: { onContinue: () => void }) {
           <motion.h2 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="font-serif text-3xl font-semibold sm:text-5xl gradient-text glow-gold">
             My Wishes For You ♥
           </motion.h2>
-          <p className="mt-2 text-white/70 text-sm">Tap a hanging wish card to read my wish for you</p>
+          <p className="mt-2 text-white/75 text-sm">Tap a hanging wish tag to read my wish for you</p>
         </div>
 
-        {/* Full-Screen Absolute distribution container */}
+        {/* Full-Screen Hanging Wish Tags Container */}
         <div className="absolute inset-0 w-full h-full pointer-events-none z-20 overflow-hidden">
           {wishTreeWishes.map((w, i) => (
             <motion.button
@@ -5197,11 +6068,14 @@ function WishTreeScene({ onContinue }: { onContinue: () => void }) {
                 scale: { delay: positions[i].delay, duration: 0.6 },
                 rotate: { repeat: Infinity, duration: 4.5 + i * 0.7, ease: "easeInOut" }
               }}
-              whileHover={{ scale: 1.15, rotate: 0 }}
+              whileHover={{ scale: 1.18, rotate: 0 }}
+              whileTap={{ scale: 0.92 }}
               onClick={() => reveal(w)}
               className={cn(
-                "wish-cardboard absolute h-16 w-11 -translate-x-1/2 -translate-y-1/2 shadow-md border border-amber-900/25 cursor-pointer rounded bg-[#fdfaf2] flex flex-col items-center justify-between p-2 pb-1.5 pointer-events-auto",
-                discovered.includes(w.id) && "shadow-[0_0_15px_rgba(217,168,94,0.65)] border-gold bg-[#fffefc]"
+                "wish-cardboard absolute h-[76px] w-[52px] sm:h-22 sm:w-16 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-xl border-2 border-[#b38a53] backdrop-blur-md flex flex-col items-center justify-between p-2 pb-1.5 pointer-events-auto transition-all duration-300 group shadow-lg",
+                discovered.includes(w.id)
+                  ? "bg-gradient-to-b from-[#fffcf5] via-[#fbf3df] to-[#f4e6c7] shadow-[0_0_24px_rgba(254,240,138,0.7),0_8px_20px_rgba(0,0,0,0.5)] border-[#d9a85e]"
+                  : "bg-gradient-to-b from-[#fffef9] via-[#faf5e8] to-[#f1e6ce] hover:border-[#d9a85e] hover:shadow-[0_0_18px_rgba(254,240,138,0.5)]"
               )}
               style={{
                 top: positions[i].top,
@@ -5210,19 +6084,22 @@ function WishTreeScene({ onContinue }: { onContinue: () => void }) {
               }}
               aria-label={`Wish ${i + 1}`}
             >
-              {/* Twine hanging string loop coordinate */}
+              {/* Twine hanging string loop */}
               <svg className="absolute -top-[80px] left-1/2 -translate-x-1/2 h-[80px] w-4 pointer-events-none" overflow="visible">
-                <line x1="8" y1="0" x2="8" y2="80" stroke="#8c6d53" strokeWidth="1.5" />
-                <circle cx="8" cy="4" r="2.5" fill="none" stroke="#8c6d53" strokeWidth="1.2" />
+                <line x1="8" y1="0" x2="8" y2="80" stroke="#b3874e" strokeWidth="1.5" strokeDasharray="3 1" />
+                <circle cx="8" cy="4" r="2.5" fill="#452b14" stroke="#d9a85e" strokeWidth="1.2" />
               </svg>
 
-              {/* Heart/Wax Seal */}
-              <div className="flex h-5.5 w-5.5 items-center justify-center rounded-full bg-[#9c1a24] text-[9px] text-[#fee2e2] font-sans font-bold shadow-sm relative filter drop-shadow-[0_1px_3px_rgba(156,26,36,0.3)]">
+              {/* Natural Wax Seal Emblem */}
+              <div 
+                className="flex h-6 w-6 items-center justify-center rounded-full text-[10px] text-white font-serif font-bold shadow-sm relative border border-white/60 group-hover:scale-110 transition-transform"
+                style={{ backgroundColor: collectibleCardDetails[w.id]?.sealColor || "#b45309" }}
+              >
                 ♥
               </div>
 
-              {/* Card index */}
-              <span className="text-[10px] font-serif text-amber-950/65 font-bold tracking-wider">
+              {/* Card index in high-contrast sepia */}
+              <span className="text-[11px] sm:text-[12px] font-serif text-[#451a03] font-bold tracking-widest">
                 {i + 1}
               </span>
             </motion.button>
@@ -5238,7 +6115,7 @@ function WishTreeScene({ onContinue }: { onContinue: () => void }) {
               onClick={close}
               className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-6 backdrop-blur-md"
             >
-              <WishTreePopupCard text={active.text} onClose={close} />
+              <WishTreePopupCard text={active.text} id={active.id} onClose={close} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -5254,7 +6131,7 @@ function WishTreeScene({ onContinue }: { onContinue: () => void }) {
         )}
 
         <div className="mt-8 relative z-30">
-          <PrimaryButton onClick={onContinue}>Continue →</PrimaryButton>
+          <PrimaryButton onClick={onContinue}>Make a Wish ✧</PrimaryButton>
         </div>
       </div>
     </div>
@@ -5436,7 +6313,7 @@ function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
                   </p>
 
                   <PrimaryButton onClick={onContinue} className="w-full min-h-[50px]">
-                    Continue Journey ♥
+                    Walk Down Memory Lane 📸
                   </PrimaryButton>
                 </div>
               ) : (
@@ -5733,7 +6610,7 @@ function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
           viewport={{ once: true }}
           className="hidden sm:block mt-4 pb-12 relative z-30"
         >
-          <PrimaryButton onClick={onContinue}>Continue →</PrimaryButton>
+          <PrimaryButton onClick={onContinue}>Walk Down Memory Lane 📸</PrimaryButton>
         </motion.div>
       </div>
     </div>
@@ -5888,7 +6765,7 @@ function HiddenSurpriseScene({ onContinue }: { onContinue: () => void }) {
             className="mt-6 max-w-md"
           >
             <p className="font-serif text-xl text-purple-200">You are the most beautiful surprise life ever gave me.</p>
-            <PrimaryButton onClick={onContinue} className="mt-6">Continue →</PrimaryButton>
+            <PrimaryButton onClick={onContinue} className="mt-6">Watch Our Special Video 🎬</PrimaryButton>
           </motion.div>
         )}
       </div>
@@ -6185,7 +7062,7 @@ function SpecialVideoScene({
                   onClick={onContinue}
                   className="px-10 py-3.5 text-base tracking-widest bg-gradient-to-r from-gold via-amber-500 to-gold text-midnight border border-gold/40 shadow-[0_0_25px_rgba(217,168,94,0.45)] hover:shadow-[0_0_35px_rgba(217,168,94,0.65)] hover:scale-105 transition-all duration-300"
                 >
-                  Continue ♥
+                  Reveal Final Surprise ♥
                 </PrimaryButton>
               </motion.div>
             )}
