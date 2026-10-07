@@ -32,12 +32,20 @@ export interface HappinessItem {
   icon: "smile" | "laugh" | "eyes" | "memories" | "adventures" | "future";
   message: string;
   gradient: string;
+  flavorTitle?: string;
+  flavorDescription?: string;
+  cakeSliceImage?: string;
+  openedBgImage?: string;
+  accentColor?: string;
+  borderColor?: string;
+  shadowColor?: string;
 }
 
 export interface PlaylistItem {
   title: string;
   artist: string;
   src: string;
+  artwork?: string;
 }
 
 // ==========================================
@@ -250,25 +258,29 @@ export const birthdayContent = {
 
   playlist: [
     {
-      title: "Dreamy Memories",
-      artist: "Instrumental Melody ♥",
+      title: "Perfect",
+      artist: "Ed Sheeran ♥",
       src: "/assets/music/song-1.mp3",
+      artwork: "/images/record-player.jpg",
     },
     {
-      title: "A Golden Sunset",
-      artist: "Acoustic Warmth ♥",
+      title: "Until I Found You",
+      artist: "Stephen Sanchez ♥",
       src: "/assets/music/song-2.mp3",
+      artwork: "/images/final-sunset.jpg",
     },
     {
-      title: "Our Synth Melody",
-      artist: "Synthesized with Love ♥",
-      src: "", // Empty src triggers synthetic playback
+      title: "Lover",
+      artist: "Taylor Swift ♥",
+      src: "/assets/music/song-2.mp3",
+      artwork: "/images/lantern-sky.jpg",
     },
   ] as PlaylistItem[],
 
   assets: {
     welcomeFlowers: "/images/welcome-flowers.jpg",
     countdownGarden: "/images/countdown-garden.jpg",
+    cinematicFlowerArch: "/images/cinematic-flower-arch.jpg",
     birthdayReveal: "/images/birthday-reveal.jpg",
     couplePhoto: "/images/couple-photo.jpg",
     birthdayCake: "/images/birthday-cake.jpg",
@@ -279,6 +291,32 @@ export const birthdayContent = {
     lanternSky: "/images/lantern-sky.jpg",
     finalSunset: "/images/final-sunset.jpg",
     specialVideo: "/assets/special_video.mp4",
+    cinematicCakeWish: "/images/cinematic/cake-wish-ref.jpg",
+    cinematicCakeCut: "/images/cinematic/cake-cut-ref.jpg",
+    cinematicOurStory: "/images/cinematic/our-story-ref.jpg",
+    cinematicKeepsakeChests: "/images/cinematic/keepsake-chests-ref.jpg",
+    cinematicAudioPlayer: "/images/cinematic/audio-player-ref.jpg",
+    cinematicCakeWishClean: "/images/cinematic/cake-wish-clean.jpg",
+    cinematicCakeCutClean: "/images/cinematic/cake-cut-clean.jpg",
+    cinematicOurStoryClean: "/images/cinematic/our-story-clean.jpg",
+    cinematicKeepsakeChestsClean: "/images/cinematic/keepsake-chests-clean.jpg",
+    cinematicAudioPlayerClean: "/images/cinematic/audio-player-clean.jpg",
+    cakeSlices: {
+      strawberry: "/images/cake-strawberry.jpg",
+      chocolate: "/images/cake-chocolate.jpg",
+      vanilla: "/images/cake-vanilla.jpg",
+      redvelvet: "/images/cake-redvelvet.jpg",
+      blueberry: "/images/cake-blueberry.jpg",
+      caramel: "/images/cake-caramel.jpg",
+    },
+    cakeBackgrounds: {
+      strawberry: "/images/bg-cake-1-strawberry.jpg",
+      chocolate: "/images/bg-cake-2-chocolate.jpg",
+      vanilla: "/images/bg-cake-3-vanilla.jpg",
+      redvelvet: "/images/bg-cake-4-redvelvet.jpg",
+      blueberry: "/images/bg-cake-5-blueberry.jpg",
+      caramel: "/images/bg-cake-6-caramel.jpg",
+    },
     stickers: {
       teddy1: "/assets/stickers/teddy-1.gif",
       teddy2: "/assets/stickers/teddy-2.gif",
@@ -348,42 +386,84 @@ export const happiness: HappinessItem[] = [
     id: "smile",
     title: "Your Smile",
     icon: "smile",
+    flavorTitle: "Strawberry Rose",
+    flavorDescription: "Blush pink cream, delicate rose petals & fresh strawberry",
+    cakeSliceImage: "/images/cake-strawberry.jpg",
+    openedBgImage: "/images/bg-cake-1-strawberry.jpg",
     message: "The kind of smile that makes the whole room feel like home.",
     gradient: "from-rose-400 to-rose-600",
+    accentColor: "#be185d",
+    borderColor: "#f472b6",
+    shadowColor: "rgba(244, 114, 182, 0.4)",
   },
   {
     id: "laugh",
     title: "Your Laugh",
     icon: "laugh",
+    flavorTitle: "Dark Chocolate Truffle",
+    flavorDescription: "Velvety dark chocolate ganache with edible gold leaf",
+    cakeSliceImage: "/images/cake-chocolate.jpg",
+    openedBgImage: "/images/bg-cake-2-chocolate.jpg",
     message: "My favorite sound — the one I want to hear for the rest of my life.",
-    gradient: "from-amber-300 to-orange-500",
+    gradient: "from-amber-700 to-orange-900",
+    accentColor: "#7c2d12",
+    borderColor: "#fb923c",
+    shadowColor: "rgba(251, 146, 60, 0.4)",
   },
   {
     id: "eyes",
     title: "Your Eyes",
     icon: "eyes",
+    flavorTitle: "Vanilla Champagne",
+    flavorDescription: "Ivory velvet cream, vanilla bean & golden sugar pearls",
+    cakeSliceImage: "/images/cake-vanilla.jpg",
+    openedBgImage: "/images/bg-cake-3-vanilla.jpg",
     message: "I could get lost in them a thousand times and never want to be found.",
-    gradient: "from-violet-400 to-fuchsia-500",
+    gradient: "from-amber-200 to-yellow-500",
+    accentColor: "#854d0e",
+    borderColor: "#eab308",
+    shadowColor: "rgba(234, 179, 8, 0.4)",
   },
   {
     id: "memories",
     title: "Our Memories",
     icon: "memories",
+    flavorTitle: "Red Velvet Royale",
+    flavorDescription: "Deep crimson velvet sponge with whipped cream cheese",
+    cakeSliceImage: "/images/cake-redvelvet.jpg",
+    openedBgImage: "/images/bg-cake-4-redvelvet.jpg",
     message: "Every moment with you is a page in my favorite story.",
-    gradient: "from-sky-400 to-indigo-500",
+    gradient: "from-rose-700 to-red-950",
+    accentColor: "#9f1239",
+    borderColor: "#f43f5e",
+    shadowColor: "rgba(244, 63, 94, 0.4)",
   },
   {
     id: "adventures",
     title: "Our Adventures",
     icon: "adventures",
+    flavorTitle: "Blueberry Dream",
+    flavorDescription: "Muted lavender frosting, wild blueberries & starlight glaze",
+    cakeSliceImage: "/images/cake-blueberry.jpg",
+    openedBgImage: "/images/bg-cake-5-blueberry.jpg",
     message: "Every road is better when you're holding my hand.",
-    gradient: "from-emerald-400 to-teal-500",
+    gradient: "from-violet-500 to-indigo-700",
+    accentColor: "#6b21a8",
+    borderColor: "#c084fc",
+    shadowColor: "rgba(192, 132, 252, 0.4)",
   },
   {
     id: "future",
     title: "Our Future",
     icon: "future",
+    flavorTitle: "Salted Caramel Glow",
+    flavorDescription: "Warm golden caramel drizzle, amber sugar & sea salt sparkle",
+    cakeSliceImage: "/images/cake-caramel.jpg",
+    openedBgImage: "/images/bg-cake-6-caramel.jpg",
     message: "The best chapters are the ones we haven't written yet.",
-    gradient: "from-pink-400 to-rose-500",
+    gradient: "from-amber-500 to-yellow-600",
+    accentColor: "#b45309",
+    borderColor: "#f59e0b",
+    shadowColor: "rgba(245, 158, 11, 0.4)",
   },
 ];

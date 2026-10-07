@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Alex+Brush&family=Dancing+Script:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -6,6 +6,7 @@
   --font-serif: 'Playfair Display', serif;
   --font-sans: 'Inter', sans-serif;
   --font-script: 'Dancing Script', cursive;
+  --font-calligraphy: 'Alex Brush', cursive;
 
   --midnight: #0b0d1c;
   --navy: #13152a;
@@ -38,9 +39,13 @@
   box-sizing: border-box;
 }
 
-html, body, #root {
-  height: 100%;
+html, body {
+  min-height: 100%;
   margin: 0;
+}
+
+#root {
+  min-height: 100%;
 }
 
 body {
@@ -379,6 +384,69 @@ body {
   font-family: var(--font-script);
 }
 
+.font-calligraphy {
+  font-family: var(--font-calligraphy);
+}
+
+/* Luxury Cinematic Pill CTA Buttons matching Reference Designs */
+.btn-pill-rose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.625rem 1.75rem;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, rgba(143, 31, 57, 0.72) 0%, rgba(94, 20, 39, 0.85) 100%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(244, 114, 142, 0.45);
+  box-shadow: 0 0 25px rgba(225, 29, 72, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  color: #fff;
+  font-size: 0.875rem;
+  letter-spacing: 0.025em;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+}
+
+.btn-pill-rose:hover {
+  transform: translateY(-2px) scale(1.02);
+  border-color: rgba(251, 113, 133, 0.75);
+  box-shadow: 0 0 35px rgba(244, 63, 94, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.btn-pill-rose:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.btn-pill-gold {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.625rem 1.75rem;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, rgba(70, 38, 12, 0.75) 0%, rgba(45, 24, 7, 0.88) 100%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(217, 168, 94, 0.45);
+  box-shadow: 0 0 25px rgba(217, 168, 94, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  color: #fed7aa;
+  font-size: 0.875rem;
+  letter-spacing: 0.025em;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+}
+
+.btn-pill-gold:hover {
+  transform: translateY(-2px) scale(1.02);
+  border-color: rgba(217, 168, 94, 0.8);
+  box-shadow: 0 0 35px rgba(217, 168, 94, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.btn-pill-gold:active {
+  transform: translateY(0) scale(0.98);
+}
+
 /* Vintage parchment paper styling */
 .parchment-container {
   background: radial-gradient(circle at 50% 50%, #faf6ee 0%, #ede3cf 100%);
@@ -404,20 +472,15 @@ body {
   pointer-events: none;
 }
 
-/* Custom Scrollbar for memory panels and letter text */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* Cross-browser invisible scrollbars (scrolling works smoothly without visible bars) */
+*::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
-::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.03);
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(217, 168, 94, 0.3);
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(217, 168, 94, 0.5);
+* {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
 }
 
 /* Glass panel styling upgrades */
