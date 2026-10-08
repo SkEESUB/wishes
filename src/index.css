@@ -270,7 +270,7 @@ body {
 
 /* Record player */
 .record-spin {
-  animation: spin 4s linear infinite;
+  animation: spin 14s linear infinite;
 }
 .record-spin.paused {
   animation-play-state: paused;

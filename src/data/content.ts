@@ -367,12 +367,12 @@ export const memoryJourney: TimelineItem[] = birthdayContent.memories.slice(0, 5
 export const stories = birthdayContent.stories;
 
 export const wishTreeWishes: WishItem[] = [
-  { id: 1, text: "May your smile shine brighter than all the stars in the sky." },
-  { id: 2, text: "May every dream you hold close find its way to you." },
-  { id: 3, text: "May your days be filled with laughter, peace, and endless love." },
-  { id: 4, text: "May we grow old together, hand in hand, heart in heart." },
-  { id: 5, text: "May this year bring you every blessing you deserve and more." },
-  { id: 6, text: "May you always know how deeply and completely you are loved." },
+  { id: 1, text: "See her happy, always, in every situation." },
+  { id: 2, text: "Travel the world with her and make beautiful memories together." },
+  { id: 3, text: "Sleep peacefully on her legs, while she holds my hand and slowly falls asleep." },
+  { id: 4, text: "Go on a beautiful bus journey with her, watching the world pass by together." },
+  { id: 5, text: "Share a good meal together in a private little place — she feeds me, and I feed her." },
+  { id: 6, text: "See her achieve everything she dreams of and witness her success in life." },
 ];
 
 export const gifts: GiftItem[] = [

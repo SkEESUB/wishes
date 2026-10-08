@@ -55,7 +55,6 @@ import { CinematicOurStory } from "./components/cinematic/CinematicOurStory";
 type SceneState = {
   scene: number;
   started: boolean;
-  countdownSkipped: boolean;
   passwordCorrect: boolean;
   openedGifts: string[];
   visitedGifts: string[];
@@ -88,19 +87,7 @@ function loadState(): Partial<SceneState> {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const state = JSON.parse(raw);
-      const isPastBirthday = Date.now() >= getTargetBirthdayDate().getTime();
-      if (isPastBirthday) {
-        // After birthday date/time has passed, every fresh website opening/reload must show 15s countdown
-        return {
-          ...state,
-          scene: 2,
-          countdownSkipped: false,
-        };
-      }
-      return {
-        ...state,
-        countdownSkipped: false,
-      };
+      return state;
     }
   } catch {}
   return {};
@@ -108,10 +95,7 @@ function loadState(): Partial<SceneState> {
 
 function saveState(state: SceneState) {
   try {
-    const toSave = { ...state };
-    // Do NOT permanently store "countdown completed" in localStorage
-    delete (toSave as any).countdownSkipped;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch {}
 }
 
@@ -1187,11 +1171,26 @@ export default function App() {
 
   const audio = useAudioEngine();
   const [targetDate] = useState(() => getTargetBirthdayDate());
+  const calculateRemaining = useCallback(() => {
+    return Math.max(0, targetDate.getTime() - Date.now());
+  }, [targetDate]);
+
+  const [timeRemaining, setTimeRemaining] = useState<number>(calculateRemaining);
+  const [isCountdownFinished, setIsCountdownFinished] = useState<boolean>(() => calculateRemaining() <= 0);
+  const [isCompleting, setIsCompleting] = useState<boolean>(false);
+
+  const isCountdownPage = state.scene === 2;
+  const isCountdownLocked = isCountdownPage && !isCountdownFinished;
+
   const [countdown, setCountdown] = useState({ d: 0, h: 0, m: 0, s: 0 });
   const [direction, setDirection] = useState<number>(1);
 
   const isTransitioningRef = useRef(false);
   const goTo = useCallback((scene: number) => {
+    // If user is currently on the countdown page and countdown is running, block forward/bypass navigation
+    if (state.scene === 2 && !isCountdownFinished) {
+      return;
+    }
     if (isTransitioningRef.current) return;
     isTransitioningRef.current = true;
     setTimeout(() => {
@@ -1204,7 +1203,7 @@ export default function App() {
       saveState(next);
       return next;
     });
-  }, []);
+  }, [state.scene, isCountdownFinished]);
 
   const startExperience = useCallback(() => {
     setState((s) => {
@@ -1212,14 +1211,8 @@ export default function App() {
       saveState(next);
       return next;
     });
-    // Background music removed
-    const now = new Date().getTime();
-    if (targetDate.getTime() - now <= 0) {
-      goTo(2); // Cinematic 15-second countdown on every start/reload after birthday
-    } else {
-      goTo(1);
-    }
-  }, [audio, goTo, targetDate]);
+    goTo(1);
+  }, [goTo]);
 
   const unlockPassword = useCallback(() => {
     setState((s) => {
@@ -1285,7 +1278,6 @@ export default function App() {
     setState({
       scene: 0,
       started: false,
-      countdownSkipped: false,
       passwordCorrect: false,
       openedGifts: [],
       visitedGifts: [],
@@ -1298,16 +1290,19 @@ export default function App() {
       experienceCompleted: false,
       reducedMotion: state.reducedMotion,
     });
-    // Background music removed
-  }, [audio, state.reducedMotion]);
+  }, [state.reducedMotion]);
 
-  /* Countdown */
+  /* Countdown timer tick */
   useEffect(() => {
+    if (isCountdownFinished) return;
+
     const tick = () => {
-      const now = new Date().getTime();
+      const now = Date.now();
       const diff = targetDate.getTime() - now;
       if (diff <= 0) {
         setCountdown({ d: 0, h: 0, m: 0, s: 0 });
+        setTimeRemaining(0);
+        setIsCountdownFinished(true);
         return;
       }
       const totalSecs = Math.ceil(diff / 1000);
@@ -1316,30 +1311,76 @@ export default function App() {
       const m = Math.floor((totalSecs / 60) % 60);
       const s = totalSecs % 60;
       setCountdown({ d, h, m, s });
+      setTimeRemaining(diff);
     };
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [targetDate, state.scene, goTo]);
+  }, [targetDate, isCountdownFinished]);
+
+  /* Smooth transition to Scene 3 when countdown finishes on countdown page */
+  useEffect(() => {
+    if (state.scene === 2 && isCountdownFinished && !isCompleting) {
+      setIsCompleting(true);
+      const timer = setTimeout(() => {
+        setIsCompleting(false);
+        setState((s) => {
+          setDirection(1);
+          const next = { ...s, scene: 3 };
+          saveState(next);
+          return next;
+        });
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [state.scene, isCountdownFinished, isCompleting]);
 
   useEffect(() => {
     audio.setVolume(state.audioVolume);
   }, [state.audioVolume]);
 
-  const skipCountdown = useCallback(() => {
-    setState((s) => {
-      const next = { ...s, countdownSkipped: true };
-      saveState(next);
-      return next;
-    });
-    goTo(3);
-  }, [goTo]);
+  /* Countdown lock: block back/forward popstate ONLY while locked on countdown page */
+  useEffect(() => {
+    if (!isCountdownLocked) return;
+    const handlePopState = () => {
+      window.history.pushState(null, "", window.location.href);
+    };
+    window.history.pushState(null, "", window.location.href);
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [isCountdownLocked]);
+
+  /* Countdown lock: block navigation key events ONLY while locked on countdown page */
+  useEffect(() => {
+    if (!isCountdownLocked) return;
+    const blockKeys = (e: KeyboardEvent) => {
+      const blockedKeys = [
+        "ArrowRight",
+        "ArrowLeft",
+        "ArrowDown",
+        "ArrowUp",
+        "Space",
+        "Enter",
+        "PageDown",
+        "PageUp",
+        "Home",
+        "End",
+        "Tab",
+      ];
+      if (blockedKeys.includes(e.code) || blockedKeys.includes(e.key)) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    window.addEventListener("keydown", blockKeys, { capture: true });
+    return () => window.removeEventListener("keydown", blockKeys, { capture: true });
+  }, [isCountdownLocked]);
 
   const scenes = useMemo(
     () => [
       <WelcomeScene key="welcome" onStart={startExperience} />,
-      <CountdownStartScene key="cdstart" onBegin={() => goTo(2)} onSkip={skipCountdown} />,
-      <CountdownRunningScene key="cdrun" countdown={countdown} targetDate={targetDate} onSkip={skipCountdown} />,
+      <CountdownStartScene key="cdstart" onBegin={() => goTo(2)} />,
+      <CountdownRunningScene key="cdrun" countdown={countdown} targetDate={targetDate} isCompleting={isCompleting} />,
       <BirthdayRevealScene key="reveal" onContinue={() => goTo(4)} />,
       <PasswordScene key="password" onUnlock={unlockPassword} />,
       <WishesScene key="wishes" onContinue={() => goTo(6)} />,
@@ -1418,9 +1459,9 @@ export default function App() {
     [
       startExperience,
       goTo,
-      skipCountdown,
       countdown,
       targetDate,
+      isCompleting,
       unlockPassword,
       state.cakeStage,
       state.happinessOpened,
@@ -1453,8 +1494,6 @@ export default function App() {
           : "h-screen overflow-hidden"
       )}
     >
-
-
       <AnimatePresence mode="wait" custom={direction}>
         <motion.div
           key={state.scene}
@@ -1643,7 +1682,7 @@ function WelcomeScene({ onStart }: { onStart: () => void }) {
 /* Scene 1 & 2 — Countdown                                            */
 /* ------------------------------------------------------------------ */
 
-function CountdownStartScene({ onBegin, onSkip }: { onBegin: () => void; onSkip: () => void }) {
+function CountdownStartScene({ onBegin }: { onBegin: () => void }) {
   return (
     <div className="scene-container relative overflow-hidden">
       <BackgroundLayer src={assets.cinematicFlowerArch || assets.countdownGarden} overlay />
@@ -1661,9 +1700,6 @@ function CountdownStartScene({ onBegin, onSkip }: { onBegin: () => void; onSkip:
             <PremiumButton variant="gold" size="lg" onClick={onBegin}>
               <Sparkles size={16} /> Begin Countdown
             </PremiumButton>
-            <PremiumButton variant="glass" size="md" onClick={onSkip}>
-              Skip Countdown →
-            </PremiumButton>
           </div>
         </motion.div>
       </div>
@@ -1674,31 +1710,12 @@ function CountdownStartScene({ onBegin, onSkip }: { onBegin: () => void; onSkip:
 function CountdownRunningScene({
   countdown,
   targetDate,
-  onSkip,
+  isCompleting = false,
 }: {
   countdown: { d: number; h: number; m: number; s: number };
   targetDate: Date;
-  onSkip: () => void;
+  isCompleting?: boolean;
 }) {
-  const isPastBirthday = Date.now() >= targetDate.getTime();
-  const [timerCount, setTimerCount] = useState(15);
-  const [isBlooming, setIsBlooming] = useState(false);
-
-  useEffect(() => {
-    if (!isPastBirthday) return;
-    if (timerCount <= 1) {
-      setIsBlooming(true);
-      const timer = setTimeout(() => {
-        onSkip();
-      }, 1300);
-      return () => clearTimeout(timer);
-    }
-    const interval = setInterval(() => {
-      setTimerCount((t) => t - 1);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [isPastBirthday, timerCount, onSkip]);
-
   return (
     <div className="scene-container relative overflow-hidden">
       <BackgroundLayer src={assets.cinematicFlowerArch || assets.countdownGarden} overlay animate />
@@ -1707,17 +1724,17 @@ function CountdownRunningScene({
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(217,168,94,0.14)_0%,_transparent_70%)] pointer-events-none" />
       <ParticleField density="medium" petals={true} dots={false} />
 
-      {/* Light Bloom at 1 */}
-      {isBlooming && (
+      {/* Subtle completion light bloom transition */}
+      {isCompleting && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.6 }}
-          animate={{ opacity: 1, scale: 1.8 }}
-          transition={{ duration: 1.2, ease: "easeOut" }}
-          className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(254,240,138,0.75)_0%,_rgba(244,63,94,0.35)_40%,_transparent_70%)] pointer-events-none z-30 mix-blend-screen"
+          initial={{ opacity: 0, scale: 0.7 }}
+          animate={{ opacity: 1, scale: 1.6 }}
+          transition={{ duration: 1.4, ease: "easeOut" }}
+          className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(254,240,138,0.55)_0%,_rgba(244,63,94,0.25)_40%,_transparent_70%)] pointer-events-none z-30 mix-blend-screen"
         />
       )}
 
-      <div className="relative z-10 flex flex-1 flex-col items-center justify-start overflow-y-auto px-3 sm:px-4 pt-5 sm:pt-9 md:pt-11 pb-36 sm:pb-44 text-center select-none w-full">
+      <div className="relative z-10 flex flex-1 flex-col items-center justify-start overflow-y-auto px-3 sm:px-4 pt-5 sm:pt-9 md:pt-11 pb-20 sm:pb-28 text-center select-none w-full">
         <motion.div
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1746,131 +1763,82 @@ function CountdownRunningScene({
 
           {/* Title */}
           <h2 className="font-script text-4xl sm:text-6xl md:text-7xl text-[#fef08a] glow-gold font-normal tracking-wide drop-shadow-[0_4px_24px_rgba(254,240,138,0.45)]">
-            {isPastBirthday ? "Your Special Day" : "A special day"}
+            A Special Day
           </h2>
 
           {/* Subtitle */}
           <div className="flex items-center justify-center gap-2.5 mt-1 sm:mt-1.5 text-xs sm:text-sm md:text-base font-serif text-[#fed7aa] tracking-[0.2em] uppercase font-light">
             <span className="text-[#e7b876]/70">~ ✦ ~</span>
-            <span>{isPastBirthday ? "is here • let the magic begin" : "is almost here"}</span>
+            <span>is almost here</span>
             <span className="text-[#e7b876]/70">~ ✦ ~</span>
           </div>
 
-          {/* COUNTDOWN BODY: STATE A vs STATE B */}
-          {isPastBirthday ? (
-            /* STATE B: Cinematic 15-Second Countdown */
-            <div className="relative mt-6 sm:mt-8 mx-auto p-6 sm:p-8 rounded-3xl border border-[#e7b876]/50 bg-black/50 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.8),0_0_45px_rgba(231,184,118,0.25)] max-w-md w-full flex flex-col items-center">
-              {/* Floral corner emblems */}
-              <span className="absolute -top-3 -left-3 text-2xl select-none filter drop-shadow-[0_2px_8px_rgba(244,63,94,0.8)]">🌹</span>
-              <span className="absolute -top-3 -right-3 text-2xl select-none filter drop-shadow-[0_2px_8px_rgba(244,63,94,0.8)]">🌹</span>
-              <span className="absolute -bottom-3 -left-3 text-xl select-none filter drop-shadow-[0_2px_8px_rgba(251,191,36,0.8)]">✨</span>
-              <span className="absolute -bottom-3 -right-3 text-xl select-none filter drop-shadow-[0_2px_8px_rgba(251,191,36,0.8)]">✨</span>
+          {/* COUNTDOWN BODY: Accurate countdown cards (Days, Hours, Minutes, Seconds) */}
+          <motion.div
+            animate={
+              isCompleting
+                ? { opacity: 0, scale: 0.94, filter: "blur(6px)" }
+                : { opacity: 1, scale: 1, filter: "blur(0px)" }
+            }
+            transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
+            className="relative mt-5 sm:mt-7 mx-auto p-3 sm:p-5 md:p-6 rounded-3xl border border-[#e7b876]/50 bg-black/45 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.75),0_0_40px_rgba(231,184,118,0.22)] max-w-xl w-full"
+          >
+            {/* Left Floral Rose Bouquet Cluster */}
+            <div className="absolute -left-3 sm:-left-5 top-1/2 -translate-y-1/2 pointer-events-none select-none z-20 flex flex-col items-center">
+              <span className="text-xl sm:text-3xl filter drop-shadow-[0_4px_12px_rgba(244,63,94,0.9)] transform -rotate-12">🌹</span>
+              <span className="text-xs sm:text-base filter drop-shadow-[0_2px_8px_rgba(251,191,36,0.8)] -mt-2">✨</span>
+            </div>
 
-              <span className="text-[11px] sm:text-xs font-serif uppercase tracking-[0.3em] text-[#fed7aa]/90 font-medium">
-                Opening in
-              </span>
+            {/* Right Floral Rose Bouquet Cluster */}
+            <div className="absolute -right-3 sm:-right-5 top-1/2 -translate-y-1/2 pointer-events-none select-none z-20 flex flex-col items-center">
+              <span className="text-xl sm:text-3xl filter drop-shadow-[0_4px_12px_rgba(244,63,94,0.9)] transform rotate-12">🌹</span>
+              <span className="text-xs sm:text-base filter drop-shadow-[0_2px_8px_rgba(251,191,36,0.8)] -mt-2">✨</span>
+            </div>
 
-              {/* Animated Cinematic Big Digit */}
-              <div className="h-32 sm:h-40 flex items-center justify-center w-full overflow-visible">
-                <AnimatePresence mode="popLayout">
-                  <motion.div
-                    key={timerCount}
-                    initial={{ scale: 1.4, opacity: 0, filter: "blur(12px)", y: -10 }}
-                    animate={{
-                      scale: timerCount === 1 ? [1, 1.25, 1.15] : 1,
-                      opacity: 1,
-                      filter: "blur(0px)",
-                      y: 0,
-                    }}
-                    exit={{ scale: 0.8, opacity: 0, filter: "blur(10px)", y: 10 }}
-                    transition={{ duration: 0.72, ease: [0.16, 1, 0.3, 1] }}
-                    className="relative flex items-center justify-center select-none"
-                  >
-                    <span className="font-serif text-7xl sm:text-8xl md:text-9xl font-bold text-[#fef08a] glow-gold leading-none tracking-tight drop-shadow-[0_4px_35px_rgba(254,240,138,0.6)]">
-                      {timerCount}
-                    </span>
-                  </motion.div>
-                </AnimatePresence>
+            {/* Countdown Blocks Row */}
+            <div className="flex items-center justify-center gap-1 sm:gap-2.5 md:gap-3.5 px-1 sm:px-2">
+              <CountdownCard value={countdown.d} label="Days" />
+              <motion.span
+                animate={{ scale: [1, 1.28, 1, 1.16, 1], opacity: [0.65, 1, 0.65] }}
+                transition={{ repeat: Infinity, duration: 1.6, ease: "easeInOut" }}
+                className="text-rose-400 text-xs sm:text-sm select-none font-serif drop-shadow-[0_0_8px_rgba(244,63,94,0.9)]"
+              >
+                ♥
+              </motion.span>
+              <CountdownCard value={countdown.h} label="Hours" />
+              <motion.span
+                animate={{ scale: [1, 1.28, 1, 1.16, 1], opacity: [0.65, 1, 0.65] }}
+                transition={{ repeat: Infinity, duration: 1.6, ease: "easeInOut", delay: 0.1 }}
+                className="text-rose-400 text-xs sm:text-sm select-none font-serif drop-shadow-[0_0_8px_rgba(244,63,94,0.9)]"
+              >
+                ♥
+              </motion.span>
+              <CountdownCard value={countdown.m} label="Minutes" />
+              <motion.span
+                animate={{ scale: [1, 1.28, 1, 1.16, 1], opacity: [0.65, 1, 0.65] }}
+                transition={{ repeat: Infinity, duration: 1.6, ease: "easeInOut", delay: 0.2 }}
+                className="text-rose-400 text-xs sm:text-sm select-none font-serif drop-shadow-[0_0_8px_rgba(244,63,94,0.9)]"
+              >
+                ♥
+              </motion.span>
+              <CountdownCard value={countdown.s} label="Seconds" />
+            </div>
+
+            {/* Calendar icon and countdown destination badge */}
+            <div className="mt-4 pt-3 border-t border-white/10 flex flex-col items-center gap-1.5">
+              <div className="inline-flex items-center justify-center gap-2 px-3.5 py-1 rounded-full bg-white/[0.06] border border-[#e7b876]/30 text-xs sm:text-sm text-[#fed7aa] font-serif tracking-wide">
+                <Calendar size={13} className="text-gold shrink-0" />
+                <span>
+                  Counting down to {targetDate.toLocaleDateString("en-US", { month: "long", day: "numeric" })} • 12:00 AM
+                </span>
               </div>
-
-              {/* Romantic heartbeat flourish */}
-              <div className="flex items-center justify-center gap-2 text-xs font-serif text-[#fed7aa] tracking-widest pt-2 border-t border-white/10 w-full">
-                <span className="text-gold/70">✦</span>
-                <Heart size={12} className="fill-rose-400 text-rose-400 animate-pulse" />
-                <span className="italic">Every second is dedicated to you</span>
-                <Heart size={12} className="fill-rose-400 text-rose-400 animate-pulse" />
-                <span className="text-gold/70">✦</span>
+              <div className="flex items-center justify-center gap-1.5 text-[10px] text-gold/70 font-mono mt-0.5">
+                <span>~ ✦</span>
+                <Heart size={10} className="fill-rose-400 text-rose-400 inline" />
+                <span>✦ ~</span>
               </div>
             </div>
-          ) : (
-            /* STATE A: Real accurate countdown cards (Days, Hours, Minutes, Seconds) */
-            <div className="relative mt-5 sm:mt-7 mx-auto p-3 sm:p-5 md:p-6 rounded-3xl border border-[#e7b876]/50 bg-black/45 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.75),0_0_40px_rgba(231,184,118,0.22)] max-w-xl w-full">
-              {/* Left Floral Rose Bouquet Cluster */}
-              <div className="absolute -left-3 sm:-left-5 top-1/2 -translate-y-1/2 pointer-events-none select-none z-20 flex flex-col items-center">
-                <span className="text-xl sm:text-3xl filter drop-shadow-[0_4px_12px_rgba(244,63,94,0.9)] transform -rotate-12">🌹</span>
-                <span className="text-xs sm:text-base filter drop-shadow-[0_2px_8px_rgba(251,191,36,0.8)] -mt-2">✨</span>
-              </div>
-
-              {/* Right Floral Rose Bouquet Cluster */}
-              <div className="absolute -right-3 sm:-right-5 top-1/2 -translate-y-1/2 pointer-events-none select-none z-20 flex flex-col items-center">
-                <span className="text-xl sm:text-3xl filter drop-shadow-[0_4px_12px_rgba(244,63,94,0.9)] transform rotate-12">🌹</span>
-                <span className="text-xs sm:text-base filter drop-shadow-[0_2px_8px_rgba(251,191,36,0.8)] -mt-2">✨</span>
-              </div>
-
-              {/* Countdown Blocks Row */}
-              <div className="flex items-center justify-center gap-1 sm:gap-2.5 md:gap-3.5 px-1 sm:px-2">
-                <CountdownCard value={countdown.d} label="Days" />
-                <motion.span
-                  animate={{ scale: [1, 1.28, 1, 1.16, 1], opacity: [0.65, 1, 0.65] }}
-                  transition={{ repeat: Infinity, duration: 1.6, ease: "easeInOut" }}
-                  className="text-rose-400 text-xs sm:text-sm select-none font-serif drop-shadow-[0_0_8px_rgba(244,63,94,0.9)]"
-                >
-                  ♥
-                </motion.span>
-                <CountdownCard value={countdown.h} label="Hours" />
-                <motion.span
-                  animate={{ scale: [1, 1.28, 1, 1.16, 1], opacity: [0.65, 1, 0.65] }}
-                  transition={{ repeat: Infinity, duration: 1.6, ease: "easeInOut", delay: 0.1 }}
-                  className="text-rose-400 text-xs sm:text-sm select-none font-serif drop-shadow-[0_0_8px_rgba(244,63,94,0.9)]"
-                >
-                  ♥
-                </motion.span>
-                <CountdownCard value={countdown.m} label="Minutes" />
-                <motion.span
-                  animate={{ scale: [1, 1.28, 1, 1.16, 1], opacity: [0.65, 1, 0.65] }}
-                  transition={{ repeat: Infinity, duration: 1.6, ease: "easeInOut", delay: 0.2 }}
-                  className="text-rose-400 text-xs sm:text-sm select-none font-serif drop-shadow-[0_0_8px_rgba(244,63,94,0.9)]"
-                >
-                  ♥
-                </motion.span>
-                <CountdownCard value={countdown.s} label="Seconds" />
-              </div>
-
-              {/* Calendar icon and countdown destination badge */}
-              <div className="mt-4 pt-3 border-t border-white/10 flex flex-col items-center gap-1.5">
-                <div className="inline-flex items-center justify-center gap-2 px-3.5 py-1 rounded-full bg-white/[0.06] border border-[#e7b876]/30 text-xs sm:text-sm text-[#fed7aa] font-serif tracking-wide">
-                  <Calendar size={13} className="text-gold shrink-0" />
-                  <span>Counting down to October 19 • 12:00 AM</span>
-                </div>
-                <div className="flex items-center justify-center gap-1.5 text-[10px] text-gold/70 font-mono mt-0.5">
-                  <span>~ ✦</span>
-                  <Heart size={10} className="fill-rose-400 text-rose-400 inline" />
-                  <span>✦ ~</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Skip Countdown Action */}
-          <div className="mt-6 sm:mt-8">
-            <PremiumButton
-              variant="glass"
-              size="md"
-              onClick={onSkip}
-            >
-              Skip Countdown →
-            </PremiumButton>
-          </div>
+          </motion.div>
         </motion.div>
       </div>
     </div>
@@ -2860,40 +2828,48 @@ export function CakeScene({ onBlown }: { onBlown: () => void }) {
             </defs>
 
             {/* ========================================================= */}
-            {/* PHYSICAL SATIN RIBBON BEHIND THE CAKE                     */}
-            {/* "Happy Birthday Bindu"                                     */}
+            {/* PHYSICAL SATIN RIBBON ELEVATED SLIGHTLY ABOVE CAKE        */}
+            {/* "Happy Birthday Bindu" - Physically Attached Topper Skewers */}
             {/* ========================================================= */}
             <g className="cake-ribbon-behind select-none" opacity="0.98">
+              {/* Slender Golden Cake-Topper Pick Supports (Physically Anchoring Ribbon to Cake) */}
+              <g className="cake-ribbon-supports pointer-events-none" opacity="0.95">
+                <line x1="86" y1="92" x2="86" y2="120" stroke="url(#goldCalligraphy)" strokeWidth="1.8" strokeLinecap="round" />
+                <circle cx="86" cy="92" r="2.2" fill="#fef08a" stroke="#b45309" strokeWidth="0.8" />
+                <line x1="314" y1="92" x2="314" y2="120" stroke="url(#goldCalligraphy)" strokeWidth="1.8" strokeLinecap="round" />
+                <circle cx="314" cy="92" r="2.2" fill="#fef08a" stroke="#b45309" strokeWidth="0.8" />
+              </g>
+
               {/* Left Ribbon Tail (Dovetail notch folded behind) */}
               <path
-                d="M 42 98 L 68 88 L 68 116 L 42 126 L 53 112 Z"
+                d="M 42 76 L 68 66 L 68 94 L 42 104 L 53 90 Z"
                 fill="url(#ribbonTailGrad)"
                 filter="url(#ribbonShadow)"
               />
               {/* Right Ribbon Tail */}
               <path
-                d="M 358 98 L 332 88 L 332 116 L 358 126 L 347 112 Z"
+                d="M 358 76 L 332 66 L 332 94 L 358 104 L 347 90 Z"
                 fill="url(#ribbonTailGrad)"
                 filter="url(#ribbonShadow)"
               />
 
               {/* Shaded Foldbacks behind body */}
-              <path d="M 68 88 L 86 92 L 86 120 L 68 116 Z" fill="url(#ribbonFoldDark)" />
-              <path d="M 332 88 L 314 92 L 314 120 L 332 116 Z" fill="url(#ribbonFoldDark)" />
+              <path d="M 68 66 L 86 70 L 86 98 L 68 94 Z" fill="url(#ribbonFoldDark)" />
+              <path d="M 332 66 L 314 70 L 314 98 L 332 94 Z" fill="url(#ribbonFoldDark)" />
 
               {/* Main Arched Ribbon Banner Body */}
               <path
-                d="M 72 88 Q 200 58 328 88 L 328 116 Q 200 86 72 116 Z"
+                d="M 72 66 Q 200 36 328 66 L 328 94 Q 200 64 72 94 Z"
                 fill="url(#ribbonBodyGrad)"
                 filter="url(#ribbonShadow)"
               />
 
               {/* Gold Embroidered Edges on top and bottom of banner */}
-              <path d="M 73 89 Q 200 59 327 89" fill="none" stroke="url(#goldCalligraphy)" strokeWidth="1.2" opacity="0.9" />
-              <path d="M 73 115 Q 200 85 327 115" fill="none" stroke="url(#goldCalligraphy)" strokeWidth="1.2" opacity="0.9" />
+              <path d="M 73 67 Q 200 37 327 67" fill="none" stroke="url(#goldCalligraphy)" strokeWidth="1.2" opacity="0.9" />
+              <path d="M 73 93 Q 200 63 327 93" fill="none" stroke="url(#goldCalligraphy)" strokeWidth="1.2" opacity="0.9" />
 
               {/* Text Path following the arch of the ribbon */}
-              <path id="ribbonArchPath" d="M 76 106 Q 200 76 324 106" fill="none" />
+              <path id="ribbonArchPath" d="M 76 84 Q 200 54 324 84" fill="none" />
               <text
                 className="font-serif font-bold text-[13px] tracking-[0.18em]"
                 fill="url(#goldCalligraphy)"
@@ -2904,6 +2880,9 @@ export function CakeScene({ onBlown }: { onBlown: () => void }) {
                 </textPath>
               </text>
             </g>
+
+            {/* Subtle soft shadow cast by elevated ribbon onto cake top */}
+            <ellipse cx="200" cy="116" rx="85" ry="6" fill="#000000" opacity="0.16" filter="url(#ribbonShadow)" />
 
             {/* Porcelain Plate */}
             <ellipse cx="200" cy="195" rx="150" ry="24" fill="#faf8f5" filter="url(#cakeShadow)" />
@@ -3293,30 +3272,84 @@ export function CakeCuttingScene({ stage, onStage }: { stage: number; onStage: (
                 <feDropShadow dx="0" dy="16" stdDeviation="14" floodColor="#000" floodOpacity="0.6" />
               </filter>
 
-              {/* Decorative Ribbon Garland behind cake */}
-              <linearGradient id="garlandBody" x1="0" y1="0" x2="1" y2="0">
+              <filter id="ribbonCutShadow">
+                <feDropShadow dx="0" dy="6" stdDeviation="8" floodColor="#000" floodOpacity="0.55" />
+              </filter>
+              <linearGradient id="cutRibbonBodyGrad" x1="0" y1="0" x2="1" y2="0">
                 <stop offset="0%" stopColor="#831843" />
-                <stop offset="50%" stopColor="#be185d" />
+                <stop offset="15%" stopColor="#9f1239" />
+                <stop offset="50%" stopColor="#e11d48" />
+                <stop offset="85%" stopColor="#9f1239" />
                 <stop offset="100%" stopColor="#831843" />
+              </linearGradient>
+              <linearGradient id="cutRibbonFoldDark" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#4c0519" />
+                <stop offset="100%" stopColor="#2b030d" />
+              </linearGradient>
+              <linearGradient id="cutRibbonTailGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#9f1239" />
+                <stop offset="100%" stopColor="#670d22" />
+              </linearGradient>
+              <linearGradient id="cutGoldCalligraphy" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#d4af37" />
+                <stop offset="35%" stopColor="#fef08a" />
+                <stop offset="70%" stopColor="#d9a85e" />
+                <stop offset="100%" stopColor="#996515" />
               </linearGradient>
             </defs>
 
-            {/* Background Garland Arch */}
-            <g opacity="0.85">
+            {/* PHYSICAL SATIN RIBBON MATCHING CAKE SCENE - ELEVATED WITH CAKE-TOPPER ATTACHMENTS */}
+            <g className="cake-ribbon-behind select-none" opacity="0.98">
+              {/* Slender Golden Cake-Topper Pick Supports (Physically Anchoring Ribbon to Cake) */}
+              <g className="cake-ribbon-supports pointer-events-none" opacity="0.95">
+                <line x1="86" y1="92" x2="86" y2="120" stroke="url(#cutGoldCalligraphy)" strokeWidth="1.8" strokeLinecap="round" />
+                <circle cx="86" cy="92" r="2.2" fill="#fef08a" stroke="#b45309" strokeWidth="0.8" />
+                <line x1="314" y1="92" x2="314" y2="120" stroke="url(#cutGoldCalligraphy)" strokeWidth="1.8" strokeLinecap="round" />
+                <circle cx="314" cy="92" r="2.2" fill="#fef08a" stroke="#b45309" strokeWidth="0.8" />
+              </g>
+
+              {/* Left Ribbon Tail */}
               <path
-                d="M 60 70 Q 200 40 340 70 L 340 92 Q 200 62 60 92 Z"
-                fill="url(#garlandBody)"
-                filter="url(#cakeCutShadow)"
+                d="M 42 76 L 68 66 L 68 94 L 42 104 L 53 90 Z"
+                fill="url(#cutRibbonTailGrad)"
+                filter="url(#ribbonCutShadow)"
               />
-              <path d="M 61 71 Q 200 41 339 71" fill="none" stroke="#fef08a" strokeWidth="1" opacity="0.8" />
-              <path d="M 61 91 Q 200 61 339 91" fill="none" stroke="#fef08a" strokeWidth="1" opacity="0.8" />
-              <path id="cutGarlandPath" d="M 65 83 Q 200 53 335 83" fill="none" />
-              <text className="font-serif font-bold text-[12px] tracking-[0.2em]" fill="#fef08a">
+              {/* Right Ribbon Tail */}
+              <path
+                d="M 358 76 L 332 66 L 332 94 L 358 104 L 347 90 Z"
+                fill="url(#cutRibbonTailGrad)"
+                filter="url(#ribbonCutShadow)"
+              />
+
+              {/* Shaded Foldbacks behind body */}
+              <path d="M 68 66 L 86 70 L 86 98 L 68 94 Z" fill="url(#cutRibbonFoldDark)" />
+              <path d="M 332 66 L 314 70 L 314 98 L 332 94 Z" fill="url(#cutRibbonFoldDark)" />
+
+              {/* Main Arched Ribbon Banner Body */}
+              <path
+                d="M 72 66 Q 200 36 328 66 L 328 94 Q 200 64 72 94 Z"
+                fill="url(#cutRibbonBodyGrad)"
+                filter="url(#ribbonCutShadow)"
+              />
+
+              {/* Gold Embroidered Edges on top and bottom of banner */}
+              <path d="M 73 67 Q 200 37 327 67" fill="none" stroke="url(#cutGoldCalligraphy)" strokeWidth="1.2" opacity="0.9" />
+              <path d="M 73 93 Q 200 63 327 93" fill="none" stroke="url(#cutGoldCalligraphy)" strokeWidth="1.2" opacity="0.9" />
+
+              {/* Text Path following the arch of the ribbon */}
+              <path id="cutGarlandPath" d="M 76 84 Q 200 54 324 84" fill="none" />
+              <text
+                className="font-serif font-bold text-[13px] tracking-[0.18em]"
+                fill="url(#cutGoldCalligraphy)"
+              >
                 <textPath href="#cutGarlandPath" startOffset="50%" textAnchor="middle">
                   A Sweet Slice of Joy ♡
                 </textPath>
               </text>
             </g>
+
+            {/* Subtle soft shadow cast by elevated ribbon onto cake top */}
+            <ellipse cx="200" cy="116" rx="85" ry="6" fill="#000000" opacity="0.16" filter="url(#ribbonCutShadow)" />
 
             {/* Porcelain Plate */}
             <ellipse cx="200" cy="195" rx="145" ry="24" fill="#faf8f5" filter="url(#cakeCutShadow)" />
@@ -4061,7 +4094,7 @@ function GiftBox3D({
       animate={opened ? {} : { rotate: [0, -1.2, 1.2, -1.2, 1.2, 0] }}
       transition={opened ? {} : { repeat: Infinity, duration: 4.5, repeatDelay: 2 }}
       onClick={onClick}
-      className="group relative block mx-auto w-48 sm:w-56 cursor-pointer focus:outline-none"
+      className="group relative block mx-auto w-[150px] xs:w-44 sm:w-56 cursor-pointer focus:outline-none"
       aria-label={opened ? `Revisit ${label} gift` : `Open ${label} gift`}
     >
       {/* Radiant Glow Behind Box */}
@@ -4278,7 +4311,7 @@ function GiftBox3D({
       </svg>
 
       {/* Subtle indicator without text labels underneath */}
-      <div className="mt-2 text-center h-5 flex items-center justify-center">
+      <div className="mt-0.5 sm:mt-2 text-center min-h-[16px] sm:min-h-[20px] flex items-center justify-center">
         {opened && (
           <span className="text-[11px] text-amber-200/80 font-serif italic">
             ✦ Unlocked ✦
@@ -4353,23 +4386,23 @@ function GiftsScene({
 
       <ParticleField density="low" petals={true} dots={false} />
 
-      <div className="relative z-20 flex min-h-full flex-1 flex-col items-center justify-center overflow-y-auto p-4 sm:p-6 py-8 sm:py-10 text-center select-none">
+      <div className="relative z-20 flex min-h-full flex-1 flex-col items-center justify-center overflow-y-auto p-3 sm:p-6 py-6 sm:py-10 text-center select-none">
         
         {/* Header - Neutral Romantic without Bindu */}
-        <header className="max-w-xl z-30 mb-2">
+        <header className="max-w-xl z-30 mb-1 sm:mb-2">
           <NameRibbon
             badgeText="A Special Surprise"
             title="Three Little Gifts"
             subtitle="Each one holds something made just for you."
             compact={true}
           />
-          <p className="text-[11px] sm:text-xs font-serif italic text-amber-200/70 mt-2 tracking-wider">
+          <p className="text-[11px] sm:text-xs font-serif italic text-amber-200/70 mt-1 sm:mt-2 tracking-wider">
             Tap a gift to open ✦
           </p>
         </header>
 
-        {/* 3 Interactive Gift Boxes Grid (Comfortable on both Mobile and Desktop) */}
-        <div className="relative mt-4 sm:mt-8 w-full max-w-4xl flex flex-col sm:flex-row items-center justify-center gap-8 sm:gap-6 px-2">
+        {/* 3 Interactive Gift Boxes Grid (Comfortable and tightly spaced on Mobile, expansive on Desktop) */}
+        <div className="relative mt-2 sm:mt-8 w-full max-w-4xl flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-6 px-2">
           {gifts.map((g, i) => {
             const isOpened = opened.includes(g.id);
             const isOpening = opening === g.id;
@@ -4393,7 +4426,7 @@ function GiftsScene({
         </div>
 
         {/* Continue to Wish Tree CTA Button — Strictly Gated on all 3 gifts */}
-        <div className="relative z-30 mt-8 min-h-[60px] flex flex-col items-center justify-center">
+        <div className="relative z-30 mt-4 sm:mt-8 min-h-[52px] sm:min-h-[60px] flex flex-col items-center justify-center">
           <AnimatePresence mode="wait">
             {opened.includes("letter") && opened.includes("memories") && opened.includes("voice") ? (
               <motion.div
@@ -5682,16 +5715,38 @@ export function WishTreeScene({ onContinue }: { onContinue: () => void }) {
     }
   }, [active]);
 
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 640 : false
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const positions = useMemo(
-    () => [
-      { top: "26%", left: "18%", delay: 0 },
-      { top: "24%", left: "82%", delay: 0.2 },
-      { top: "42%", left: "25%", delay: 0.4 },
-      { top: "38%", left: "75%", delay: 0.6 },
-      { top: "58%", left: "20%", delay: 0.8 },
-      { top: "56%", left: "80%", delay: 1 },
-    ],
-    []
+    () =>
+      isMobile
+        ? [
+            { top: "25%", left: "28%", delay: 0 },
+            { top: "24%", left: "72%", delay: 0.2 },
+            { top: "40%", left: "30%", delay: 0.4 },
+            { top: "39%", left: "70%", delay: 0.6 },
+            { top: "55%", left: "27%", delay: 0.8 },
+            { top: "54%", left: "73%", delay: 1.0 },
+          ]
+        : [
+            { top: "28%", left: "17%", delay: 0 },
+            { top: "26%", left: "83%", delay: 0.2 },
+            { top: "44%", left: "23%", delay: 0.4 },
+            { top: "42%", left: "77%", delay: 0.6 },
+            { top: "60%", left: "18%", delay: 0.8 },
+            { top: "58%", left: "82%", delay: 1.0 },
+          ],
+    [isMobile]
   );
 
   const reveal = (w: (typeof wishTreeWishes)[0]) => {
@@ -5744,7 +5799,7 @@ export function WishTreeScene({ onContinue }: { onContinue: () => void }) {
               whileTap={{ scale: 0.94 }}
               onClick={() => reveal(w)}
               className={cn(
-                "absolute w-8 sm:w-10 h-28 sm:h-34 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-b-md rounded-t-xs border border-[#b38a53]/80 backdrop-blur-md flex flex-col items-center justify-between p-1.5 pb-2 pointer-events-auto transition-all duration-300 group shadow-[0_12px_28px_rgba(0,0,0,0.6)]",
+                "absolute w-7 sm:w-11 h-20 sm:h-34 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-b-md rounded-t-xs border border-[#b38a53]/80 backdrop-blur-md flex flex-col items-center justify-between p-1 sm:p-1.5 pb-1 sm:pb-2 pointer-events-auto transition-all duration-300 group shadow-[0_8px_20px_rgba(0,0,0,0.6)] sm:shadow-[0_12px_28px_rgba(0,0,0,0.6)]",
                 discovered.includes(w.id)
                   ? "bg-gradient-to-b from-[#fffefc] via-[#fbf4e4] to-[#f4e7cd] shadow-[0_0_24px_rgba(254,240,138,0.7),0_8px_20px_rgba(0,0,0,0.5)] border-[#d9a85e]"
                   : "bg-gradient-to-b from-[#fffef9] via-[#faf5e8] to-[#f1e6ce] hover:border-[#d9a85e] hover:shadow-[0_0_18px_rgba(254,240,138,0.5)]"
@@ -5757,19 +5812,19 @@ export function WishTreeScene({ onContinue }: { onContinue: () => void }) {
               aria-label={`Paper Wish Strip ${i + 1}`}
             >
               {/* Delicate hanging string loop from branch */}
-              <svg className="absolute -top-[90px] left-1/2 -translate-x-1/2 h-[90px] w-4 pointer-events-none" overflow="visible">
-                <line x1="8" y1="0" x2="8" y2="90" stroke="#b3874e" strokeWidth="1.4" strokeDasharray="3 1.5" />
-                <circle cx="8" cy="4" r="2.5" fill="#452b14" stroke="#d9a85e" strokeWidth="1.2" />
+              <svg className="absolute -top-[34px] sm:-top-[80px] left-1/2 -translate-x-1/2 h-[34px] sm:h-[80px] w-4 pointer-events-none" overflow="visible">
+                <line x1="8" y1="0" x2="8" y2={isMobile ? 34 : 80} stroke="#b3874e" strokeWidth={isMobile ? "1.2" : "1.4"} strokeDasharray="3 1.5" />
+                <circle cx="8" cy="3" r={isMobile ? "2" : "2.5"} fill="#452b14" stroke="#d9a85e" strokeWidth="1" />
               </svg>
 
               {/* Brass Grommet hole */}
-              <div className="w-2.5 h-2.5 rounded-full border border-[#b38a53] bg-[#2a1408] flex items-center justify-center">
-                <div className="w-1 h-1 rounded-full bg-[#fef08a]" />
+              <div className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-full border border-[#b38a53] bg-[#2a1408] flex items-center justify-center">
+                <div className="w-0.5 sm:w-1 h-0.5 sm:h-1 rounded-full bg-[#fef08a]" />
               </div>
 
               {/* Hanging Wax Seal Stamp */}
               <div 
-                className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full text-[9px] text-white font-serif font-bold shadow-sm relative border border-white/60 group-hover:scale-110 transition-transform my-auto"
+                className="flex h-3.5 w-3.5 sm:h-6 sm:w-6 items-center justify-center rounded-full text-[7.5px] sm:text-[9px] text-white font-serif font-bold shadow-sm relative border border-white/60 group-hover:scale-110 transition-transform my-auto"
                 style={{ backgroundColor: collectibleCardDetails[w.id]?.sealColor || "#b45309" }}
               >
                 ♥
@@ -5777,10 +5832,10 @@ export function WishTreeScene({ onContinue }: { onContinue: () => void }) {
 
               {/* Slender strip number and torn/deckle bottom edge */}
               <div className="flex flex-col items-center w-full">
-                <span className="text-[10px] sm:text-[11px] font-mono text-[#58260a] font-bold tracking-widest">
+                <span className="text-[8px] sm:text-[11px] font-mono text-[#58260a] font-bold tracking-widest leading-none">
                   0{i + 1}
                 </span>
-                <div className="w-full h-1 mt-1 border-t border-dotted border-[#b38a53]/40" />
+                <div className="w-full h-0.5 sm:h-1 mt-0.5 sm:mt-1 border-t border-dotted border-[#b38a53]/40" />
               </div>
             </motion.button>
           ))}

@@ -17,43 +17,43 @@ export const collectibleCardDetails: Record<
   }
 > = {
   1: {
-    title: "Eternal Radiance",
-    themeSubtitle: "Bright as the evening stars",
+    title: "Eternal Joy",
+    themeSubtitle: "See her happy in every situation",
     sealColor: "#be123c",
     stickerSrc: "/assets/stickers/teddy-love-heart.png",
     stickerAlt: "Teddy hugging glowing heart",
   },
   2: {
-    title: "Whispered Dreams",
-    themeSubtitle: "Where all hopes come alive",
+    title: "Wanderlust",
+    themeSubtitle: "Travel the world & make memories",
     sealColor: "#b45309",
     stickerSrc: "/assets/stickers/teddy-roses-gift.png",
     stickerAlt: "Teddy with roses",
   },
   3: {
-    title: "Endless Laughter",
-    themeSubtitle: "Sweet joy in every hour",
+    title: "Peaceful Rest",
+    themeSubtitle: "Holding hands in gentle sleep",
     sealColor: "#7c2d12",
     stickerSrc: "/assets/stickers/teddy-warm-hug.png",
     stickerAlt: "Teddies hugging warmly",
   },
   4: {
-    title: "Hand in Hand",
-    themeSubtitle: "Walking through a lifetime",
+    title: "Journey Beside Her",
+    themeSubtitle: "Watching the world pass by",
     sealColor: "#9f1239",
     stickerSrc: "/assets/stickers/teddy-love-heart.png",
     stickerAlt: "Teddy with heart",
   },
   5: {
-    title: "Golden Blessings",
-    themeSubtitle: "Abundance of light & peace",
+    title: "Shared Sweetness",
+    themeSubtitle: "A quiet meal in our private place",
     sealColor: "#d97706",
     stickerSrc: "/assets/stickers/teddy-roses-gift.png",
     stickerAlt: "Teddy with golden gifts",
   },
   6: {
-    title: "Devoted Heart",
-    themeSubtitle: "Deeply, endlessly cherished",
+    title: "Her Bright Future",
+    themeSubtitle: "Witnessing her dreams & success",
     sealColor: "#881337",
     stickerSrc: "/assets/stickers/teddy-warm-hug.png",
     stickerAlt: "Teddy hugs",
@@ -78,11 +78,11 @@ export function WishTreePopupCard({
 
   return (
     <div
-      className="relative w-full max-w-[300px] sm:max-w-[340px] select-none flex flex-col items-center"
+      className="relative w-full max-w-[290px] sm:max-w-[340px] select-none flex flex-col items-center"
       onClick={(e) => e.stopPropagation()}
     >
       {/* Hanging Golden Twine suspended from Branch */}
-      <div className="w-0.5 h-8 bg-gradient-to-b from-[#e7b876] via-[#b45309] to-[#78350f] mx-auto opacity-80" />
+      <div className="w-0.5 h-5 sm:h-8 bg-gradient-to-b from-[#e7b876] via-[#b45309] to-[#78350f] mx-auto opacity-80" />
 
       {/* Tactile Narrow Paper Strip Unfolding from Branch */}
       <motion.div
@@ -91,7 +91,7 @@ export function WishTreePopupCard({
         exit={{ scaleY: 0.15, opacity: 0, y: -20 }}
         transition={{ type: "spring", stiffness: 220, damping: 24 }}
         style={{ transformOrigin: "top center" }}
-        className="w-full relative rounded-b-xl rounded-t-sm p-5 sm:p-6 flex flex-col items-center text-center overflow-hidden border border-[#b38a53]/70 shadow-[0_20px_50px_rgba(0,0,0,0.85),0_0_35px_rgba(254,240,138,0.3)] bg-[#faf5e8]"
+        className="w-full relative rounded-b-xl rounded-t-sm p-4 sm:p-6 flex flex-col items-center text-center overflow-hidden border border-[#b38a53]/70 shadow-[0_20px_50px_rgba(0,0,0,0.85),0_0_35px_rgba(254,240,138,0.3)] bg-[#faf5e8]"
       >
         {/* Warm Ivory Textured Parchment Background */}
         <div
@@ -108,25 +108,25 @@ export function WishTreePopupCard({
 
         {/* Top Hanging Brass Eyelet */}
         <div className="relative z-10 -mt-2 mb-2 flex items-center justify-center">
-          <div className="w-4 h-4 rounded-full border-2 border-[#b38a53] bg-[#3a1d0f] flex items-center justify-center shadow-inner">
+          <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full border-2 border-[#b38a53] bg-[#3a1d0f] flex items-center justify-center shadow-inner">
             <div className="w-1.5 h-1.5 rounded-full bg-[#fef08a]" />
           </div>
         </div>
 
         {/* Header: Strip Counter & Title */}
-        <div className="relative z-10 w-full flex items-center justify-between pb-2 border-b border-[#b38a53]/20 px-1">
-          <span className="text-[10px] uppercase font-serif tracking-[0.25em] text-[#78350f] font-bold">
+        <div className="relative z-10 w-full flex items-center justify-between pb-1.5 border-b border-[#b38a53]/20 px-1">
+          <span className="text-[9px] sm:text-[10px] uppercase font-serif tracking-[0.25em] text-[#78350f] font-bold">
             ✦ Wish Scroll
           </span>
-          <span className="text-[10px] font-mono font-bold tracking-widest text-[#78350f] px-2 py-0.5 rounded-full border border-[#b38a53]/35 bg-[#b38a53]/10">
+          <span className="text-[9px] sm:text-[10px] font-mono font-bold tracking-widest text-[#78350f] px-2 py-0.5 rounded-full border border-[#b38a53]/35 bg-[#b38a53]/10">
             0{id} / 06
           </span>
         </div>
 
         {/* Wax Seal Stamp Emblem */}
-        <div className="relative z-10 my-3 flex flex-col items-center">
+        <div className="relative z-10 my-2.5 sm:my-3 flex flex-col items-center">
           <div
-            className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-2 p-1 flex items-center justify-center shadow-md bg-white/95"
+            className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border-2 p-1 flex items-center justify-center shadow-md bg-white/95"
             style={{ borderColor: cardMeta.sealColor }}
           >
             <img
@@ -138,21 +138,21 @@ export function WishTreePopupCard({
               }}
             />
           </div>
-          <h3 className="font-serif text-lg sm:text-xl font-bold text-[#451a03] mt-2">
+          <h3 className="font-serif text-base sm:text-xl font-bold text-[#451a03] mt-1.5 sm:mt-2">
             {cardMeta.title}
           </h3>
-          <span className="text-[10.5px] font-serif text-[#78350f] italic">
+          <span className="text-[10px] sm:text-[10.5px] font-serif text-[#78350f] italic">
             {cardMeta.themeSubtitle}
           </span>
         </div>
 
         {/* Handwritten Wish Message */}
-        <div className="relative z-10 w-full my-1 py-3 px-3 rounded-lg bg-white/70 border border-[#b38a53]/25 shadow-sm flex flex-col items-center">
-          <span className="font-serif text-2xl text-[#b45309] leading-none mb-0.5 select-none font-bold">“</span>
-          <p className="font-serif italic text-sm sm:text-base text-[#3d1908] leading-relaxed font-semibold select-text text-center px-1">
+        <div className="relative z-10 w-full my-1 py-2.5 sm:py-3 px-2.5 sm:px-3 rounded-lg bg-white/70 border border-[#b38a53]/25 shadow-sm flex flex-col items-center">
+          <span className="font-serif text-xl sm:text-2xl text-[#b45309] leading-none mb-0.5 select-none font-bold">“</span>
+          <p className="font-serif italic text-xs sm:text-base text-[#3d1908] leading-relaxed font-semibold select-text text-center px-1">
             {text}
           </p>
-          <span className="font-serif text-2xl text-[#b45309] leading-none mt-0.5 select-none font-bold">”</span>
+          <span className="font-serif text-xl sm:text-2xl text-[#b45309] leading-none mt-0.5 select-none font-bold">”</span>
         </div>
 
         {/* Close Action */}
@@ -199,17 +199,43 @@ export function WishTree({ onContinue, partnerName = birthdayContent.herName }: 
     }
   }, [active, isWishingModalOpen]);
 
-  // Symmetrical hanging coordinates tuned for both desktop and mobile
+  // Responsive viewport detection for mobile vs desktop composition
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 640 : false
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Hanging coordinates:
+  // On mobile: clustered naturally closer to the tree's outer branch canopy (27-30% and 70-73%),
+  // leaving the trunk (44-56%) completely unobstructed, with shorter hanging strings connecting directly to branches
+  // On desktop: wide cinematic composition
   const positions = useMemo(
-    () => [
-      { top: "28%", left: "16%", delay: 0 },
-      { top: "26%", left: "84%", delay: 0.2 },
-      { top: "44%", left: "22%", delay: 0.4 },
-      { top: "42%", left: "78%", delay: 0.6 },
-      { top: "60%", left: "18%", delay: 0.8 },
-      { top: "58%", left: "82%", delay: 1.0 },
-    ],
-    []
+    () =>
+      isMobile
+        ? [
+            { top: "25%", left: "28%", delay: 0 },
+            { top: "24%", left: "72%", delay: 0.2 },
+            { top: "40%", left: "30%", delay: 0.4 },
+            { top: "39%", left: "70%", delay: 0.6 },
+            { top: "55%", left: "27%", delay: 0.8 },
+            { top: "54%", left: "73%", delay: 1.0 },
+          ]
+        : [
+            { top: "28%", left: "17%", delay: 0 },
+            { top: "26%", left: "83%", delay: 0.2 },
+            { top: "44%", left: "23%", delay: 0.4 },
+            { top: "42%", left: "77%", delay: 0.6 },
+            { top: "60%", left: "18%", delay: 0.8 },
+            { top: "58%", left: "82%", delay: 1.0 },
+          ],
+    [isMobile]
   );
 
   const reveal = (w: (typeof wishTreeWishes)[0]) => {
@@ -337,7 +363,7 @@ export function WishTree({ onContinue, partnerName = birthdayContent.herName }: 
             whileHover={{ scale: 1.15, rotate: 0 }}
             whileTap={{ scale: 0.94 }}
             onClick={() => reveal(w)}
-            className={`wish-cardboard absolute w-9 sm:w-11 h-28 sm:h-34 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-b-md rounded-t-xs border border-[#b38a53]/80 backdrop-blur-md flex flex-col items-center justify-between p-1.5 pb-2 pointer-events-auto transition-all duration-300 group shadow-[0_12px_28px_rgba(0,0,0,0.6)] ${
+            className={`wish-cardboard absolute w-7 sm:w-11 h-20 sm:h-34 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-b-md rounded-t-xs border border-[#b38a53]/80 backdrop-blur-md flex flex-col items-center justify-between p-1 sm:p-1.5 pb-1 sm:pb-2 pointer-events-auto transition-all duration-300 group shadow-[0_8px_20px_rgba(0,0,0,0.6)] sm:shadow-[0_12px_28px_rgba(0,0,0,0.6)] ${
               discovered.includes(w.id)
                 ? "bg-gradient-to-b from-[#fffefc] via-[#fbf4e4] to-[#f4e7cd] shadow-[0_0_24px_rgba(254,240,138,0.7),0_8px_20px_rgba(0,0,0,0.5)] border-[#d9a85e]"
                 : "bg-gradient-to-b from-[#fffef9] via-[#faf5e8] to-[#f1e6ce] hover:border-[#d9a85e] hover:shadow-[0_0_18px_rgba(254,240,138,0.5)]"
@@ -349,23 +375,31 @@ export function WishTree({ onContinue, partnerName = birthdayContent.herName }: 
             }}
             aria-label={`Paper Wish Strip ${i + 1}`}
           >
-            {/* Delicate Hanging Twine Cord */}
+            {/* Delicate Hanging Twine Cord - gracefully scaled for mobile to branch canopy */}
             <svg
-              className="absolute -top-[90px] left-1/2 -translate-x-1/2 h-[90px] w-4 pointer-events-none"
+              className="absolute -top-[34px] sm:-top-[80px] left-1/2 -translate-x-1/2 h-[34px] sm:h-[80px] w-4 pointer-events-none"
               overflow="visible"
             >
-              <line x1="8" y1="0" x2="8" y2="90" stroke="#b3874e" strokeWidth="1.4" strokeDasharray="3 1.5" />
-              <circle cx="8" cy="4" r="2.5" fill="#452b14" stroke="#d9a85e" strokeWidth="1.2" />
+              <line
+                x1="8"
+                y1="0"
+                x2="8"
+                y2={isMobile ? 34 : 80}
+                stroke="#b3874e"
+                strokeWidth={isMobile ? "1.2" : "1.4"}
+                strokeDasharray="3 1.5"
+              />
+              <circle cx="8" cy="3" r={isMobile ? "2" : "2.5"} fill="#452b14" stroke="#d9a85e" strokeWidth="1" />
             </svg>
 
             {/* Brass Grommet Eyelet */}
-            <div className="w-2.5 h-2.5 rounded-full border border-[#b38a53] bg-[#2a1408] flex items-center justify-center">
-              <div className="w-1 h-1 rounded-full bg-[#fef08a]" />
+            <div className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-full border border-[#b38a53] bg-[#2a1408] flex items-center justify-center">
+              <div className="w-0.5 sm:w-1 h-0.5 sm:h-1 rounded-full bg-[#fef08a]" />
             </div>
 
             {/* Wax Seal Stamp Emblem */}
             <div
-              className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full text-[9px] text-white font-serif font-bold shadow-sm relative border border-white/60 group-hover:scale-110 transition-transform my-auto"
+              className="flex h-3.5 w-3.5 sm:h-6 sm:w-6 items-center justify-center rounded-full text-[7.5px] sm:text-[9px] text-white font-serif font-bold shadow-sm relative border border-white/60 group-hover:scale-110 transition-transform my-auto"
               style={{ backgroundColor: collectibleCardDetails[w.id]?.sealColor || "#b45309" }}
             >
               ♥
@@ -373,10 +407,10 @@ export function WishTree({ onContinue, partnerName = birthdayContent.herName }: 
 
             {/* Deckle Strip Counter */}
             <div className="flex flex-col items-center w-full">
-              <span className="text-[10px] sm:text-[11px] font-mono text-[#58260a] font-bold tracking-widest">
+              <span className="text-[8px] sm:text-[11px] font-mono text-[#58260a] font-bold tracking-widest leading-none">
                 0{i + 1}
               </span>
-              <div className="w-full h-1 mt-1 border-t border-dotted border-[#b38a53]/40" />
+              <div className="w-full h-0.5 sm:h-1 mt-0.5 sm:mt-1 border-t border-dotted border-[#b38a53]/40" />
             </div>
           </motion.button>
         ))}
