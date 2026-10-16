@@ -78,11 +78,11 @@ export function WishTreePopupCard({
 
   return (
     <div
-      className="relative w-full max-w-[290px] sm:max-w-[340px] select-none flex flex-col items-center"
+      className="relative w-full max-w-[310px] sm:max-w-[360px] select-none flex flex-col items-center"
       onClick={(e) => e.stopPropagation()}
     >
       {/* Hanging Golden Twine suspended from Branch */}
-      <div className="w-0.5 h-5 sm:h-8 bg-gradient-to-b from-[#e7b876] via-[#b45309] to-[#78350f] mx-auto opacity-80" />
+      <div className="w-0.5 h-6 sm:h-9 bg-gradient-to-b from-[#e7b876] via-[#b45309] to-[#78350f] mx-auto opacity-85" />
 
       {/* Tactile Narrow Paper Strip Unfolding from Branch */}
       <motion.div
@@ -91,7 +91,7 @@ export function WishTreePopupCard({
         exit={{ scaleY: 0.15, opacity: 0, y: -20 }}
         transition={{ type: "spring", stiffness: 220, damping: 24 }}
         style={{ transformOrigin: "top center" }}
-        className="w-full relative rounded-b-xl rounded-t-sm p-4 sm:p-6 flex flex-col items-center text-center overflow-hidden border border-[#b38a53]/70 shadow-[0_20px_50px_rgba(0,0,0,0.85),0_0_35px_rgba(254,240,138,0.3)] bg-[#faf5e8]"
+        className="w-full relative rounded-b-2xl rounded-t-sm p-4 sm:p-6 flex flex-col items-center text-center overflow-hidden border border-[#b38a53]/80 shadow-[0_22px_55px_rgba(0,0,0,0.88),0_0_35px_rgba(254,240,138,0.25)] bg-[#faf5e8]"
       >
         {/* Warm Ivory Textured Parchment Background */}
         <div
@@ -101,10 +101,10 @@ export function WishTreePopupCard({
           }}
         />
 
-        {/* Deckle Edge Accent */}
+        {/* Deckle Edge Accent & Fine Borders */}
         <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-[#b38a53] via-[#fef08a] to-[#b38a53]" />
         <div className="absolute bottom-0 inset-x-0 h-2 bg-[radial-gradient(ellipse_at_bottom,_#b38a53_30%,_transparent_70%)] opacity-40" />
-        <div className="absolute inset-2 border border-dashed border-[#b38a53]/30 rounded-lg pointer-events-none" />
+        <div className="absolute inset-2 border border-dashed border-[#b38a53]/35 rounded-xl pointer-events-none" />
 
         {/* Top Hanging Brass Eyelet */}
         <div className="relative z-10 -mt-2 mb-2 flex items-center justify-center">
@@ -114,18 +114,21 @@ export function WishTreePopupCard({
         </div>
 
         {/* Header: Strip Counter & Title */}
-        <div className="relative z-10 w-full flex items-center justify-between pb-1.5 border-b border-[#b38a53]/20 px-1">
-          <span className="text-[9px] sm:text-[10px] uppercase font-serif tracking-[0.25em] text-[#78350f] font-bold">
+        <div className="relative z-10 w-full flex items-center justify-between pb-2 border-b border-[#b38a53]/25 px-1">
+          <span className="text-[10px] sm:text-[11px] font-sans tracking-[0.25em] text-[#78350f] font-bold uppercase">
             ✦ Wish Scroll
           </span>
-          <span className="text-[9px] sm:text-[10px] font-mono font-bold tracking-widest text-[#78350f] px-2 py-0.5 rounded-full border border-[#b38a53]/35 bg-[#b38a53]/10">
+          <span className="text-[10px] sm:text-[11px] font-mono font-bold tracking-widest text-[#78350f] px-2.5 py-0.5 rounded-full border border-[#b38a53]/40 bg-[#b38a53]/10">
             0{id} / 06
           </span>
         </div>
 
-        {/* Wax Seal Stamp Emblem */}
+        {/* Wax Seal Stamp Emblem with Smooth Staggered Animation */}
         <div className="relative z-10 my-2.5 sm:my-3 flex flex-col items-center">
-          <div
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.1, duration: 0.4 }}
             className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border-2 p-1 flex items-center justify-center shadow-md bg-white/95"
             style={{ borderColor: cardMeta.sealColor }}
           >
@@ -137,32 +140,62 @@ export function WishTreePopupCard({
                 (e.currentTarget as HTMLImageElement).style.display = "none";
               }}
             />
-          </div>
-          <h3 className="font-serif text-base sm:text-xl font-bold text-[#451a03] mt-1.5 sm:mt-2">
+          </motion.div>
+
+          {/* Expressive Editorial Display Title */}
+          <motion.h3
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.18, duration: 0.45 }}
+            className="font-cormorant text-xl sm:text-2xl md:text-[26px] font-bold text-[#3b1206] mt-2 tracking-[0.02em] leading-tight drop-shadow-[0_1px_2px_rgba(255,255,255,0.8)]"
+          >
             {cardMeta.title}
-          </h3>
-          <span className="text-[10px] sm:text-[10.5px] font-serif text-[#78350f] italic">
+          </motion.h3>
+
+          {/* Romantic Italic Subtitle */}
+          <motion.span
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25, duration: 0.45 }}
+            className="font-cormorant italic text-xs sm:text-[13.5px] text-[#78350f] tracking-wide mt-0.5 leading-snug px-2"
+          >
             {cardMeta.themeSubtitle}
-          </span>
+          </motion.span>
         </div>
 
-        {/* Handwritten Wish Message */}
-        <div className="relative z-10 w-full my-1 py-2.5 sm:py-3 px-2.5 sm:px-3 rounded-lg bg-white/70 border border-[#b38a53]/25 shadow-sm flex flex-col items-center">
-          <span className="font-serif text-xl sm:text-2xl text-[#b45309] leading-none mb-0.5 select-none font-bold">“</span>
-          <p className="font-serif italic text-xs sm:text-base text-[#3d1908] leading-relaxed font-semibold select-text text-center px-1">
+        {/* Delicate Heart / Diamond Divider */}
+        <div className="relative z-10 flex items-center justify-center gap-2 my-1 text-[#b38a53]/60 w-full px-4">
+          <span className="flex-1 h-[1px] bg-gradient-to-r from-transparent to-[#b38a53]/40" />
+          <span className="text-[9px] text-[#b45309]">✦</span>
+          <span className="flex-1 h-[1px] bg-gradient-to-l from-transparent to-[#b38a53]/40" />
+        </div>
+
+        {/* Handwritten Wish Message in Fine Parchment Container */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.32, duration: 0.5 }}
+          className="relative z-10 w-full my-1.5 py-3 sm:py-3.5 px-3.5 sm:px-4 rounded-xl bg-gradient-to-b from-white/85 via-[#fcf8f0]/90 to-white/80 border border-[#b38a53]/30 shadow-[0_4px_16px_rgba(120,53,15,0.06),inset_0_1px_2px_rgba(255,255,255,0.9)] flex flex-col items-center select-text"
+        >
+          <span className="font-cormorant text-3xl sm:text-4xl text-[#b45309]/50 leading-none select-none -mb-1 block self-start font-semibold">
+            “
+          </span>
+          <p className="font-cormorant italic text-[15px] sm:text-[17px] text-[#2c1205] leading-relaxed font-semibold text-center px-1 tracking-[0.015em]">
             {text}
           </p>
-          <span className="font-serif text-xl sm:text-2xl text-[#b45309] leading-none mt-0.5 select-none font-bold">”</span>
-        </div>
+          <span className="font-cormorant text-3xl sm:text-4xl text-[#b45309]/50 leading-none select-none -mt-1 block self-end font-semibold">
+            ”
+          </span>
+        </motion.div>
 
-        {/* Close Action */}
-        <div className="relative z-10 mt-3 pt-2 w-full flex flex-col items-center gap-2">
+        {/* Close Action Button */}
+        <div className="relative z-10 mt-3 pt-1 w-full flex flex-col items-center gap-2">
           <button
             onClick={(e) => {
               e.stopPropagation();
               onClose();
             }}
-            className="rounded-full px-5 py-1.5 text-[11px] font-serif font-bold uppercase tracking-widest text-white bg-[#78350f] hover:bg-[#58260a] border border-[#b38a53] active:scale-95 transition-all shadow-md cursor-pointer"
+            className="rounded-full px-6 py-2 text-xs font-serif font-bold uppercase tracking-[0.2em] text-white bg-gradient-to-r from-[#78350f] via-[#854d0e] to-[#78350f] border border-[#b38a53]/80 shadow-[0_4px_14px_rgba(120,53,15,0.4)] hover:shadow-[0_6px_20px_rgba(120,53,15,0.6)] hover:brightness-110 active:scale-95 transition-all cursor-pointer"
           >
             Fold Back to Tree ♥
           </button>
@@ -305,7 +338,7 @@ export function WishTree({ onContinue, partnerName = birthdayContent.herName }: 
               <circle
                 cx={l.cx}
                 cy={l.cy}
-                r={treeIlluminated ? "14" : "10"}
+                r={treeIlluminated || lightsTraveling ? "14" : "10"}
                 fill="url(#branchGlow)"
                 className="animate-pulse"
                 style={{ animationDelay: `${idx * 0.4}s`, animationDuration: "3s" }}
@@ -469,7 +502,7 @@ export function WishTree({ onContinue, partnerName = birthdayContent.herName }: 
               </h3>
 
               <p className="text-xs sm:text-sm text-rose-100/75 font-serif italic mb-5 leading-relaxed">
-                Close your eyes for a moment, think of your deepest dream, and tie it to the branches...
+                Close your eyes for a moment{partnerName ? `, ${partnerName}` : ""}, think of your deepest dream, and tie it to the branches...
               </p>
 
               <form onSubmit={handleMakeWishSubmit} className="flex flex-col gap-4">

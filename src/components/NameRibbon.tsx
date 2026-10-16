@@ -1,6 +1,5 @@
 import { motion } from "framer-motion";
 import { Heart } from "lucide-react";
-import { birthdayContent } from "../data/content";
 
 interface NameRibbonProps {
   name?: string | null;

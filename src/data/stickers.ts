@@ -1,29 +1,22 @@
 /**
  * ==============================================================================
- * CENTRALIZED STICKER CONFIGURATION
+ * CENTRALIZED TEDDY STICKERS CONFIGURATION
  * ==============================================================================
  *
- * HOW TO CHANGE A STICKER:
- * "To change a sticker, replace this asset path."
+ * Preserves the original kawaii teddy illustrations with full color fidelity:
+ * 1. Teddy Heart: Fluffy clean white/cream teddy holding a glowing pink heart
+ * 2. Teddies Hug: Yellow/beige teddy hugging a white/cream teddy in star blanket
+ * 3. Teddy Flowers: Golden-brown teddy bear with red bow holding roses & gift
  *
- * Supported formats:
- * - PNG (.png)
- * - WebP (.webp)
- * - GIF (.gif)
- * - SVG (.svg)
- *
- * Simply point `src` to your new asset in `public/assets/stickers/` or `public/images/`.
+ * Assets stored in: `public/assets/stickers/`
  * ==============================================================================
  */
 
 export interface StickerConfig {
   id: string;
   name: string;
-  /**
-   * "To change a sticker, replace this asset path."
-   * Example: "/assets/stickers/teddy-love-heart.png" or "/assets/stickers/custom-cute.webp"
-   */
   src: string;
+  fallbackSrc?: string;
   alt: string;
   fallbackIcon?: string;
   animation?: {
@@ -42,27 +35,27 @@ export interface StickerConfig {
 export const stickersConfig: StickerConfig[] = [
   {
     id: "teddy-heart",
-    name: "Teddy Holding My Heart",
-    // To change a sticker, replace this asset path:
+    name: "Teddy Holding A Glowing Heart",
+    // Original fluffy clean white / light-cream teddy bear holding glowing heart:
     src: "/assets/stickers/teddy-love-heart.png",
-    alt: "Adorable fluffy plush teddy bear hugging a glowing pink heart",
+    alt: "Adorable white fluffy teddy bear hugging a glowing pink heart",
     fallbackIcon: "♥",
     animation: {
       delay: 0.2,
-      rotate: -3,
+      rotate: -2.5,
       floatY: 8,
       duration: 3.2,
       pulseHeart: true,
     },
     scale: 1,
-    className: "w-24 h-28 sm:w-32 sm:h-36 md:w-40 md:h-44 max-w-[28vw] sm:max-w-none shrink-0 drop-shadow-[0_12px_24px_rgba(244,63,94,0.35)]",
+    className: "w-24 h-28 sm:w-32 sm:h-36 md:w-40 md:h-44 max-w-[28vw] sm:max-w-none shrink-0 drop-shadow-[0_12px_24px_rgba(0,0,0,0.45)]",
   },
   {
     id: "teddies-hug",
     name: "Warmest Cuddle Hugs",
-    // To change a sticker, replace this asset path:
+    // Original yellow/beige teddy bear hugging white/cream teddy bear:
     src: "/assets/stickers/teddy-warm-hug.png",
-    alt: "Two cute fluffy teddy bears snuggling and hugging warmly",
+    alt: "Cute yellow and white teddy bears snuggling and hugging warmly in a star blanket",
     fallbackIcon: "🧸",
     animation: {
       delay: 0.4,
@@ -72,24 +65,24 @@ export const stickersConfig: StickerConfig[] = [
       sway: true,
     },
     scale: 1.08,
-    className: "w-28 h-28 sm:w-36 sm:h-36 md:w-46 md:h-46 -mt-2 sm:-mt-3 max-w-[32vw] sm:max-w-none shrink-0 drop-shadow-[0_14px_28px_rgba(217,168,94,0.35)]",
+    className: "w-28 h-28 sm:w-36 sm:h-36 md:w-46 md:h-46 -mt-2 sm:-mt-3 max-w-[32vw] sm:max-w-none shrink-0 drop-shadow-[0_14px_28px_rgba(0,0,0,0.45)]",
   },
   {
     id: "teddy-flowers",
     name: "Flowers & Birthday Surprise",
-    // To change a sticker, replace this asset path:
+    // Original golden-brown teddy with red bow holding roses & golden gift:
     src: "/assets/stickers/teddy-roses-gift.png",
-    alt: "Adorable teddy bear holding a bouquet of roses and a golden gift box",
+    alt: "Sweet teddy bear with red bow holding a bouquet of roses and a golden gift box",
     fallbackIcon: "✨",
     animation: {
       delay: 0.6,
-      rotate: 4,
+      rotate: 3.5,
       floatY: 9,
       duration: 3.5,
       sparkles: true,
     },
     scale: 1,
-    className: "w-24 h-28 sm:w-32 sm:h-36 md:w-40 md:h-44 max-w-[28vw] sm:max-w-none shrink-0 drop-shadow-[0_12px_24px_rgba(251,191,36,0.35)]",
+    className: "w-24 h-28 sm:w-32 sm:h-36 md:w-40 md:h-44 max-w-[28vw] sm:max-w-none shrink-0 drop-shadow-[0_12px_24px_rgba(0,0,0,0.45)]",
   },
 ];
 
