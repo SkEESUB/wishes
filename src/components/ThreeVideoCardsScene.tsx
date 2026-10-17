@@ -35,6 +35,14 @@ interface ThreeVideoCardsSceneProps {
 }
 
 export function ThreeVideoCardsScene({ onContinue, audio }: ThreeVideoCardsSceneProps) {
+  // Separate intro text animation before the video cards (Requirement 6)
+  const [showIntro, setShowIntro] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return !sessionStorage.getItem("video_cards_intro_shown");
+    }
+    return true;
+  });
+
   const [activeVideo, setActiveVideo] = useState<VideoMemoryItem | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
@@ -49,6 +57,26 @@ export function ThreeVideoCardsScene({ onContinue, audio }: ThreeVideoCardsScene
   const modalContainerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
+
+  // Auto transition from intro text to video cards after 4.5s
+  useEffect(() => {
+    if (!showIntro) return;
+    const timer = setTimeout(() => {
+      setShowIntro(false);
+      try {
+        sessionStorage.setItem("video_cards_intro_shown", "true");
+      } catch {}
+    }, 4500);
+
+    return () => clearTimeout(timer);
+  }, [showIntro]);
+
+  const handleDismissIntro = () => {
+    setShowIntro(false);
+    try {
+      sessionStorage.setItem("video_cards_intro_shown", "true");
+    } catch {}
+  };
 
   // Pause background music when viewing or playing video
   useEffect(() => {
@@ -141,14 +169,134 @@ export function ThreeVideoCardsScene({ onContinue, audio }: ThreeVideoCardsScene
     setCurrentTime(newTime);
   };
 
+  // Visual theme accents for each card to give distinct character
+  const cardThemes = [
+    {
+      borderColor: "hover:border-rose-400/60",
+      badgeClass: "bg-rose-500/20 text-rose-300 border-rose-400/30",
+      glowColor: "from-rose-500/10",
+      icon: Film,
+    },
+    {
+      borderColor: "hover:border-amber-400/60",
+      badgeClass: "bg-amber-500/20 text-amber-300 border-amber-400/30",
+      glowColor: "from-amber-500/10",
+      icon: Sparkles,
+    },
+    {
+      borderColor: "hover:border-[#f43f5e]/60",
+      badgeClass: "bg-pink-500/20 text-pink-300 border-pink-400/30",
+      glowColor: "from-pink-500/10",
+      icon: Heart,
+    },
+  ];
+
   return (
-    <div className="scene-container relative min-h-screen min-h-[100dvh] bg-[#090209] text-white overflow-x-hidden overflow-y-auto select-none flex flex-col justify-between py-6 sm:py-10">
+    <div className="scene-container relative min-h-screen min-h-[100dvh] bg-[#070209] text-white overflow-x-hidden overflow-y-auto select-none flex flex-col justify-between py-6 sm:py-10">
       {/* Background Environment */}
       <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#160412] via-[#24081c] to-[#0a0209]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_15%,_rgba(244,114,182,0.18)_0%,_rgba(217,168,94,0.12)_35%,_transparent_75%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_45%,_rgba(6,1,6,0.85)_100%)]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#160413] via-[#21071a] to-[#080209]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_15%,_rgba(244,114,182,0.16)_0%,_rgba(217,168,94,0.12)_35%,_transparent_75%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_45%,_rgba(6,1,6,0.88)_100%)]" />
       </div>
+
+      {/* Floating Stardust Particles */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden" aria-hidden="true">
+        {[...Array(12)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute rounded-full bg-amber-200/40"
+            style={{
+              width: `${(i % 3) + 2}px`,
+              height: `${(i % 3) + 2}px`,
+              left: `${(i * 19) % 95}%`,
+              top: `${(i * 27) % 90}%`,
+            }}
+            animate={{
+              y: [0, -25, 0],
+              opacity: [0.2, 0.7, 0.2],
+            }}
+            transition={{
+              duration: 4.5 + (i % 3) * 1.5,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: (i % 4) * 0.7,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* ------------------------------------------------------------- */}
+      {/* 1. SEPARATE INTRODUCTORY TEXT ANIMATION (Requirement 6)        */}
+      {/* ------------------------------------------------------------- */}
+      <AnimatePresence>
+        {showIntro && (
+          <motion.div
+            key="video-intro"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, scale: 1.02, transition: { duration: 0.8, ease: "easeInOut" } }}
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 bg-[#08020a]/96 backdrop-blur-xl text-center"
+          >
+            {/* Top Right Skip Button */}
+            <div className="absolute top-5 right-5 sm:top-7 sm:right-7 z-20">
+              <button
+                onClick={handleDismissIntro}
+                className="min-h-[44px] px-4 py-2 rounded-full text-xs font-serif text-white/80 hover:text-white bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-md transition-all cursor-pointer flex items-center gap-1.5 shadow-md active:scale-95"
+                aria-label="Skip to video cards"
+              >
+                <span>Explore Films</span>
+                <ArrowRight size={13} />
+              </button>
+            </div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+              className="max-w-xl mx-auto flex flex-col items-center"
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2, duration: 0.6 }}
+                className="w-12 h-12 rounded-full bg-rose-500/20 border border-rose-400/40 flex items-center justify-center text-gold mb-4 shadow-[0_0_20px_rgba(244,63,94,0.4)]"
+              >
+                <Film size={22} className="text-gold" />
+              </motion.div>
+
+              <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.3em] text-[#fed7aa] font-semibold mb-2">
+                MEMORIES IN MOTION
+              </span>
+
+              <h2 className="font-serif text-2xl sm:text-4xl md:text-5xl font-bold text-white leading-tight drop-shadow-[0_4px_20px_rgba(0,0,0,0.9)]">
+                The Living Moments
+              </h2>
+
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5, duration: 0.8 }}
+                className="mt-4 text-xs sm:text-base font-serif italic text-rose-100/90 leading-relaxed max-w-md"
+              >
+                "Photographs hold where we stood, but film preserves the sound of our laughter, the rhythm of our steps, and how the world looked when we were together."
+              </motion.p>
+
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.9, duration: 0.7 }}
+                className="mt-8"
+              >
+                <PremiumButton variant="gold" size="md" onClick={handleDismissIntro}>
+                  <span>Relive Our Films 🎬</span>
+                  <ArrowRight size={15} />
+                </PremiumButton>
+              </motion.div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 flex flex-col items-center flex-1">
         {/* Header */}
@@ -156,7 +304,7 @@ export function ThreeVideoCardsScene({ onContinue, audio }: ThreeVideoCardsScene
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7 }}
-          className="text-center max-w-xl mx-auto mb-6 sm:mb-10"
+          className="text-center max-w-xl mx-auto mb-6 sm:mb-8"
         >
           <div className="flex items-center justify-center gap-2 mb-1 text-gold/80">
             <span className="w-8 sm:w-14 h-[1px] bg-gradient-to-r from-transparent to-gold/60" />
@@ -177,10 +325,14 @@ export function ThreeVideoCardsScene({ onContinue, audio }: ThreeVideoCardsScene
           </p>
         </motion.div>
 
-        {/* Three Video Cards Grid */}
-        <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6 lg:gap-8 items-stretch mb-8 sm:mb-12">
+        {/* ------------------------------------------------------------- */}
+        {/* 2. THREE MATCHING PREMIUM VIDEO CARDS (Requirement 4 & 8)       */}
+        {/* ------------------------------------------------------------- */}
+        <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6 lg:gap-7 items-stretch mb-8 sm:mb-10">
           {videosConfig.map((item, idx) => {
             const isWatched = watchedVideos.includes(item.id);
+            const theme = cardThemes[idx % cardThemes.length];
+            const IconComponent = theme.icon;
 
             return (
               <motion.div
@@ -188,18 +340,26 @@ export function ThreeVideoCardsScene({ onContinue, audio }: ThreeVideoCardsScene
                 initial={{ opacity: 0, y: 24 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.12, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                className="group relative rounded-2xl bg-gradient-to-b from-[#1f0a1b]/90 via-[#150512]/90 to-[#0e020c] border border-rose-300/20 hover:border-gold/50 shadow-[0_15px_35px_rgba(0,0,0,0.7)] hover:shadow-[0_20px_45px_rgba(217,168,94,0.25)] transition-all duration-300 flex flex-col overflow-hidden"
+                className={cn(
+                  "group relative rounded-2xl bg-gradient-to-b from-[#1e0a1a]/90 via-[#140411]/90 to-[#0c020a] border border-rose-300/20 shadow-[0_15px_35px_rgba(0,0,0,0.7)] transition-all duration-300 flex flex-col overflow-hidden hover:-translate-y-1",
+                  theme.borderColor,
+                  "hover:shadow-[0_20px_45px_rgba(217,168,94,0.22)]"
+                )}
               >
                 {/* Glow Backdrop */}
-                <div className="absolute inset-0 bg-gradient-to-tr from-rose-500/5 via-transparent to-gold/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                <div
+                  className={cn(
+                    "absolute inset-0 bg-gradient-to-tr via-transparent to-gold/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none",
+                    theme.glowColor
+                  )}
+                />
 
-                {/* Video Thumbnail / Preview Container */}
+                {/* Uniform Aspect-Ratio Thumbnail Container (Matching Dimensions) */}
                 <div
                   onClick={() => handleOpenVideo(item)}
-                  className={cn(
-                    "relative w-full overflow-hidden bg-black/60 cursor-pointer transition-all duration-300",
-                    item.aspectRatio === "portrait" ? "aspect-[4/5]" : "aspect-video"
-                  )}
+                  className="relative aspect-[16/10] w-full overflow-hidden bg-black/60 cursor-pointer"
+                  role="button"
+                  aria-label={`Play ${item.title}`}
                 >
                   <img
                     src={item.poster}
@@ -209,14 +369,20 @@ export function ThreeVideoCardsScene({ onContinue, audio }: ThreeVideoCardsScene
                       (e.currentTarget as HTMLImageElement).src = "/images/card-featured-1.jpg";
                     }}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
 
                   {/* Chapter Badge */}
-                  <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/15 text-[10px] font-mono tracking-widest uppercase text-gold font-semibold shadow-md">
-                    {item.badge}
+                  <div
+                    className={cn(
+                      "absolute top-3 left-3 px-2.5 py-1 rounded-full backdrop-blur-md text-[10px] font-mono tracking-widest uppercase font-semibold shadow-md flex items-center gap-1",
+                      theme.badgeClass
+                    )}
+                  >
+                    <IconComponent size={10} />
+                    <span>{item.badge}</span>
                   </div>
 
-                  {/* Duration / Tag */}
+                  {/* Duration Tag */}
                   {item.duration && (
                     <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/15 text-[10px] font-serif text-rose-200/90 shadow-md">
                       {item.duration}
@@ -226,9 +392,9 @@ export function ThreeVideoCardsScene({ onContinue, audio }: ThreeVideoCardsScene
                   {/* Play Button Overlay */}
                   <div className="absolute inset-0 flex items-center justify-center">
                     <motion.div
-                      whileHover={{ scale: 1.12 }}
-                      whileTap={{ scale: 0.94 }}
-                      className="w-13 h-13 sm:w-15 sm:h-15 rounded-full bg-gradient-to-tr from-[#9f1239] via-[#e11d48] to-[#f43f5e] flex items-center justify-center text-white shadow-[0_0_25px_rgba(244,63,94,0.75)] border-2 border-rose-200/70 group-hover:shadow-[0_0_35px_rgba(244,63,94,0.95)] transition-all cursor-pointer"
+                      whileHover={{ scale: 1.14 }}
+                      whileTap={{ scale: 0.92 }}
+                      className="w-13 h-13 sm:w-14 sm:h-14 rounded-full bg-gradient-to-tr from-[#9f1239] via-[#e11d48] to-[#f43f5e] flex items-center justify-center text-white shadow-[0_0_25px_rgba(244,63,94,0.75)] border-2 border-rose-200/70 group-hover:shadow-[0_0_35px_rgba(244,63,94,0.95)] transition-all cursor-pointer"
                     >
                       <Play className="w-6 h-6 fill-white text-white ml-0.5" />
                     </motion.div>
@@ -243,7 +409,7 @@ export function ThreeVideoCardsScene({ onContinue, audio }: ThreeVideoCardsScene
                   )}
                 </div>
 
-                {/* Card Information */}
+                {/* Card Information (Consistent height and balanced spacing) */}
                 <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between">
                   <div>
                     <span className="text-[10px] uppercase font-mono tracking-widest text-[#d9a85e] font-semibold">
@@ -252,16 +418,17 @@ export function ThreeVideoCardsScene({ onContinue, audio }: ThreeVideoCardsScene
                     <h3 className="font-serif text-lg sm:text-xl font-bold text-white mt-1 group-hover:text-rose-200 transition-colors">
                       {item.title}
                     </h3>
-                    <p className="mt-2 text-white/70 text-xs sm:text-[13px] font-sans leading-relaxed">
+                    <p className="mt-2 text-white/70 text-xs sm:text-[13px] font-sans leading-relaxed line-clamp-2">
                       {item.description}
                     </p>
                   </div>
 
-                  {/* Watch Button */}
+                  {/* Watch Action Bar */}
                   <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between">
                     <button
                       onClick={() => handleOpenVideo(item)}
-                      className="inline-flex items-center gap-2 text-xs font-serif font-semibold text-rose-300 hover:text-gold transition-colors cursor-pointer"
+                      className="min-h-[44px] inline-flex items-center gap-2 text-xs font-serif font-semibold text-rose-300 hover:text-gold transition-colors cursor-pointer"
+                      aria-label={`Play film ${item.title}`}
                     >
                       <Play size={12} className="fill-current" />
                       <span>Play Film</span>
@@ -274,7 +441,7 @@ export function ThreeVideoCardsScene({ onContinue, audio }: ThreeVideoCardsScene
           })}
         </div>
 
-        {/* Sequence Transition CTA to Personal Birthday Wish Video */}
+        {/* Transition CTA to Personal Birthday Wish Video */}
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
@@ -283,7 +450,7 @@ export function ThreeVideoCardsScene({ onContinue, audio }: ThreeVideoCardsScene
         >
           <div className="flex items-center gap-2 text-xs text-rose-200/80 font-serif italic">
             <Sparkles size={14} className="text-gold" />
-            <span>Finished watching our films? A personal wish awaits you next...</span>
+            <span>Ready for the personal birthday message?</span>
             <Sparkles size={14} className="text-gold" />
           </div>
 
@@ -291,7 +458,7 @@ export function ThreeVideoCardsScene({ onContinue, audio }: ThreeVideoCardsScene
             variant="gold"
             size="lg"
             onClick={onContinue}
-            className="btn-breathe-glow"
+            className="btn-breathe-glow min-h-[48px] px-8"
           >
             <span>A Personal Birthday Wish For You ♥</span>
             <ArrowRight size={18} />
@@ -299,7 +466,9 @@ export function ThreeVideoCardsScene({ onContinue, audio }: ThreeVideoCardsScene
         </motion.div>
       </div>
 
-      {/* MODAL CINEMA THEATER */}
+      {/* ------------------------------------------------------------- */}
+      {/* 3. MODAL CINEMA THEATER (Responsive & Aspect-Ratio Aware)      */}
+      {/* ------------------------------------------------------------- */}
       <AnimatePresence>
         {activeVideo && (
           <motion.div
@@ -316,8 +485,8 @@ export function ThreeVideoCardsScene({ onContinue, audio }: ThreeVideoCardsScene
               exit={{ scale: 0.94, opacity: 0, y: 15 }}
               transition={{ duration: 0.3 }}
               className={cn(
-                "relative w-full bg-[#110513] rounded-2xl sm:rounded-3xl border border-rose-300/30 overflow-hidden shadow-[0_25px_70px_rgba(0,0,0,0.95)] flex flex-col mx-auto",
-                activeVideo.aspectRatio === "portrait" ? "max-w-md sm:max-w-lg" : "max-w-4xl"
+                "relative w-full bg-[#110513] rounded-2xl sm:rounded-3xl border border-rose-300/30 overflow-hidden shadow-[0_25px_70px_rgba(0,0,0,0.95)] flex flex-col mx-auto my-auto max-h-[92dvh]",
+                activeVideo.aspectRatio === "portrait" ? "max-w-sm sm:max-w-md" : "max-w-4xl"
               )}
               onClick={(e) => e.stopPropagation()}
             >
@@ -334,18 +503,18 @@ export function ThreeVideoCardsScene({ onContinue, audio }: ThreeVideoCardsScene
 
                 <button
                   onClick={handleCloseModal}
-                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white flex items-center justify-center transition-all cursor-pointer hover:scale-105 active:scale-95"
+                  className="min-h-[44px] min-w-[44px] rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white flex items-center justify-center transition-all cursor-pointer hover:scale-105 active:scale-95"
                   aria-label="Close video player"
                 >
-                  <X size={16} />
+                  <X size={18} />
                 </button>
               </div>
 
-              {/* Video Player Box */}
+              {/* Video Player Box with Centered Aspect Ratio Bounds */}
               <div
                 className={cn(
                   "relative w-full bg-black flex items-center justify-center overflow-hidden",
-                  activeVideo.aspectRatio === "portrait" ? "aspect-[9/16] max-h-[72vh]" : "aspect-video"
+                  activeVideo.aspectRatio === "portrait" ? "aspect-[9/16] max-h-[70vh] sm:max-h-[75vh]" : "aspect-video max-h-[70vh] sm:max-h-[75vh]"
                 )}
               >
                 <video
@@ -375,7 +544,6 @@ export function ThreeVideoCardsScene({ onContinue, audio }: ThreeVideoCardsScene
                     setIsPlaying(false);
                   }}
                   onError={() => {
-                    // Try fallbackSrc if available
                     if (activeVideo.fallbackSrc && videoRef.current && videoRef.current.src !== activeVideo.fallbackSrc) {
                       videoRef.current.src = activeVideo.fallbackSrc;
                       videoRef.current.load();
@@ -404,9 +572,9 @@ export function ThreeVideoCardsScene({ onContinue, audio }: ThreeVideoCardsScene
                 {hasError && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-black/90">
                     <AlertCircle className="w-10 h-10 text-rose-400 mb-2" />
-                    <h4 className="font-serif text-lg text-white font-bold">Video file not loaded</h4>
+                    <h4 className="font-serif text-lg text-white font-bold">Video format not supported</h4>
                     <p className="text-xs text-white/70 max-w-sm mt-1 mb-4">
-                      Could not stream <code className="text-gold font-mono">{activeVideo.src}</code>. Please verify the file is placed in your project's assets.
+                      Could not stream <code className="text-gold font-mono">{activeVideo.src}</code>.
                     </p>
                     <button
                       onClick={() => {
@@ -417,7 +585,7 @@ export function ThreeVideoCardsScene({ onContinue, audio }: ThreeVideoCardsScene
                           videoRef.current.play().catch(() => {});
                         }
                       }}
-                      className="px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-xs text-white flex items-center gap-1.5 cursor-pointer"
+                      className="min-h-[44px] px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-xs text-white flex items-center gap-1.5 cursor-pointer"
                     >
                       <RotateCcw size={13} /> Retry playback
                     </button>
@@ -465,7 +633,7 @@ export function ThreeVideoCardsScene({ onContinue, audio }: ThreeVideoCardsScene
                   <div className="flex items-center gap-3">
                     <button
                       onClick={togglePlay}
-                      className="p-1 hover:text-gold transition-colors cursor-pointer"
+                      className="min-h-[44px] min-w-[44px] flex items-center justify-center p-1 hover:text-gold transition-colors cursor-pointer"
                       aria-label={isPlaying ? "Pause" : "Play"}
                     >
                       {isPlaying ? <Pause size={18} /> : <Play size={18} />}
@@ -481,7 +649,7 @@ export function ThreeVideoCardsScene({ onContinue, audio }: ThreeVideoCardsScene
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={toggleMute}
-                        className="p-1 text-white/70 hover:text-white transition-colors cursor-pointer"
+                        className="min-h-[44px] min-w-[44px] flex items-center justify-center p-1 text-white/70 hover:text-white transition-colors cursor-pointer"
                         aria-label={isMuted ? "Unmute" : "Mute"}
                       >
                         {isMuted || volume === 0 ? <VolumeX size={16} /> : <Volume2 size={16} />}
@@ -501,7 +669,7 @@ export function ThreeVideoCardsScene({ onContinue, audio }: ThreeVideoCardsScene
                     {/* Fullscreen */}
                     <button
                       onClick={toggleFullscreen}
-                      className="p-1 text-white/70 hover:text-gold transition-colors cursor-pointer"
+                      className="min-h-[44px] min-w-[44px] flex items-center justify-center p-1 text-white/70 hover:text-gold transition-colors cursor-pointer"
                       aria-label="Fullscreen"
                     >
                       {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}

@@ -4612,10 +4612,9 @@ function HandwritingText({
 
   const totalLength = greetingText.length + pTexts.reduce((sum, p) => sum + p.length, 0);
 
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [showSignature, setShowSignature] = useState(alreadyAnimated);
+  const [currentIndex, setCurrentIndex] = useState(alreadyAnimated ? totalLength : 0);
+  const [showSignature, setShowSignature] = useState(alreadyAnimated ?? false);
 
-  // Keep stable references to callbacks and texts to prevent restarts
   const onCompleteRef = useRef(onComplete);
   const greetingTextRef = useRef(greetingText);
   const pTextsRef = useRef(pTexts);
@@ -4659,24 +4658,24 @@ function HandwritingText({
         index++;
         setCurrentIndex(index);
 
-        let delay = 20 + Math.random() * 15; // 20-35ms per character
+        let delay = 22 + Math.random() * 14; // 22-36ms per character handwriting pace
 
         const c = getCharAt(index - 1);
         if (c === "." || c === "!" || c === "?") {
-          delay = 450; // Pause at end of sentence
+          delay = 420; // Pause at end of sentence
         } else if (c === ",") {
-          delay = 250; // Pause at comma
+          delay = 220; // Pause at comma
         }
 
         // Section boundary pauses
         if (index === greetingTextRef.current.length) {
-          delay = 600;
+          delay = 550;
         } else {
           let offset = greetingTextRef.current.length;
           for (let p = 0; p < pTextsRef.current.length; p++) {
             offset += pTextsRef.current[p].length;
             if (index === offset) {
-              delay = 800;
+              delay = 650;
               break;
             }
           }
@@ -4684,17 +4683,17 @@ function HandwritingText({
 
         timerId = setTimeout(tick, delay);
       } else {
-        // Typing finished!
+        // Typing finished! Reveal signature with an authentic delay
         timerId = setTimeout(() => {
           if (active) {
             setShowSignature(true);
             onCompleteRef.current();
           }
-        }, 800); // 800ms delay before revealing signature
+        }, 700);
       }
     };
 
-    timerId = setTimeout(tick, 500);
+    timerId = setTimeout(tick, 450);
 
     return () => {
       active = false;
@@ -4717,36 +4716,56 @@ function HandwritingText({
     return pText;
   });
 
+  const isTyping = currentIndex < totalLength;
+
   return (
-    <div className="text-left font-serif text-amber-950/90 leading-relaxed select-text flex flex-col gap-4 pt-4 pb-12">
+    <div className="text-left font-serif text-[#2c1208] leading-relaxed select-text flex flex-col gap-4 sm:gap-6 pt-3 pb-8">
       {/* Greeting */}
-      <h3 className="font-script text-xl sm:text-2xl font-bold text-rose-800 min-h-[1.5rem]">
+      <h3 className="font-script text-2xl sm:text-3xl lg:text-4xl font-bold text-[#881337] tracking-wide min-h-[2rem]">
         {dispGreeting}
+        {currentIndex <= greetingText.length && isTyping && (
+          <span className="inline-block w-1.5 h-5 bg-[#b91c1c] ml-1 animate-pulse" />
+        )}
       </h3>
 
-      {/* Paragraphs */}
-      {pTexts.map((_p, idx) => (
-        <p 
-          key={idx} 
-          className="text-sm sm:text-base leading-relaxed text-amber-950/80 font-serif indent-4 text-justify min-h-[2.5rem]"
-        >
-          {dispParagraphs[idx] || ""}
-        </p>
-      ))}
+      {/* Paragraphs with authentic typewriter handwriting & enhanced readable scale */}
+      {pTexts.map((p, idx) => {
+        let prevC = greetingText.length;
+        for (let i = 0; i < idx; i++) {
+          prevC += pTexts[i].length;
+        }
+        const currC = prevC + p.length;
+        const isCurrentParagraph = currentIndex > prevC && currentIndex <= currC;
+        const pContent = dispParagraphs[idx];
 
-      {/* Signature */}
+        if (!pContent && !alreadyAnimated && currentIndex <= prevC) return null;
+
+        return (
+          <p
+            key={idx}
+            className="text-base sm:text-lg lg:text-[19px] leading-[1.8] sm:leading-[1.9] text-[#2c1208]/90 font-serif indent-4 sm:indent-6 text-left"
+          >
+            {pContent}
+            {isCurrentParagraph && isTyping && (
+              <span className="inline-block w-1.5 h-4 sm:h-5 bg-[#b91c1c] ml-0.5 animate-pulse" />
+            )}
+          </p>
+        );
+      })}
+
+      {/* Romantic Signature */}
       <AnimatePresence>
         {showSignature && (
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-            className="mt-6 flex flex-col items-end text-right pr-6"
+            transition={{ duration: 0.9, ease: "easeOut" }}
+            className="mt-6 sm:mt-8 flex flex-col items-end text-right pr-2 sm:pr-4"
           >
-            <span className="text-sm text-amber-950/70 font-serif italic min-h-[1rem]">
-              With all my love,
+            <span className="text-sm sm:text-base text-[#7c2d12]/80 font-serif italic">
+              With all my heart,
             </span>
-            <span className="font-script text-2xl font-bold text-rose-800 mt-1 min-h-[2rem]">
+            <span className="font-script text-2xl sm:text-3xl lg:text-4xl font-bold text-[#881337] mt-1">
               {signature || "Yours forever ♥"}
             </span>
           </motion.div>
@@ -4923,9 +4942,9 @@ function LetterScene({
             onClick={onBack}
             className="flex min-h-[44px] min-w-[44px] px-4 items-center justify-center rounded-full glass border border-white/10 hover:border-gold/30 hover:scale-105 active:scale-95 text-white/95 text-sm transition-all duration-300 cursor-pointer gap-2"
           >
-            <ChevronLeft size={16} /> Garden
+            <ChevronLeft size={16} /> Back to Gifts
           </button>
-          <div className="flex gap-2">
+          <div className="hidden md:flex gap-2">
             {onPrev && (
               <button
                 onClick={onPrev}
@@ -5051,7 +5070,7 @@ function LetterScene({
             initial={{ opacity: 0, scale: 0.95, y: 15 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="flex flex-col min-h-0 w-full max-w-2xl h-[74vh] sm:h-[78vh] max-h-[660px] rounded-2xl p-4 sm:p-7 md:p-8 bg-[#fdfbf7] border border-amber-900/15 shadow-[0_25px_60px_rgba(0,0,0,0.5),_0_0_40px_rgba(217,168,94,0.12)] relative paper-texture letter-card-container overflow-hidden"
+            className="flex flex-col min-h-0 w-full max-w-2xl lg:max-w-3xl my-auto h-[78vh] sm:h-[82vh] max-h-[calc(100dvh-130px)] sm:max-h-[720px] rounded-3xl p-5 sm:p-8 md:p-10 bg-[#faf6ed] border-2 border-[#d9a85e]/40 ring-1 ring-gold/25 shadow-[0_25px_70px_rgba(0,0,0,0.7),_0_0_40px_rgba(217,168,94,0.18)] relative paper-texture letter-card-container overflow-hidden"
           >
             {/* Double-gold foil border frame */}
             <div className="absolute inset-2.5 sm:inset-3 border border-[#d9a85e]/35 rounded-lg pointer-events-none" />
@@ -5201,9 +5220,9 @@ function MemoriesScene({
           onClick={onBack}
           className="flex min-h-[44px] min-w-[44px] px-4 items-center justify-center rounded-full glass border border-white/10 hover:border-gold/30 hover:scale-105 active:scale-95 text-white/95 text-sm transition-all duration-300 cursor-pointer gap-2"
         >
-          <ChevronLeft size={16} /> Garden
+          <ChevronLeft size={16} /> Back to Gifts
         </button>
-        <div className="flex gap-2">
+        <div className="hidden md:flex gap-2">
           {onPrev && (
             <button
               onClick={onPrev}
@@ -6376,7 +6395,7 @@ function HiddenSurpriseScene({ onContinue }: { onContinue: () => void }) {
 
   return (
     <div
-      className="scene-container relative min-h-screen overflow-hidden select-none flex flex-col items-center justify-between p-4 sm:p-8 cursor-default"
+      className="scene-container relative h-[100dvh] max-h-[100dvh] overflow-hidden select-none flex flex-col items-center justify-between p-4 sm:p-8 cursor-default"
       style={{
         background: "linear-gradient(180deg, #060817 0%, #110920 40%, #1d071b 80%, #0a030d 100%)",
       }}
@@ -6474,18 +6493,33 @@ function HiddenSurpriseScene({ onContinue }: { onContinue: () => void }) {
                 className="flex flex-col items-center"
               >
                 <motion.button
-                  whileHover={{ scale: 1.06 }}
-                  whileTap={{ scale: 0.94 }}
+                  whileHover={{ scale: 1.06, y: -2 }}
+                  whileTap={{ scale: 0.94, y: 1 }}
+                  animate={
+                    prefersReduced
+                      ? {}
+                      : {
+                          scale: [1, 1.03, 1],
+                          boxShadow: [
+                            "0 8px 30px rgba(0,0,0,0.8), 0 0 35px rgba(244,63,94,0.7), 0 0 55px rgba(217,168,94,0.45)",
+                            "0 12px 40px rgba(0,0,0,0.9), 0 0 55px rgba(244,63,94,0.95), 0 0 85px rgba(217,168,94,0.7)",
+                            "0 8px 30px rgba(0,0,0,0.8), 0 0 35px rgba(244,63,94,0.7), 0 0 55px rgba(217,168,94,0.45)",
+                          ],
+                        }
+                  }
+                  transition={{ repeat: Infinity, duration: 2.2, ease: "easeInOut" }}
                   onClick={handleRevealSecret}
-                  className="group relative px-8 sm:px-10 py-4 sm:py-5 rounded-full bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 text-white font-serif text-sm sm:text-base font-bold shadow-[0_0_35px_rgba(244,63,94,0.65),0_0_55px_rgba(217,168,94,0.35)] border-2 border-rose-300/60 cursor-pointer flex items-center justify-center gap-3 transition-all min-h-[48px]"
+                  className="group relative px-8 sm:px-12 py-4 sm:py-5 rounded-full bg-gradient-to-r from-[#881337] via-[#be123c] to-[#d97706] text-white font-serif text-sm sm:text-base font-bold border-2 border-[#fef08a] ring-2 ring-[#d9a85e]/50 cursor-pointer flex items-center justify-center gap-3 transition-all min-h-[52px] shadow-2xl overflow-hidden"
                   aria-label="Touch to reveal secret surprise"
                 >
+                  {/* Subtle inner highlight sweep */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 pointer-events-none" />
                   <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-amber-200 animate-spin" style={{ animationDuration: "6s" }} />
-                  <span className="tracking-wide">Touch to Reveal the Secret ✧</span>
-                  <Heart className="w-4 h-4 sm:w-4.5 sm:h-4.5 fill-white text-white animate-pulse" />
+                  <span className="tracking-wider text-amber-50 drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] font-semibold">Touch to Reveal the Secret ✧</span>
+                  <Heart className="w-4 h-4 sm:w-4.5 sm:h-4.5 fill-rose-200 text-rose-200 animate-pulse" />
                 </motion.button>
-                <span className="mt-3 text-[11px] font-mono text-white/50 tracking-wider">
-                  Tap to awaken the hidden magic
+                <span className="mt-3 text-xs font-serif italic text-amber-200/80 tracking-wider">
+                  Tap to awaken the hidden magic ♥
                 </span>
               </motion.div>
             ) : (
@@ -6774,6 +6808,7 @@ function SpecialVideoScene({
   const [requiresUserInteraction, setRequiresUserInteraction] = useState<boolean>(false);
   const [sourceIdx, setSourceIdx] = useState<number>(0);
   const [isCompletedOverlay, setIsCompletedOverlay] = useState<boolean>(false);
+  const [hasError, setHasError] = useState<boolean>(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -7042,6 +7077,19 @@ function SpecialVideoScene({
       setSourceIdx((prev) => prev + 1);
     } else {
       console.error("All video sources failed to load.");
+      setHasError(true);
+    }
+  };
+
+  const handleRetry = () => {
+    setHasError(false);
+    setSourceIdx(0);
+    if (videoRef.current) {
+      videoRef.current.load();
+      videoRef.current
+        .play()
+        .then(() => setIsPlaying(true))
+        .catch(() => setRequiresUserInteraction(true));
     }
   };
 
@@ -7116,34 +7164,40 @@ function SpecialVideoScene({
                 )}
               </AnimatePresence>
 
-              {/* Phase 3 & 4: Word-by-word reveal of the main message with light sweep */}
+              {/* Phase 3 & 4: Masked cinematic phrase reveal with light sweep */}
               {phase >= 3 && (
-                <div className="relative px-3 py-2">
-                  <h2 className="font-serif text-2xl sm:text-4xl md:text-5xl text-[#fff5ea] font-medium leading-relaxed drop-shadow-[0_4px_24px_rgba(0,0,0,0.9)] max-w-xl mx-auto">
-                    {messageWords.map((word, idx) => (
-                      <motion.span
-                        key={idx}
-                        initial={{ opacity: 0, y: 12, filter: "blur(6px)" }}
-                        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                        transition={{
-                          delay: idx * 0.08,
-                          duration: 0.5,
-                          ease: [0.16, 1, 0.3, 1],
-                        }}
-                        className="inline-block mr-2 text-rose-100"
-                      >
-                        {word}
-                      </motion.span>
-                    ))}
-                  </h2>
+                <div className="relative px-4 py-3 my-2 overflow-hidden flex flex-col items-center">
+                  {/* Masked Line 1 */}
+                  <div className="overflow-hidden mb-1.5">
+                    <motion.p
+                      initial={{ y: "110%", opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
+                      className="font-serif italic text-lg sm:text-2xl lg:text-3xl text-rose-200/90 tracking-wide font-normal"
+                    >
+                      “Because some feelings...”
+                    </motion.p>
+                  </div>
 
-                  {/* Phase 4: Soft Light Sweep Shimmer Effect */}
+                  {/* Masked Line 2 */}
+                  <div className="overflow-hidden">
+                    <motion.h2
+                      initial={{ y: "110%", opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{ delay: 0.35, duration: 0.95, ease: [0.16, 1, 0.3, 1] }}
+                      className="font-serif text-2xl sm:text-4xl md:text-5xl lg:text-6xl text-[#fff5ea] font-medium leading-tight drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)] max-w-xl mx-auto"
+                    >
+                      ...are best said from my heart directly to yours.
+                    </motion.h2>
+                  </div>
+
+                  {/* Phase 4: Soft Golden Light Sweep Beam */}
                   {phase >= 4 && (
                     <motion.div
                       initial={{ x: "-100%", opacity: 0 }}
-                      animate={{ x: "200%", opacity: [0, 0.75, 0] }}
-                      transition={{ duration: 1.5, ease: "easeInOut" }}
-                      className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-200/35 to-transparent pointer-events-none transform -skew-x-12"
+                      animate={{ x: "200%", opacity: [0, 0.8, 0] }}
+                      transition={{ duration: 1.6, ease: "easeInOut" }}
+                      className="absolute inset-0 bg-gradient-to-r from-transparent via-[#fef08a]/35 to-transparent pointer-events-none transform -skew-x-12"
                     />
                   )}
                 </div>
@@ -7161,7 +7215,7 @@ function SpecialVideoScene({
                   >
                     <div
                       onClick={startVideoPlayback}
-                      className="relative w-full aspect-video rounded-2xl overflow-hidden border-2 border-gold/40 hover:border-gold shadow-[0_20px_50px_rgba(0,0,0,0.85),0_0_35px_rgba(217,168,94,0.3)] group cursor-pointer transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                      className="relative w-full aspect-video rounded-3xl overflow-hidden border-2 border-gold/60 ring-1 ring-[#fed7aa]/30 hover:border-gold shadow-[0_25px_65px_rgba(0,0,0,0.95),0_0_40px_rgba(217,168,94,0.3)] group cursor-pointer transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
                       role="button"
                       aria-label="Play personal video message"
                     >
@@ -7174,6 +7228,11 @@ function SpecialVideoScene({
                         }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
+
+                      {/* Top Badge */}
+                      <div className="absolute top-3.5 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-[#d9a85e]/40 text-[10px] font-mono tracking-widest text-[#fed7aa] uppercase font-semibold shadow-lg">
+                        ✦ A PERSONAL BIRTHDAY WISH ✦
+                      </div>
 
                       {/* Floating glowing play overlay */}
                       <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 sm:gap-3 p-4">
@@ -7202,10 +7261,10 @@ function SpecialVideoScene({
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={startVideoPlayback}
-                      className="mt-4 sm:mt-5 min-h-[44px] px-8 py-3 rounded-full bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 text-white font-serif text-sm sm:text-base font-medium shadow-[0_0_25px_rgba(244,63,94,0.65)] hover:shadow-[0_0_40px_rgba(244,63,94,0.95)] transition-all flex items-center gap-2.5 cursor-pointer"
+                      className="mt-4 sm:mt-5 min-h-[46px] px-8 py-3 rounded-full bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 text-white font-serif text-sm sm:text-base font-medium shadow-[0_0_25px_rgba(244,63,94,0.65)] hover:shadow-[0_0_40px_rgba(244,63,94,0.95)] transition-all flex items-center gap-2.5 cursor-pointer"
                     >
                       <Play size={18} className="fill-white" />
-                      <span>Play Birthday Video</span>
+                      <span>Play My Birthday Wish ♥</span>
                     </motion.button>
                   </motion.div>
                 )}
@@ -7265,7 +7324,33 @@ function SpecialVideoScene({
         )}
       </AnimatePresence>
 
-      {/* Top Header / Continue to Final Scene (Phase 6) */}
+      {/* Graceful Retry Error Overlay (Phase 6) */}
+      <AnimatePresence>
+        {hasError && phase === 6 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-30 flex flex-col items-center justify-center p-6 bg-black/85 backdrop-blur-md text-center"
+          >
+            <div className="max-w-md p-6 sm:p-8 rounded-3xl bg-[#140818]/90 border border-[#d9a85e]/40 shadow-2xl flex flex-col items-center gap-3.5">
+              <Sparkles size={28} className="text-amber-300" />
+              <h3 className="font-serif text-2xl sm:text-3xl text-white font-medium">A Quiet Moment</h3>
+              <p className="font-serif italic text-xs sm:text-sm text-rose-100/80 leading-relaxed">
+                The connection took a gentle breath. Tap below to reload our special wish video.
+              </p>
+              <button
+                onClick={handleRetry}
+                className="mt-2 min-h-[46px] px-7 py-2.5 rounded-full bg-gradient-to-r from-rose-500 via-rose-600 to-amber-500 text-white font-serif text-sm font-semibold shadow-lg hover:scale-105 active:scale-95 transition-transform cursor-pointer"
+              >
+                Retry Video Playback ♥
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Top Header without Skip/Continue (Phase 6) */}
       <AnimatePresence>
         {(showControls || !isPlaying) && phase === 6 && (
           <motion.div
@@ -7281,14 +7366,6 @@ function SpecialVideoScene({
                 Special Birthday Wish
               </span>
             </div>
-
-            <button
-              onClick={handleManualSkip}
-              className="min-h-[44px] px-4 py-1.5 rounded-full text-xs font-serif text-white/80 hover:text-white bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 transition-all cursor-pointer flex items-center gap-1.5 shadow-md active:scale-95"
-            >
-              <span>Continue</span>
-              <ArrowRight size={13} />
-            </button>
           </motion.div>
         )}
       </AnimatePresence>
@@ -7387,7 +7464,7 @@ function SpecialVideoScene({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.8 }}
-            className="absolute inset-0 z-40 flex flex-col items-center justify-center p-6 text-center bg-black/90 backdrop-blur-md"
+            className="absolute inset-0 z-40 flex flex-col items-center justify-center p-6 text-center bg-black/92 backdrop-blur-md"
           >
             <motion.div
               initial={{ scale: 0.85, opacity: 0 }}
@@ -7395,13 +7472,22 @@ function SpecialVideoScene({
               transition={{ duration: 0.8, delay: 0.2 }}
               className="flex flex-col items-center gap-3"
             >
-              <Heart size={36} className="text-rose-400 fill-rose-400 filter drop-shadow-[0_0_15px_rgba(244,63,94,0.8)] animate-pulse" />
-              <h3 className="font-script text-3xl sm:text-5xl text-gold glow-gold mt-2">
+              <Heart size={38} className="text-rose-400 fill-rose-400 filter drop-shadow-[0_0_15px_rgba(244,63,94,0.8)] animate-pulse" />
+              <h3 className="font-serif text-3xl sm:text-5xl text-gold glow-gold mt-2 font-bold">
                 That was just for you. ♥
               </h3>
               <p className="font-serif italic text-sm sm:text-base text-rose-100/90 max-w-md">
-                Happy Birthday, my love. Let's step into the final chapter...
+                Happy Birthday, my love. Let's step into the final chapter together...
               </p>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={onContinue}
+                className="mt-4 min-h-[46px] px-8 py-2.5 rounded-full bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 text-white font-serif text-sm sm:text-base font-medium shadow-[0_0_25px_rgba(244,63,94,0.65)] hover:shadow-[0_0_40px_rgba(244,63,94,0.95)] transition-all flex items-center gap-2 cursor-pointer"
+              >
+                <span>Step into Our Forever ♥</span>
+                <ArrowRight size={16} />
+              </motion.button>
             </motion.div>
           </motion.div>
         )}

@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   ListMusic,
   Music,
+  Gift,
 } from "lucide-react";
 
 export interface AudioEngineProps {
@@ -657,6 +658,28 @@ export function CinematicAudioPlayer({
             {Math.round(audio.volume * 100)}%
           </span>
         </div>
+
+        {/* 8. Bottom Navigation: Dedicated Back to Gifts Button */}
+        {onBack && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="mt-3.5 sm:mt-4 flex justify-center w-full"
+          >
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={onBack}
+              className="min-h-[44px] px-6 py-2 rounded-full bg-gradient-to-r from-[#2c0926]/90 via-[#1b0518]/90 to-[#2c0926]/90 border border-[#d9a85e]/45 hover:border-gold text-rose-200 hover:text-white text-xs sm:text-sm font-serif flex items-center gap-2 shadow-[0_4px_20px_rgba(0,0,0,0.7),0_0_15px_rgba(217,168,94,0.15)] hover:shadow-[0_6px_25px_rgba(217,168,94,0.3)] transition-all cursor-pointer backdrop-blur-md"
+              aria-label="Back to Gifts"
+            >
+              <ChevronLeft size={16} className="text-gold" />
+              <span>Back to Gifts</span>
+              <Gift size={15} className="text-rose-400 ml-0.5" />
+            </motion.button>
+          </motion.div>
+        )}
       </div>
     </div>
   );
