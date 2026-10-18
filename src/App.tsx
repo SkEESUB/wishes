@@ -6,29 +6,21 @@ import {
   Unlock,
   Play,
   Pause,
-  VolumeX,
   RotateCcw,
   ChevronLeft,
-  ChevronRight,
   ArrowLeft,
   ArrowRight,
   Image as ImageIcon,
   Sparkles,
   Calendar,
   X,
-  Smile,
-  Laugh,
   Eye,
   EyeOff,
-  Compass,
   SkipBack,
   SkipForward,
   Shuffle,
   Repeat,
-  Volume2,
   Film,
-  Maximize,
-  Minimize,
 } from "lucide-react";
 import assets from "./data/assets";
 import {
@@ -37,12 +29,10 @@ import {
   letterContent,
   memories,
   wishTreeWishes,
-  type HappinessItem,
   birthdayContent,
   stories,
 } from "./data/content";
 import { stickersConfig } from "./data/stickers";
-import { videosConfig, type VideoMemoryItem } from "./data/videos";
 import { NameRibbon } from "./components/NameRibbon";
 import { PremiumButton } from "./components/PremiumButton";
 import { WishTree, collectibleCardDetails } from "./components/WishTree";
@@ -50,6 +40,11 @@ import { CinematicAudioPlayer } from "./components/cinematic/CinematicAudioPlaye
 import { CinematicOurStory } from "./components/cinematic/CinematicOurStory";
 import { CelebrationEffects } from "./components/CelebrationEffects";
 import { ThreeVideoCardsScene } from "./components/ThreeVideoCardsScene";
+import { SecretInvitationScene } from "./components/SecretInvitationScene";
+import { CosmicStoryIntroScene } from "./components/cinematic/CosmicStoryIntroScene";
+import { CosmicStarfield } from "./components/cinematic/CosmicStarfield";
+import { CinematicTextIntroSequence } from "./components/cinematic/CinematicTextIntroSequence";
+import { mainWishesIntroScenes, videoIntroScenes } from "./data/introSequences";
 
 
 
@@ -1271,7 +1266,7 @@ export default function App() {
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const urlParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
     const sceneParam = urlParams?.get("scene");
-    const initialScene = sceneParam !== null && !isNaN(Number(sceneParam)) ? Number(sceneParam) : (saved.scene === 15 ? 16 : (saved.scene ?? 0));
+    const initialScene = sceneParam !== null && !isNaN(Number(sceneParam)) ? Number(sceneParam) : (saved.scene ?? 0);
     return {
       scene: initialScene,
       started: saved.started ?? false,
@@ -1390,7 +1385,7 @@ export default function App() {
       saveState(next);
       return next;
     });
-    goTo(18);
+    goTo(21);
   }, [goTo]);
 
   const replay = useCallback(() => {
@@ -1576,8 +1571,22 @@ export default function App() {
         key="memoryjourney"
         onContinue={() => goTo(15)}
       />,
-      <HiddenSurpriseScene key="surprise" onContinue={() => goTo(16)} />,
-      <ThreeVideoCardsScene key="threevideos" onContinue={() => goTo(17)} audio={audio} />,
+      <SecretInvitationScene key="invitation" onContinue={() => goTo(16)} />,
+      <HiddenSurpriseScene key="surprise" onContinue={() => goTo(17)} />,
+      <CosmicStoryIntroScene
+        key="storyintro1"
+        page={1}
+        onContinue={() => goTo(18)}
+        onBack={() => goTo(16)}
+        onSkip={() => goTo(19)}
+      />,
+      <CosmicStoryIntroScene
+        key="storyintro2"
+        page={2}
+        onContinue={() => goTo(19)}
+        onBack={() => goTo(17)}
+      />,
+      <ThreeVideoCardsScene key="threevideos" onContinue={() => goTo(20)} audio={audio} />,
       <SpecialVideoScene key="specialvideo" onContinue={completeExperience} audio={audio} />,
       <FinalScene key="final" onReplay={replay} />,
     ],
@@ -1602,7 +1611,7 @@ export default function App() {
     ]
   );
 
-  const isScrollableScene = state.scene === 14 || state.scene === 8 || state.scene === 16;
+  const isScrollableScene = state.scene === 14 || state.scene === 8 || state.scene === 19;
 
   useEffect(() => {
     if (isScrollableScene) {
@@ -1680,11 +1689,14 @@ export default function App() {
                         animate: { opacity: 1, scale: 1, filter: "blur(0px)", transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] } },
                         exit: { opacity: 0, scale: 0.96, filter: "blur(6px)", transition: { duration: 0.45, ease: "easeInOut" } },
                       };
-                    // Hidden Surprise, Video scenes & Final Scene (15, 16, 17, 18): Cinematic starlight fade-through-dark
+                    // Hidden Surprise, Video scenes & Final Scene (15 through 21): Cinematic starlight fade-through-dark
                     case 15:
                     case 16:
                     case 17:
                     case 18:
+                    case 19:
+                    case 20:
+                    case 21:
                       return {
                         initial: { opacity: 0, scale: 0.95, filter: "blur(10px)" },
                         animate: { opacity: 1, scale: 1, filter: "blur(0px)", transition: { duration: 0.85, ease: [0.16, 1, 0.3, 1] } },
@@ -2708,55 +2720,83 @@ function AnimatedSticker({
 /* ------------------------------------------------------------------ */
 
 function WishesScene({ onContinue }: { onContinue: () => void }) {
+  const [showIntro, setShowIntro] = useState<boolean>(true);
+
   return (
-    <div className="scene-container">
-      <BackgroundLayer src={assets.birthdayReveal} overlay />
-      <ParticleField density="medium" petals={true} dots={false} />
-      <CelebrationEffects type="reveal" durationMs={8000} className="z-10" />
-      <div className="relative z-20 flex flex-1 flex-col items-center justify-start sm:justify-center overflow-y-auto p-4 sm:p-6 py-10 sm:py-12 text-center">
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1 }} className="w-full max-w-3xl my-auto">
-          <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 1 }} className="font-serif text-3xl font-bold leading-tight sm:text-5xl lg:text-6xl gradient-text glow-gold">
-            {birthdayWish.heading}
-          </motion.h1>
-          <motion.h2 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6, duration: 1 }} className="mt-1 font-script text-3.5xl text-rose glow-rose sm:text-5xl">
-            {birthdayWish.subheading}
-          </motion.h2>
-
+    <div className="scene-container relative w-full h-full overflow-hidden">
+      <AnimatePresence mode="wait">
+        {showIntro ? (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.9, duration: 1 }}
-            className="mt-6 sm:mt-8 flex flex-row items-center justify-center gap-2 sm:gap-6 md:gap-8 w-full px-2 max-w-xl mx-auto"
+            key="wishes-intro"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, filter: "blur(8px)", transition: { duration: 0.8, ease: "easeInOut" } }}
+            className="fixed inset-0 z-40"
           >
-            {stickersConfig.map((sticker) => (
-              <AnimatedSticker
-                key={sticker.id}
-                src={sticker.src}
-                fallbackSrc={sticker.fallbackSrc}
-                alt={sticker.alt}
-                className={sticker.className}
-                delay={sticker.animation?.delay ?? 0.3}
-                rotate={sticker.animation?.rotate ?? 0}
-                floatY={sticker.animation?.floatY ?? 8}
-                pulseHeart={sticker.animation?.pulseHeart}
-                sway={sticker.animation?.sway}
-                sparkles={sticker.animation?.sparkles}
-              />
-            ))}
+            <CinematicTextIntroSequence
+              scenes={mainWishesIntroScenes}
+              onComplete={() => setShowIntro(false)}
+              theme="wishes"
+            />
           </motion.div>
+        ) : (
+          <motion.div
+            key="wishes-content"
+            initial={{ opacity: 0, scale: 0.98, filter: "blur(6px)" }}
+            animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+            className="relative w-full h-full flex flex-col"
+          >
+            <BackgroundLayer src={assets.birthdayReveal} overlay />
+            <ParticleField density="medium" petals={true} dots={false} />
+            <CelebrationEffects type="reveal" durationMs={8000} className="z-10" />
+            <div className="relative z-20 flex flex-1 flex-col items-center justify-start sm:justify-center overflow-y-auto p-4 sm:p-6 py-10 sm:py-12 text-center">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1 }} className="w-full max-w-3xl my-auto">
+                <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 1 }} className="font-serif text-3xl font-bold leading-tight sm:text-5xl lg:text-6xl gradient-text glow-gold">
+                  {birthdayWish.heading}
+                </motion.h1>
+                <motion.h2 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6, duration: 1 }} className="mt-1 font-script text-3.5xl text-rose glow-rose sm:text-5xl">
+                  {birthdayWish.subheading}
+                </motion.h2>
 
-          <p className="mx-auto mt-6 max-w-xl text-sm sm:text-base md:text-lg leading-relaxed text-white/85 min-h-[5.5rem] px-2 select-text">
-            <TypewriterText text={birthdayWish.message} speed={25} />
-          </p>
-          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 6.8, duration: 1 }} className="mt-4 font-script text-2.5xl sm:text-3.5xl text-gold glow-gold">
-            {birthdayWish.closing}
-          </motion.p>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.9, duration: 1 }}
+                  className="mt-6 sm:mt-8 flex flex-row items-center justify-center gap-2 sm:gap-6 md:gap-8 w-full px-2 max-w-xl mx-auto"
+                >
+                  {stickersConfig.map((sticker) => (
+                    <AnimatedSticker
+                      key={sticker.id}
+                      src={sticker.src}
+                      fallbackSrc={sticker.fallbackSrc}
+                      alt={sticker.alt}
+                      className={sticker.className}
+                      delay={sticker.animation?.delay ?? 0.3}
+                      rotate={sticker.animation?.rotate ?? 0}
+                      floatY={sticker.animation?.floatY ?? 8}
+                      pulseHeart={sticker.animation?.pulseHeart}
+                      sway={sticker.animation?.sway}
+                      sparkles={sticker.animation?.sparkles}
+                    />
+                  ))}
+                </motion.div>
 
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 7.2, duration: 0.8 }} className="mt-8">
-            <PrimaryButton onClick={onContinue}>Begin Our Journey →</PrimaryButton>
+                <p className="mx-auto mt-6 max-w-xl text-sm sm:text-base md:text-lg leading-relaxed text-white/85 min-h-[5.5rem] px-2 select-text">
+                  <TypewriterText text={birthdayWish.message} speed={25} />
+                </p>
+                <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 6.8, duration: 1 }} className="mt-4 font-script text-2.5xl sm:text-3.5xl text-gold glow-gold">
+                  {birthdayWish.closing}
+                </motion.p>
+
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 7.2, duration: 0.8 }} className="mt-8">
+                  <PrimaryButton onClick={onContinue}>Begin Our Journey →</PrimaryButton>
+                </motion.div>
+              </motion.div>
+            </div>
           </motion.div>
-        </motion.div>
-      </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -4218,7 +4258,7 @@ function GiftBox3D({
       animate={opened ? {} : { rotate: [0, -1.2, 1.2, -1.2, 1.2, 0] }}
       transition={opened ? {} : { repeat: Infinity, duration: 4.5, repeatDelay: 2 }}
       onClick={onClick}
-      className="group relative block mx-auto w-[150px] xs:w-44 sm:w-56 cursor-pointer focus:outline-none"
+      className="group relative block mx-auto w-[130px] min-[380px]:w-[150px] xs:w-44 sm:w-56 cursor-pointer focus:outline-none"
       aria-label={opened ? `Revisit ${label} gift` : `Open ${label} gift`}
     >
       {/* Radiant Glow Behind Box */}
@@ -4793,9 +4833,8 @@ function LetterScene({
   const [state, setState] = useState(() => loadState() as SceneState);
   const [letterFinished, setLetterFinished] = useState(state.letterAnimated);
   
-  // Particles states
+  // Particles state (One-shot GPU accelerated explosion without 60fps RAF re-renders)
   const [sealParticles, setSealParticles] = useState<{ id: number; x: number; y: number; vx: number; vy: number; color: string; size: number }[]>([]);
-  const [stampParticles, setStampParticles] = useState<{ id: number; x: number; y: number; vx: number; vy: number; color: string; size: number }[]>([]);
 
   // Trigger sequential open sequence
   const handleOpenEnvelope = () => {
@@ -4818,6 +4857,11 @@ function LetterScene({
       }));
       setSealParticles(newParticles);
       
+      // Auto-cleanup particles after animation completes
+      setTimeout(() => {
+        setSealParticles([]);
+      }, 1400);
+
       // Delay envelope opening
       setTimeout(() => {
         setOpen(true);
@@ -4841,74 +4885,8 @@ function LetterScene({
     }
   }, [open]);
 
-  // Update loop for seal particles
-  useEffect(() => {
-    if (sealParticles.length === 0) return;
-    let active = true;
-    let raf = 0;
-    const update = () => {
-      if (!active) return;
-      setSealParticles((prev) =>
-        prev
-          .map((p) => ({
-            ...p,
-            x: p.x + p.vx,
-            y: p.y + p.vy,
-            vy: p.vy + 0.1, // floating gravity
-          }))
-          .filter((p) => p.y < window.innerHeight && p.x > 0 && p.x < window.innerWidth)
-      );
-      raf = requestAnimationFrame(update);
-    };
-    raf = requestAnimationFrame(update);
-    return () => {
-      active = false;
-      cancelAnimationFrame(raf);
-    };
-  }, [sealParticles.length]);
-
-  // Update loop for stamp particles
-  useEffect(() => {
-    if (stampParticles.length === 0) return;
-    let active = true;
-    let raf = 0;
-    const update = () => {
-      if (!active) return;
-      setStampParticles((prev) =>
-        prev
-          .map((p) => ({
-            ...p,
-            x: p.x + p.vx,
-            y: p.y + p.vy,
-            vy: p.vy + 0.2, // gravity falling
-          }))
-          .filter((p) => p.y < 500)
-      );
-      raf = requestAnimationFrame(update);
-    };
-    raf = requestAnimationFrame(update);
-    return () => {
-      active = false;
-      cancelAnimationFrame(raf);
-    };
-  }, [stampParticles.length]);
-
   const spawnStampParticles = () => {
-    const colors = ["#b91c1c", "#d9a85e", "#ffcbd7", "#881337"];
-    const cardEl = document.querySelector(".letter-card-container");
-    const width = cardEl ? cardEl.clientWidth : 580;
-    const height = cardEl ? cardEl.clientHeight : 490;
-
-    const newParticles = Array.from({ length: 20 }).map((_, i) => ({
-      id: i,
-      x: width - 50 - Math.random() * 30, // dynamically near bottom right
-      y: height - 50 - Math.random() * 30,
-      vx: (Math.random() - 0.5) * 4,
-      vy: (Math.random() - 0.5) * 4 - 2,
-      color: colors[Math.floor(Math.random() * colors.length)],
-      size: Math.random() * 3 + 1.5
-    }));
-    setStampParticles(newParticles);
+    // Stamp animation completion hook
   };
 
   return (
@@ -4919,11 +4897,19 @@ function LetterScene({
       {/* Candlelit atmospheric warm overlay */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(253,230,138,0.22),_rgba(8,4,12,0.85)_80%)] pointer-events-none z-10" />
 
-      {/* Floating Seal Particles */}
+      {/* Floating Seal Particles (Hardware-accelerated CSS/Motion with 0 re-render churn) */}
       {sealParticles.map((p) => (
-        <div
+        <motion.div
           key={p.id}
-          className="fixed rounded-full pointer-events-none z-50 transition-opacity duration-1000"
+          initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+          animate={{
+            x: p.vx * 30,
+            y: p.vy * 30 + 40,
+            opacity: 0,
+            scale: 0.5,
+          }}
+          transition={{ duration: 1.2, ease: "easeOut" }}
+          className="fixed rounded-full pointer-events-none z-50"
           style={{
             left: p.x,
             top: p.y,
@@ -6363,29 +6349,12 @@ export function MemoryJourneyScene({ onContinue }: { onContinue: () => void }) {
 
 
 function HiddenSurpriseScene({ onContinue }: { onContinue: () => void }) {
-  const [isRevealed, setIsRevealed] = useState<boolean>(false);
-  const [wingsUnfolded, setWingsUnfolded] = useState<boolean>(false);
-  const [canNavigate, setCanNavigate] = useState<boolean>(false);
   const hasNavigatedRef = useRef<boolean>(false);
+  const [pointerOffset, setPointerOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const prefersReduced =
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-  const handleRevealSecret = () => {
-    if (isRevealed) return;
-    setIsRevealed(true);
-
-    // Unfold wings smoothly
-    setTimeout(() => {
-      setWingsUnfolded(true);
-    }, 450);
-
-    // Make navigation available after transformation completes
-    setTimeout(() => {
-      setCanNavigate(true);
-    }, 1800);
-  };
 
   const handleNavigate = () => {
     if (hasNavigatedRef.current) return;
@@ -6393,388 +6362,307 @@ function HiddenSurpriseScene({ onContinue }: { onContinue: () => void }) {
     onContinue();
   };
 
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (prefersReduced) return;
+    const { clientX, clientY } = e;
+    const cx = window.innerWidth / 2;
+    const cy = window.innerHeight / 2;
+    setPointerOffset({
+      x: Math.max(-18, Math.min(18, (clientX - cx) * 0.035)),
+      y: Math.max(-18, Math.min(18, (clientY - cy) * 0.035)),
+    });
+  };
+
+  const handlePointerLeave = () => {
+    setPointerOffset({ x: 0, y: 0 });
+  };
+
   return (
     <div
-      className="scene-container relative h-[100dvh] max-h-[100dvh] overflow-hidden select-none flex flex-col items-center justify-between p-4 sm:p-8 cursor-default"
+      onPointerMove={handlePointerMove}
+      onPointerLeave={handlePointerLeave}
+      className="scene-container relative h-[100dvh] max-h-[100dvh] overflow-hidden select-none flex flex-col items-center justify-between px-4 sm:px-6 py-5 sm:py-7 cursor-default"
       style={{
-        background: "linear-gradient(180deg, #060817 0%, #110920 40%, #1d071b 80%, #0a030d 100%)",
+        backgroundColor: "#050407",
+        paddingBottom: "max(1.5rem, calc(0.75rem + env(safe-area-inset-bottom, 0px)))",
+        paddingTop: "max(1.25rem, calc(0.75rem + env(safe-area-inset-top, 0px)))",
       }}
     >
-      {/* 1. ATMOSPHERIC MIDNIGHT ROMANCE DEPTH LAYERS */}
-      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
-        {/* Soft violet & blush atmospheric radial glow */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_40%,_rgba(192,132,252,0.18)_0%,_rgba(244,114,182,0.12)_45%,_transparent_75%)]" />
-
-        {/* Subtle celestial volumetric light rays */}
-        <div className="absolute -top-32 inset-x-0 h-96 bg-[radial-gradient(ellipse_at_top,_rgba(254,240,138,0.15)_0%,_transparent_70%)] mix-blend-screen opacity-60" />
-
-        {/* Deep burgundy & midnight vignette */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#060817]/70 via-transparent to-[#0a030d]/90 pointer-events-none" />
-
-        {/* Distant Twinkling Starlight Points */}
-        {Array.from({ length: 20 }).map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute rounded-full bg-white/70 shadow-[0_0_6px_rgba(255,255,255,0.8)]"
-            style={{
-              width: `${(i % 3) + 1}px`,
-              height: `${(i % 3) + 1}px`,
-              top: `${(i * 17) % 95}%`,
-              left: `${(i * 23) % 96}%`,
-            }}
-            animate={
-              prefersReduced
-                ? {}
-                : {
-                    opacity: [0.2, 0.9, 0.2],
-                    scale: [0.8, 1.3, 0.8],
-                  }
-            }
-            transition={{
-              duration: 2.4 + (i % 4) * 0.8,
-              repeat: Infinity,
-              delay: (i * 0.2) % 2,
-              ease: "easeInOut",
-            }}
-          />
-        ))}
-      </div>
+      {/* 1. SOPHISTICATED PURE BLACK COSMIC BACKGROUND */}
+      <CosmicStarfield showShootingStars={false} twinkleCount={45} />
 
       {/* Gentle Floating Champagne-Gold Particles & Petals */}
       <ParticleField density="low" petals={true} dots={false} />
 
-      {/* Main Content Flow */}
-      <div className="relative z-10 flex flex-1 flex-col items-center justify-between w-full max-w-2xl mx-auto my-auto py-6 sm:py-10 text-center">
-        {/* EDITORIAL HEADING */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className="flex flex-col items-center max-w-xl px-2"
-        >
-          {/* Eyebrow */}
-          <span className="text-[10px] sm:text-[11px] font-sans tracking-[0.3em] uppercase text-[#d9a85e] font-bold drop-shadow-[0_0_10px_rgba(217,168,94,0.5)]">
-            ✦ A Secret Surprise ✦
+      {/* 2. REFINED EDITORIAL HEADER */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+        className="relative z-10 flex flex-col items-center max-w-xl mx-auto text-center px-2 shrink-0"
+      >
+        {/* Small label */}
+        <span className="text-[10px] sm:text-xs font-sans tracking-[0.3em] uppercase text-[#d9a85e] font-bold drop-shadow-[0_0_10px_rgba(217,168,94,0.5)]">
+          ✦ A LITTLE SECRET ✦
+        </span>
+
+        {/* Main heading */}
+        <h1 className="font-serif text-[clamp(1.5rem,4.2vw,2.75rem)] text-white font-bold tracking-wide mt-1.5 sm:mt-2 leading-tight drop-shadow-[0_2px_15px_rgba(0,0,0,0.9)]">
+          Shhh... Something Beautiful Awaits{" "}
+          <span className="text-rose-400 fill-rose-400 inline-block drop-shadow-[0_0_12px_rgba(244,114,182,0.8)] animate-pulse">
+            ♥
           </span>
+        </h1>
+      </motion.div>
 
-          {/* Heading */}
-          <h2 className="font-serif text-2xl sm:text-4xl md:text-5xl text-white font-bold tracking-wide mt-2 leading-tight drop-shadow-[0_2px_15px_rgba(0,0,0,0.9)]">
-            Shhh... something hidden is here{" "}
-            <span className="text-rose-400 fill-rose-400 inline-block drop-shadow-[0_0_12px_rgba(244,114,182,0.8)] animate-pulse">
-              ♥
-            </span>
-          </h2>
-
-          {/* Delicate Divider */}
-          <div className="flex items-center justify-center gap-2.5 my-2.5 text-[#d9a85e]/60">
-            <span className="w-12 sm:w-16 h-[1px] bg-gradient-to-r from-transparent to-[#d9a85e]/50" />
-            <span className="text-xs text-[#d9a85e]">✦</span>
-            <span className="w-12 sm:w-16 h-[1px] bg-gradient-to-l from-transparent to-[#d9a85e]/50" />
-          </div>
-
-          <p className="text-xs sm:text-sm font-serif italic text-rose-100/80 max-w-md mx-auto">
-            {isRevealed
-              ? "A magical flutter awakens in the quiet night..."
-              : "Close your eyes, make a silent wish, and touch below to uncover what has been kept hidden for you."}
-          </p>
-        </motion.div>
-
-        {/* INTERACTIVE CENTER: BUTTON TRANSFORMS INTO BUTTERFLY */}
-        <div className="relative my-6 sm:my-10 flex items-center justify-center w-full min-h-[220px] sm:min-h-[260px]">
-          <AnimatePresence mode="wait">
-            {!isRevealed ? (
-              /* INITIAL STATE: PROMINENT INTERACTIVE BUTTON */
-              <motion.div
-                key="secret-trigger-button"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.4, filter: "blur(6px)" }}
-                transition={{ duration: 0.4 }}
-                className="flex flex-col items-center"
-              >
-                <motion.button
-                  whileHover={{ scale: 1.06, y: -2 }}
-                  whileTap={{ scale: 0.94, y: 1 }}
-                  animate={
-                    prefersReduced
-                      ? {}
-                      : {
-                          scale: [1, 1.03, 1],
-                          boxShadow: [
-                            "0 8px 30px rgba(0,0,0,0.8), 0 0 35px rgba(244,63,94,0.7), 0 0 55px rgba(217,168,94,0.45)",
-                            "0 12px 40px rgba(0,0,0,0.9), 0 0 55px rgba(244,63,94,0.95), 0 0 85px rgba(217,168,94,0.7)",
-                            "0 8px 30px rgba(0,0,0,0.8), 0 0 35px rgba(244,63,94,0.7), 0 0 55px rgba(217,168,94,0.45)",
-                          ],
-                        }
+      {/* 3. BUTTERFLY ANIMATION (Center Stage) */}
+      <div className="relative z-10 flex-1 flex items-center justify-center w-full min-h-0 py-2 sm:py-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.85 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+          className="relative flex items-center justify-center"
+        >
+          {/* Expanding Soft Rose & Champagne Gold Halo */}
+          <motion.div
+            animate={
+              prefersReduced
+                ? {}
+                : {
+                    scale: [1, 1.25, 1],
+                    opacity: [0.45, 0.75, 0.45],
                   }
-                  transition={{ repeat: Infinity, duration: 2.2, ease: "easeInOut" }}
-                  onClick={handleRevealSecret}
-                  className="group relative px-8 sm:px-12 py-4 sm:py-5 rounded-full bg-gradient-to-r from-[#881337] via-[#be123c] to-[#d97706] text-white font-serif text-sm sm:text-base font-bold border-2 border-[#fef08a] ring-2 ring-[#d9a85e]/50 cursor-pointer flex items-center justify-center gap-3 transition-all min-h-[52px] shadow-2xl overflow-hidden"
-                  aria-label="Touch to reveal secret surprise"
-                >
-                  {/* Subtle inner highlight sweep */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 pointer-events-none" />
-                  <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-amber-200 animate-spin" style={{ animationDuration: "6s" }} />
-                  <span className="tracking-wider text-amber-50 drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)] font-semibold">Touch to Reveal the Secret ✧</span>
-                  <Heart className="w-4 h-4 sm:w-4.5 sm:h-4.5 fill-rose-200 text-rose-200 animate-pulse" />
-                </motion.button>
-                <span className="mt-3 text-xs font-serif italic text-amber-200/80 tracking-wider">
-                  Tap to awaken the hidden magic ♥
-                </span>
-              </motion.div>
-            ) : (
-              /* TRANSFORMED STATE: 3D BUTTERFLY UNFOLDING WINGS */
-              <motion.div
-                key="butterfly-revealed"
-                initial={{ opacity: 0, scale: 0.3 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                className="relative flex items-center justify-center"
+            }
+            transition={{ repeat: Infinity, duration: 3.4, ease: "easeInOut" }}
+            className="absolute w-44 h-44 sm:w-60 sm:h-60 rounded-full bg-gradient-to-r from-rose-500/25 via-pink-400/20 to-amber-400/20 blur-3xl pointer-events-none"
+          />
+
+          {/* Floating Bobbing Motion with Desktop Pointer Tilt / Offset */}
+          <motion.div
+            animate={
+              prefersReduced
+                ? {}
+                : {
+                    x: pointerOffset.x,
+                    y: [-6 + pointerOffset.y, 6 + pointerOffset.y, -6 + pointerOffset.y],
+                    rotate: [-2 + pointerOffset.x * 0.15, 2 + pointerOffset.x * 0.15, -2 + pointerOffset.x * 0.15],
+                  }
+            }
+            transition={{
+              x: { type: "spring", stiffness: 120, damping: 20 },
+              y: { repeat: Infinity, duration: 3.6, ease: "easeInOut" },
+              rotate: { repeat: Infinity, duration: 3.6, ease: "easeInOut" },
+            }}
+            className="relative perspective-1000"
+          >
+            {/* Graceful Scalable SVG Butterfly */}
+            <svg
+              width="150"
+              height="150"
+              viewBox="0 0 160 160"
+              fill="none"
+              className="drop-shadow-[0_0_28px_rgba(244,114,182,0.75)] sm:w-[175px] sm:h-[175px]"
+            >
+              <defs>
+                {/* Left Wing Gradient */}
+                <linearGradient id="lWing" x1="80" y1="30" x2="15" y2="120" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#fbcfe8" stopOpacity="0.95" />
+                  <stop offset="35%" stopColor="#f472b6" stopOpacity="0.92" />
+                  <stop offset="70%" stopColor="#c084fc" stopOpacity="0.88" />
+                  <stop offset="100%" stopColor="#7e22ce" stopOpacity="0.95" />
+                </linearGradient>
+
+                {/* Right Wing Gradient */}
+                <linearGradient id="rWing" x1="80" y1="30" x2="145" y2="120" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stopColor="#fbcfe8" stopOpacity="0.95" />
+                  <stop offset="35%" stopColor="#f472b6" stopOpacity="0.92" />
+                  <stop offset="70%" stopColor="#c084fc" stopOpacity="0.88" />
+                  <stop offset="100%" stopColor="#7e22ce" stopOpacity="0.95" />
+                </linearGradient>
+
+                {/* Golden Wing Highlight Vein Gradient */}
+                <linearGradient id="goldVein" x1="80" y1="40" x2="40" y2="90">
+                  <stop offset="0%" stopColor="#fef08a" stopOpacity="0.95" />
+                  <stop offset="100%" stopColor="#d9a85e" stopOpacity="0.5" />
+                </linearGradient>
+              </defs>
+
+              {/* LEFT WINGS (Flapping in 3D Perspective) */}
+              <motion.g
+                animate={
+                  prefersReduced
+                    ? {}
+                    : { rotateY: [0, 56, 0] }
+                }
+                transition={{ repeat: Infinity, duration: 0.85, ease: "easeInOut" }}
+                style={{ transformOrigin: "80px 80px" }}
               >
-                {/* Expanding Soft Rose & Champagne Gold Halo */}
-                <motion.div
-                  animate={{
-                    scale: [1, 1.35, 1],
-                    opacity: [0.5, 0.85, 0.5],
-                  }}
-                  transition={{ repeat: Infinity, duration: 3.2, ease: "easeInOut" }}
-                  className="absolute w-52 h-52 sm:w-64 sm:h-64 rounded-full bg-gradient-to-r from-rose-500/30 via-pink-400/25 to-amber-400/25 blur-3xl pointer-events-none"
+                {/* Upper Left Forewing */}
+                <path
+                  d="M 80 50 C 45 15, 15 35, 20 75 C 24 100, 55 98, 80 82 Z"
+                  fill="url(#lWing)"
+                  stroke="#fef08a"
+                  strokeWidth="1.2"
+                  strokeOpacity="0.85"
                 />
+                {/* Left Wing Delicate Inner Vein Filigree */}
+                <path
+                  d="M 80 65 Q 48 55 35 70 M 80 72 Q 52 75 40 85 M 80 78 Q 60 90 48 95"
+                  stroke="url(#goldVein)"
+                  strokeWidth="1.2"
+                  strokeLinecap="round"
+                  fill="none"
+                  opacity="0.9"
+                />
+                {/* Lower Left Hindwing */}
+                <path
+                  d="M 80 80 C 60 88, 32 98, 42 122 C 54 135, 75 120, 80 98 Z"
+                  fill="url(#lWing)"
+                  stroke="#fbcfe8"
+                  strokeWidth="0.8"
+                  strokeOpacity="0.6"
+                  opacity="0.92"
+                />
+              </motion.g>
 
-                {/* Floating Bobbing Motion */}
-                <motion.div
-                  animate={
-                    prefersReduced
-                      ? {}
-                      : {
-                          y: [-8, 8, -8],
-                          rotate: [-2, 2, -2],
-                        }
-                  }
-                  transition={{
-                    repeat: Infinity,
-                    duration: 3.8,
-                    ease: "easeInOut",
-                  }}
-                  className="relative perspective-1000"
-                >
-                  {/* Graceful Scalable SVG Butterfly */}
-                  <svg
-                    width="180"
-                    height="180"
-                    viewBox="0 0 160 160"
-                    fill="none"
-                    className="drop-shadow-[0_0_30px_rgba(244,114,182,0.7)]"
-                  >
-                    <defs>
-                      {/* Left Wing Gradient */}
-                      <linearGradient id="lWing" x1="80" y1="30" x2="15" y2="120" gradientUnits="userSpaceOnUse">
-                        <stop offset="0%" stopColor="#fbcfe8" stopOpacity="0.95" />
-                        <stop offset="35%" stopColor="#f472b6" stopOpacity="0.92" />
-                        <stop offset="70%" stopColor="#c084fc" stopOpacity="0.88" />
-                        <stop offset="100%" stopColor="#7e22ce" stopOpacity="0.95" />
-                      </linearGradient>
+              {/* RIGHT WINGS (Flapping in 3D Perspective) */}
+              <motion.g
+                animate={
+                  prefersReduced
+                    ? {}
+                    : { rotateY: [0, -56, 0] }
+                }
+                transition={{ repeat: Infinity, duration: 0.85, ease: "easeInOut" }}
+                style={{ transformOrigin: "80px 80px" }}
+              >
+                {/* Upper Right Forewing */}
+                <path
+                  d="M 80 50 C 115 15, 145 35, 140 75 C 136 100, 105 98, 80 82 Z"
+                  fill="url(#rWing)"
+                  stroke="#fef08a"
+                  strokeWidth="1.2"
+                  strokeOpacity="0.85"
+                />
+                {/* Right Wing Inner Vein Filigree */}
+                <path
+                  d="M 80 65 Q 112 55 125 70 M 80 72 Q 108 75 120 85 M 80 78 Q 100 90 112 95"
+                  stroke="url(#goldVein)"
+                  strokeWidth="1.2"
+                  strokeLinecap="round"
+                  fill="none"
+                  opacity="0.9"
+                />
+                {/* Lower Right Hindwing */}
+                <path
+                  d="M 80 80 C 100 88, 128 98, 118 122 C 106 135, 85 120, 80 98 Z"
+                  fill="url(#rWing)"
+                  stroke="#fbcfe8"
+                  strokeWidth="0.8"
+                  strokeOpacity="0.6"
+                  opacity="0.92"
+                />
+              </motion.g>
 
-                      {/* Right Wing Gradient */}
-                      <linearGradient id="rWing" x1="80" y1="30" x2="145" y2="120" gradientUnits="userSpaceOnUse">
-                        <stop offset="0%" stopColor="#fbcfe8" stopOpacity="0.95" />
-                        <stop offset="35%" stopColor="#f472b6" stopOpacity="0.92" />
-                        <stop offset="70%" stopColor="#c084fc" stopOpacity="0.88" />
-                        <stop offset="100%" stopColor="#7e22ce" stopOpacity="0.95" />
-                      </linearGradient>
+              {/* SLENDER BUTTERFLY THORAX & BODY */}
+              <line
+                x1="80"
+                y1="46"
+                x2="80"
+                y2="104"
+                stroke="#2e0828"
+                strokeWidth="3.5"
+                strokeLinecap="round"
+              />
+              <circle cx="80" cy="45" r="3" fill="#fef08a" />
 
-                      {/* Golden Wing Highlight Vein Gradient */}
-                      <linearGradient id="goldVein" x1="80" y1="40" x2="40" y2="90">
-                        <stop offset="0%" stopColor="#fef08a" stopOpacity="0.95" />
-                        <stop offset="100%" stopColor="#d9a85e" stopOpacity="0.5" />
-                      </linearGradient>
-                    </defs>
+              {/* CURVED GRACEFUL ANTENNAE */}
+              <path
+                d="M 79 44 C 74 34, 66 31, 62 33"
+                stroke="#fef08a"
+                strokeWidth="1.2"
+                strokeLinecap="round"
+                fill="none"
+              />
+              <circle cx="62" cy="33" r="1.5" fill="#fef08a" />
 
-                    {/* LEFT WINGS (Flapping in 3D Perspective) */}
-                    <motion.g
-                      animate={
-                        prefersReduced
-                          ? {}
-                          : wingsUnfolded
-                          ? { rotateY: [0, 58, 0] }
-                          : { rotateY: 85 }
-                      }
-                      transition={{ repeat: Infinity, duration: 0.85, ease: "easeInOut" }}
-                      style={{ transformOrigin: "80px 80px" }}
-                    >
-                      {/* Upper Left Forewing */}
-                      <path
-                        d="M 80 50 C 45 15, 15 35, 20 75 C 24 100, 55 98, 80 82 Z"
-                        fill="url(#lWing)"
-                        stroke="#fef08a"
-                        strokeWidth="1.2"
-                        strokeOpacity="0.8"
-                      />
-                      {/* Left Wing Delicate Inner Vein Filigree */}
-                      <path
-                        d="M 80 65 Q 48 55 35 70 M 80 72 Q 52 75 40 85 M 80 78 Q 60 90 48 95"
-                        stroke="url(#goldVein)"
-                        strokeWidth="1.2"
-                        strokeLinecap="round"
-                        fill="none"
-                        opacity="0.85"
-                      />
-                      {/* Lower Left Hindwing */}
-                      <path
-                        d="M 80 80 C 60 88, 32 98, 42 122 C 54 135, 75 120, 80 98 Z"
-                        fill="url(#lWing)"
-                        stroke="#fbcfe8"
-                        strokeWidth="0.8"
-                        strokeOpacity="0.6"
-                        opacity="0.92"
-                      />
-                    </motion.g>
+              <path
+                d="M 81 44 C 86 34, 94 31, 98 33"
+                stroke="#fef08a"
+                strokeWidth="1.2"
+                strokeLinecap="round"
+                fill="none"
+              />
+              <circle cx="98" cy="33" r="1.5" fill="#fef08a" />
+            </svg>
 
-                    {/* RIGHT WINGS (Flapping in 3D Perspective) */}
-                    <motion.g
-                      animate={
-                        prefersReduced
-                          ? {}
-                          : wingsUnfolded
-                          ? { rotateY: [0, -58, 0] }
-                          : { rotateY: -85 }
-                      }
-                      transition={{ repeat: Infinity, duration: 0.85, ease: "easeInOut" }}
-                      style={{ transformOrigin: "80px 80px" }}
-                    >
-                      {/* Upper Right Forewing */}
-                      <path
-                        d="M 80 50 C 115 15, 145 35, 140 75 C 136 100, 105 98, 80 82 Z"
-                        fill="url(#rWing)"
-                        stroke="#fef08a"
-                        strokeWidth="1.2"
-                        strokeOpacity="0.8"
-                      />
-                      {/* Right Wing Inner Vein Filigree */}
-                      <path
-                        d="M 80 65 Q 112 55 125 70 M 80 72 Q 108 75 120 85 M 80 78 Q 100 90 112 95"
-                        stroke="url(#goldVein)"
-                        strokeWidth="1.2"
-                        strokeLinecap="round"
-                        fill="none"
-                        opacity="0.85"
-                      />
-                      {/* Lower Right Hindwing */}
-                      <path
-                        d="M 80 80 C 100 88, 128 98, 118 122 C 106 135, 85 120, 80 98 Z"
-                        fill="url(#rWing)"
-                        stroke="#fbcfe8"
-                        strokeWidth="0.8"
-                        strokeOpacity="0.6"
-                        opacity="0.92"
-                      />
-                    </motion.g>
-
-                    {/* SLENDER BUTTERFLY THORAX & BODY */}
-                    <line
-                      x1="80"
-                      y1="46"
-                      x2="80"
-                      y2="104"
-                      stroke="#2e0828"
-                      strokeWidth="3.5"
-                      strokeLinecap="round"
-                    />
-                    <circle cx="80" cy="45" r="3" fill="#fef08a" />
-
-                    {/* CURVED GRACEFUL ANTENNAE */}
-                    <path
-                      d="M 79 44 C 74 34, 66 31, 62 33"
-                      stroke="#fef08a"
-                      strokeWidth="1.2"
-                      strokeLinecap="round"
-                      fill="none"
-                    />
-                    <circle cx="62" cy="33" r="1.5" fill="#fef08a" />
-
-                    <path
-                      d="M 81 44 C 86 34, 94 31, 98 33"
-                      stroke="#fef08a"
-                      strokeWidth="1.2"
-                      strokeLinecap="round"
-                      fill="none"
-                    />
-                    <circle cx="98" cy="33" r="1.5" fill="#fef08a" />
-                  </svg>
-
-                  {/* Shimmering Stardust Trail Drifting from Butterfly */}
-                  {Array.from({ length: 10 }).map((_, sIdx) => (
-                    <motion.div
-                      key={sIdx}
-                      className="absolute rounded-full pointer-events-none"
-                      style={{
-                        width: `${(sIdx % 3) + 2}px`,
-                        height: `${(sIdx % 3) + 2}px`,
-                        backgroundColor: sIdx % 2 === 0 ? "#fef08a" : "#f472b6",
-                        boxShadow: "0 0 8px rgba(254, 240, 138, 0.9)",
-                        left: `${50 + Math.sin(sIdx * 1.4) * 32}%`,
-                        top: `${68 + sIdx * 5}%`,
-                      }}
-                      animate={{
-                        y: [0, 26],
+            {/* Shimmering Stardust Trail Drifting from Butterfly */}
+            {Array.from({ length: 8 }).map((_, sIdx) => (
+              <motion.div
+                key={sIdx}
+                className="absolute rounded-full pointer-events-none"
+                style={{
+                  width: `${(sIdx % 3) + 2}px`,
+                  height: `${(sIdx % 3) + 2}px`,
+                  backgroundColor: sIdx % 2 === 0 ? "#fef08a" : "#f472b6",
+                  boxShadow: "0 0 8px rgba(254, 240, 138, 0.9)",
+                  left: `${50 + Math.sin(sIdx * 1.4) * 32}%`,
+                  top: `${68 + sIdx * 5}%`,
+                }}
+                animate={
+                  prefersReduced
+                    ? {}
+                    : {
+                        y: [0, 24],
                         opacity: [0, 0.95, 0],
-                        scale: [0.5, 1.3, 0.2],
-                      }}
-                      transition={{
-                        repeat: Infinity,
-                        duration: 1.8,
-                        delay: sIdx * 0.18,
-                        ease: "easeOut",
-                      }}
-                    />
-                  ))}
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* BOTTOM CONTAINER: REVEALED MESSAGE & NEXT-PAGE ACTION */}
-        <div className="flex flex-col items-center w-full max-w-md px-4 min-h-[140px] justify-end">
-          <AnimatePresence>
-            {isRevealed && (
-              <motion.div
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.3 }}
-                className="mb-4 text-center select-text"
-              >
-                <p className="font-cormorant italic text-xl sm:text-2xl md:text-[27px] text-rose-100 font-normal leading-relaxed tracking-[0.015em] drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]">
-                  “You are the most beautiful surprise life ever gave me.”
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* NEXT-PAGE ACTION AFTER TRANSFORMATION */}
-          <AnimatePresence>
-            {canNavigate && (
-              <motion.div
-                initial={{ opacity: 0, y: 18, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.6, ease: "easeOut" }}
-                className="w-full flex items-center justify-center pb-2"
-              >
-                <button
-                  onClick={handleNavigate}
-                  className="relative group overflow-hidden rounded-full py-3.5 sm:py-4 px-8 sm:px-10 font-serif font-bold text-xs sm:text-sm uppercase tracking-[0.25em] text-[#241203] bg-gradient-to-r from-[#d9a85e] via-[#f7e3c2] to-[#d9a85e] shadow-[0_4px_25px_rgba(217,168,94,0.45),0_10px_35px_rgba(0,0,0,0.7)] hover:shadow-[0_6px_35px_rgba(217,168,94,0.7)] hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3 cursor-pointer ring-1 ring-white/40 min-h-[48px]"
-                  aria-label="Follow the butterfly to our special video"
-                >
-                  <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/40 to-transparent pointer-events-none" />
-                  <Film className="w-4 h-4 text-[#241203] transition-transform group-hover:scale-110" />
-                  <span>Watch Our Special Video</span>
-                  <span className="text-sm">♥</span>
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+                        scale: [0.5, 1.25, 0.2],
+                      }
+                }
+                transition={{
+                  repeat: Infinity,
+                  duration: 1.8,
+                  delay: sIdx * 0.2,
+                  ease: "easeOut",
+                }}
+              />
+            ))}
+          </motion.div>
+        </motion.div>
       </div>
+
+      {/* 4. SUPPORTING SENTENCE, QUOTATION & CLEARLY VISIBLE CTA */}
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, delay: 0.2 }}
+        className="relative z-10 flex flex-col items-center max-w-lg mx-auto text-center px-4 shrink-0 gap-3 sm:gap-4"
+      >
+        {/* Short supporting sentence and personal quote */}
+        <div className="flex flex-col items-center gap-1">
+          <p className="text-[11px] sm:text-xs font-sans text-rose-200/80 tracking-wider uppercase font-medium">
+            Some surprises are worth discovering.
+          </p>
+          <p className="font-serif italic text-sm sm:text-base md:text-lg text-rose-100 font-normal leading-relaxed drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)] max-w-md">
+            “You are the most beautiful surprise life ever gave me.”
+          </p>
+        </div>
+
+        {/* Luxury Understated Action Button */}
+        <button
+          onClick={handleNavigate}
+          className="btn-cinematic-pill"
+          aria-label="Discover the surprise and continue to our videos"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-[#fed7aa] transition-transform group-hover:rotate-45" />
+          <span>Discover the Surprise</span>
+          <motion.span
+            animate={prefersReduced ? {} : { x: [0, 3, 0] }}
+            transition={{ repeat: Infinity, duration: 1.4, ease: "easeInOut" }}
+            className="text-sm font-bold ml-0.5 inline-block text-[#fed7aa]"
+          >
+            →
+          </motion.span>
+        </button>
+      </motion.div>
     </div>
   );
 }
@@ -6790,674 +6678,244 @@ function SpecialVideoScene({
   onContinue: () => void;
   audio: any;
 }) {
-  // Phase 1: Background fade in
-  // Phase 2: Intro line slide up
-  // Phase 3: Word-by-word message reveal
-  // Phase 4: Light sweep shimmer & particle burst
-  // Phase 5: Video thumbnail preview card appears
-  // Phase 6: Video playing in cinema mode
-  const [phase, setPhase] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [currentTime, setCurrentTime] = useState<number>(0);
-  const [duration, setDuration] = useState<number>(0);
-  const [volume, setVolume] = useState<number>(1);
-  const [isMuted, setIsMuted] = useState<boolean>(false);
-  const [showControls, setShowControls] = useState<boolean>(true);
-  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
-  const [isScrubbing, setIsScrubbing] = useState<boolean>(false);
-  const [requiresUserInteraction, setRequiresUserInteraction] = useState<boolean>(false);
-  const [sourceIdx, setSourceIdx] = useState<number>(0);
-  const [isCompletedOverlay, setIsCompletedOverlay] = useState<boolean>(false);
+  const prefersReduced =
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Phase: "intro" (Cinematic text sequence) | "cinema" (active video playback)
+  const [inCinemaMode, setInCinemaMode] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [hasError, setHasError] = useState<boolean>(false);
+  const [isCompletedOverlay, setIsCompletedOverlay] = useState<boolean>(false);
+  const [aspectRatio, setAspectRatio] = useState<number | null>(null);
+  const [, setVideoDims] = useState<{ width: number; height: number } | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const progressRef = useRef<HTMLDivElement>(null);
-  const hideControlsTimeoutRef = useRef<any>(null);
   const hasTransitionedRef = useRef<boolean>(false);
 
-  const isMobile =
-    typeof window !== "undefined" &&
-    (window.innerWidth < 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
-
-  const videoSources = useMemo(() => {
-    return isMobile
-      ? [
-          "/assets/special_video_mobile.mp4",
-          "/assets/special_video_1080p.mp4",
-          "/assets/special_video.mp4",
-          "/assets/special_video 2.mp4",
-        ]
-      : [
-          "/assets/special_video_1080p.mp4",
-          "/assets/special_video_mobile.mp4",
-          "/assets/special_video.mp4",
-          "/assets/special_video 2.mp4",
-        ];
-  }, [isMobile]);
-
-  const currentSource = videoSources[sourceIdx] || videoSources[0];
-
-  // Words for Phase 3 line-by-line / word-by-word reveal
-  const messageWords = useMemo(
-    () => [
-      "Because",
-      "some",
-      "feelings",
-      "are",
-      "best",
-      "said",
-      "out",
-      "loud,",
-      "from",
-      "my",
-      "heart",
-      "directly",
-      "to",
-      "yours...",
-    ],
-    []
-  );
-
-  // Pause background music immediately when opening this scene
+  // Pause ambient audio immediately when entering special video scene
   useEffect(() => {
     if (audio) {
       if (audio.isPlayingVoice || audio.isPlayingSong) {
-        audio.pause();
+        audio.pause?.();
       }
     }
   }, [audio]);
 
-  // Timed transition through phases 1 -> 2 -> 3 -> 4 -> 5
-  useEffect(() => {
-    const t2 = setTimeout(() => setPhase((p) => (p < 2 ? 2 : p)), 1000);
-    const t3 = setTimeout(() => setPhase((p) => (p < 3 ? 3 : p)), 2200);
-    const t4 = setTimeout(() => setPhase((p) => (p < 4 ? 4 : p)), 3800);
-    const t5 = setTimeout(() => setPhase((p) => (p < 5 ? 5 : p)), 5000);
-
-    return () => {
-      clearTimeout(t2);
-      clearTimeout(t3);
-      clearTimeout(t4);
-      clearTimeout(t5);
-    };
-  }, []);
-
   const startVideoPlayback = () => {
-    setPhase(6);
+    setInCinemaMode(true);
+    // User can initiate playback with sound using native video controls or poster tap
     if (videoRef.current) {
       videoRef.current
         .play()
-        .then(() => {
-          setIsPlaying(true);
-          setRequiresUserInteraction(false);
-        })
         .catch((err) => {
-          console.warn("Autoplay blocked, showing user interaction prompt", err);
-          setRequiresUserInteraction(true);
+          // Autoplay policy: browser awaits user tap/click to start with sound
+          console.log("Autoplay awaiting user interaction:", err?.name);
         });
     }
   };
 
-  const handleSkipIntro = () => {
-    if (phase < 5) {
-      setPhase(5);
-    } else {
-      startVideoPlayback();
+  const handleLoadedMetadata = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    const w = video.videoWidth;
+    const h = video.videoHeight;
+    if (w && h) {
+      setVideoDims({ width: w, height: h });
+      setAspectRatio(w / h);
     }
+    setIsLoading(false);
   };
 
-  // Activity-based controls auto-hide timer
-  const resetControlsTimeout = useCallback(() => {
-    setShowControls(true);
-    if (hideControlsTimeoutRef.current) {
-      clearTimeout(hideControlsTimeoutRef.current);
-    }
-    if (isPlaying && !isScrubbing) {
-      hideControlsTimeoutRef.current = setTimeout(() => {
-        setShowControls(false);
-      }, 3500);
-    }
-  }, [isPlaying, isScrubbing]);
+  const handleCanPlay = () => {
+    setIsLoading(false);
+  };
 
-  useEffect(() => {
-    resetControlsTimeout();
-    return () => {
-      if (hideControlsTimeoutRef.current) {
-        clearTimeout(hideControlsTimeoutRef.current);
-      }
-    };
-  }, [isPlaying, resetControlsTimeout]);
+  const handleWaiting = () => {
+    setIsLoading(true);
+  };
 
-  // Fullscreen state listener
-  useEffect(() => {
-    const onFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener("fullscreenchange", onFullscreenChange);
-    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
-  }, []);
+  const handlePlaying = () => {
+    setIsLoading(false);
+  };
 
-  // Keyboard controls (Space to toggle play, F to fullscreen)
-  useEffect(() => {
-    if (phase !== 6) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === " " && e.target === document.body) {
-        e.preventDefault();
-        togglePlay();
-      } else if (e.key === "f" || e.key === "F") {
-        toggleFullscreen();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [phase, isPlaying]);
-
-  // Auto-transition to next scene when video ends
   const handleVideoEnded = () => {
     if (hasTransitionedRef.current) return;
     setIsCompletedOverlay(true);
-    setTimeout(() => {
-      if (hasTransitionedRef.current) return;
-      hasTransitionedRef.current = true;
-      onContinue();
-    }, 2800);
-  };
-
-  const handleManualSkip = () => {
-    if (hasTransitionedRef.current) return;
-    hasTransitionedRef.current = true;
-    if (videoRef.current) {
-      videoRef.current.pause();
-    }
-    onContinue();
-  };
-
-  const togglePlay = () => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    if (isPlaying) {
-      video.pause();
-      setIsPlaying(false);
-    } else {
-      video
-        .play()
-        .then(() => {
-          setIsPlaying(true);
-          setRequiresUserInteraction(false);
-        })
-        .catch((err) => {
-          console.warn("Play blocked:", err);
-          video.muted = true;
-          setIsMuted(true);
-          video
-            .play()
-            .then(() => setIsPlaying(true))
-            .catch(() => {});
-        });
-    }
-    resetControlsTimeout();
-  };
-
-  const toggleFullscreen = async () => {
-    try {
-      if (!document.fullscreenElement) {
-        if (containerRef.current) {
-          await containerRef.current.requestFullscreen();
-        }
-      } else {
-        await document.exitFullscreen();
-      }
-    } catch (err) {
-      console.warn("Fullscreen request failed", err);
-    }
-    resetControlsTimeout();
-  };
-
-  const toggleMute = () => {
-    if (!videoRef.current) return;
-    if (isMuted) {
-      videoRef.current.muted = false;
-      videoRef.current.volume = volume > 0 ? volume : 1;
-      setIsMuted(false);
-    } else {
-      videoRef.current.muted = true;
-      setIsMuted(true);
-    }
-    resetControlsTimeout();
-  };
-
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseFloat(e.target.value);
-    setVolume(val);
-    if (videoRef.current) {
-      videoRef.current.volume = val;
-      videoRef.current.muted = val === 0;
-    }
-    setIsMuted(val === 0);
-    resetControlsTimeout();
-  };
-
-  const seekFromClientX = (clientX: number) => {
-    if (!progressRef.current || !videoRef.current || !duration) return;
-    const rect = progressRef.current.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    const target = ratio * duration;
-    videoRef.current.currentTime = target;
-    setCurrentTime(target);
-  };
-
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    setIsScrubbing(true);
-    seekFromClientX(e.clientX);
-    resetControlsTimeout();
-  };
-
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (isScrubbing) {
-      seekFromClientX(e.clientX);
-    }
-  };
-
-  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (isScrubbing) {
-      setIsScrubbing(false);
-      try {
-        e.currentTarget.releasePointerCapture(e.pointerId);
-      } catch {}
-      resetControlsTimeout();
-    }
   };
 
   const handleVideoError = () => {
-    if (sourceIdx < videoSources.length - 1) {
-      console.warn("Video failed, switching to fallback", videoSources[sourceIdx + 1]);
-      setSourceIdx((prev) => prev + 1);
-    } else {
-      console.error("All video sources failed to load.");
-      setHasError(true);
-    }
+    console.error("Main Wish Video failed to load (/assets/specail_wish_video.mp4)");
+    setIsLoading(false);
+    setHasError(true);
   };
 
   const handleRetry = () => {
     setHasError(false);
-    setSourceIdx(0);
-    if (videoRef.current) {
-      videoRef.current.load();
-      videoRef.current
+    setIsLoading(true);
+    const video = videoRef.current;
+    if (video) {
+      video.load();
+      video
         .play()
-        .then(() => setIsPlaying(true))
-        .catch(() => setRequiresUserInteraction(true));
+        .catch(() => {
+          setIsLoading(false);
+        });
     }
   };
 
-  const progressRatio = duration > 0 ? currentTime / duration : 0;
+  const handleReplayVideo = () => {
+    setIsCompletedOverlay(false);
+    const video = videoRef.current;
+    if (video) {
+      video.currentTime = 0;
+      video.play().catch(() => {});
+    }
+  };
 
   return (
     <div
       ref={containerRef}
-      onMouseMove={resetControlsTimeout}
-      onTouchStart={resetControlsTimeout}
-      className="fixed inset-0 w-full h-full bg-[#050207] overflow-hidden flex items-center justify-center select-none z-40"
+      className="fixed inset-0 w-full h-full bg-[#050207] overflow-hidden flex flex-col items-center justify-between select-none z-40"
     >
-      {/* Phase 1: Warm ambient lighting backdrop */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 1.2, ease: "easeOut" }}
-        className="absolute inset-0 pointer-events-none overflow-hidden"
+      {/* Warm ambient cinematic lighting backdrop */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-[#190417] via-[#0d020d] to-[#040105]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_30%,_rgba(244,114,182,0.18)_0%,_rgba(217,168,94,0.14)_40%,_transparent_75%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_40%,_rgba(4,1,5,0.92)_100%)]" />
+      </div>
+
+      {/* ------------------------------------------------------------- */}
+      {/* CINEMATIC VIDEO INTRODUCTION OVERLAY (PHASE 3)                */}
+      {/* ------------------------------------------------------------- */}
+      <AnimatePresence>
+        {!inCinemaMode && (
+          <motion.div
+            key="video-cinematic-intro"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{
+              opacity: 0,
+              filter: prefersReduced ? "none" : "blur(10px)",
+              scale: prefersReduced ? 1 : 1.02,
+              transition: { duration: prefersReduced ? 0.2 : 0.85, ease: "easeInOut" },
+            }}
+            className="absolute inset-0 z-30"
+          >
+            <CinematicTextIntroSequence
+              scenes={videoIntroScenes}
+              onComplete={startVideoPlayback}
+              theme="video"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Top Header in Cinema Mode */}
+      <div
+        className="relative z-20 w-full flex items-center justify-between px-4 sm:px-8 py-3 shrink-0 bg-gradient-to-b from-black/80 via-black/40 to-transparent transition-opacity duration-300"
+        style={{
+          paddingTop: "max(0.75rem, calc(0.5rem + env(safe-area-inset-top, 0px)))",
+          opacity: inCinemaMode ? 1 : 0,
+          pointerEvents: inCinemaMode ? "auto" : "none",
+        }}
       >
-        <div className="absolute inset-0 bg-gradient-to-b from-[#1c0419] via-[#0d020d] to-[#040105]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_25%,_rgba(244,114,182,0.18)_0%,_rgba(217,168,94,0.14)_35%,_transparent_75%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_40%,_rgba(4,1,5,0.9)_100%)]" />
-      </motion.div>
+        <div className="flex items-center gap-2 text-white/90">
+          <Film size={16} className="text-[#fed7aa]" />
+          <span className="font-serif text-xs sm:text-sm tracking-wide text-rose-100 font-medium">
+            A Personal Birthday Wish
+          </span>
+        </div>
 
-      {/* Cinematic Intro Animation Overlay (Phases 1-5) */}
-      <AnimatePresence>
-        {phase < 6 && (
-          <motion.div
-            key="cinematic-intro"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0, scale: 1.03, transition: { duration: 0.9, ease: [0.16, 1, 0.3, 1] } }}
-            className="absolute inset-0 z-30 flex flex-col items-center justify-center p-4 sm:p-6 text-center overflow-y-auto"
+        <button
+          onClick={onContinue}
+          className="min-h-[36px] px-3.5 py-1.5 rounded-full text-xs font-serif text-[#fed7aa] hover:text-white bg-white/5 hover:bg-white/10 border border-[rgba(217,168,94,0.3)] hover:border-[rgba(217,168,94,0.6)] backdrop-blur-md transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
+          aria-label="Continue to birthday finale"
+        >
+          <span>Continue</span>
+          <ArrowRight size={13} />
+        </button>
+      </div>
+
+      {/* ------------------------------------------------------------- */}
+      {/* RESPONSIVE VIDEO PLAYER CONTAINER                             */}
+      {/* ------------------------------------------------------------- */}
+      <div className="relative z-10 flex-1 w-full min-h-0 flex items-center justify-center px-3 sm:px-6 py-2 overflow-hidden">
+        <div
+          className="relative w-full rounded-xl sm:rounded-2xl border border-[rgba(217,168,94,0.35)] bg-black/90 shadow-[0_16px_50px_rgba(0,0,0,0.9),0_0_30px_rgba(217,168,94,0.12)] flex items-center justify-center overflow-hidden transition-all duration-300"
+          style={{
+            aspectRatio: aspectRatio ? `${aspectRatio}` : undefined,
+            maxHeight: "min(calc(100dvh - 100px), 720px)",
+            maxWidth: aspectRatio
+              ? `min(100%, calc(min(calc(100dvh - 100px), 720px) * ${aspectRatio}), 1120px)`
+              : "min(100%, 1120px)",
+          }}
+        >
+          <video
+            ref={videoRef}
+            controls
+            playsInline
+            preload="metadata"
+            poster="/assets/personal_video_thumb.jpg"
+            aria-label="A Personal Birthday Wish Video"
+            onLoadedMetadata={handleLoadedMetadata}
+            onCanPlay={handleCanPlay}
+            onWaiting={handleWaiting}
+            onPlaying={handlePlaying}
+            onEnded={handleVideoEnded}
+            onError={handleVideoError}
+            className="w-full h-full object-contain bg-black focus:outline-none"
           >
-            {/* Top Right Tasteful Skip Intro Button */}
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5, duration: 0.6 }}
-              className="absolute top-4 right-4 sm:top-6 sm:right-6 z-40"
+            <source src="/assets/specail_wish_video.mp4" type="video/mp4" />
+            Your browser does not support HTML5 video playback.
+          </video>
+
+          {/* Premium Loading Indicator */}
+          {isLoading && inCinemaMode && !hasError && (
+            <div
+              className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-xs pointer-events-none z-10 transition-opacity duration-300"
+              aria-live="polite"
             >
-              <button
-                onClick={handleSkipIntro}
-                className="min-h-[44px] px-4 py-2 rounded-full text-xs font-serif text-white/75 hover:text-white bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/15 transition-all cursor-pointer flex items-center gap-1.5 shadow-md active:scale-95"
-                aria-label="Skip Intro"
-              >
-                <span>{phase < 5 ? "Skip Intro" : "Watch Now"}</span>
-                <ArrowRight size={13} />
-              </button>
-            </motion.div>
-
-            {/* Intro Content Box */}
-            <div className="relative max-w-2xl mx-auto flex flex-col items-center z-10 my-auto">
-              {/* Phase 2: Short romantic intro line */}
-              <AnimatePresence>
-                {phase >= 2 && (
-                  <motion.div
-                    key="intro-line"
-                    initial={{ opacity: 0, y: 18, filter: "blur(6px)" }}
-                    animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                    transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
-                    className="flex items-center justify-center gap-2 mb-3 text-gold/90"
-                  >
-                    <span className="w-8 sm:w-12 h-[1px] bg-gradient-to-r from-transparent to-gold/60" />
-                    <Sparkles size={14} className="text-gold" />
-                    <span className="font-mono text-[10px] sm:text-xs uppercase tracking-[0.35em] text-[#fed7aa] font-semibold">
-                      A Heartfelt Birthday Message
-                    </span>
-                    <Sparkles size={14} className="text-gold" />
-                    <span className="w-8 sm:w-12 h-[1px] bg-gradient-to-l from-transparent to-gold/60" />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Phase 3 & 4: Masked cinematic phrase reveal with light sweep */}
-              {phase >= 3 && (
-                <div className="relative px-4 py-3 my-2 overflow-hidden flex flex-col items-center">
-                  {/* Masked Line 1 */}
-                  <div className="overflow-hidden mb-1.5">
-                    <motion.p
-                      initial={{ y: "110%", opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
-                      className="font-serif italic text-lg sm:text-2xl lg:text-3xl text-rose-200/90 tracking-wide font-normal"
-                    >
-                      “Because some feelings...”
-                    </motion.p>
-                  </div>
-
-                  {/* Masked Line 2 */}
-                  <div className="overflow-hidden">
-                    <motion.h2
-                      initial={{ y: "110%", opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      transition={{ delay: 0.35, duration: 0.95, ease: [0.16, 1, 0.3, 1] }}
-                      className="font-serif text-2xl sm:text-4xl md:text-5xl lg:text-6xl text-[#fff5ea] font-medium leading-tight drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)] max-w-xl mx-auto"
-                    >
-                      ...are best said from my heart directly to yours.
-                    </motion.h2>
-                  </div>
-
-                  {/* Phase 4: Soft Golden Light Sweep Beam */}
-                  {phase >= 4 && (
-                    <motion.div
-                      initial={{ x: "-100%", opacity: 0 }}
-                      animate={{ x: "200%", opacity: [0, 0.8, 0] }}
-                      transition={{ duration: 1.6, ease: "easeInOut" }}
-                      className="absolute inset-0 bg-gradient-to-r from-transparent via-[#fef08a]/35 to-transparent pointer-events-none transform -skew-x-12"
-                    />
-                  )}
-                </div>
-              )}
-
-              {/* Phase 5: Video Thumbnail Preview Card */}
-              <AnimatePresence>
-                {phase >= 5 && (
-                  <motion.div
-                    key="thumbnail-preview"
-                    initial={{ opacity: 0, scale: 0.9, y: 26 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
-                    className="mt-6 sm:mt-8 w-full max-w-lg sm:max-w-xl flex flex-col items-center"
-                  >
-                    <div
-                      onClick={startVideoPlayback}
-                      className="relative w-full aspect-video rounded-3xl overflow-hidden border-2 border-gold/60 ring-1 ring-[#fed7aa]/30 hover:border-gold shadow-[0_25px_65px_rgba(0,0,0,0.95),0_0_40px_rgba(217,168,94,0.3)] group cursor-pointer transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
-                      role="button"
-                      aria-label="Play personal video message"
-                    >
-                      <img
-                        src="/assets/personal_video_thumb.jpg"
-                        alt="Personal Birthday Video Preview"
-                        className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 filter contrast-[105%]"
-                        onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).src = "/assets/stickers/special_video_poster.jpg";
-                        }}
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
-
-                      {/* Top Badge */}
-                      <div className="absolute top-3.5 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-[#d9a85e]/40 text-[10px] font-mono tracking-widest text-[#fed7aa] uppercase font-semibold shadow-lg">
-                        ✦ A PERSONAL BIRTHDAY WISH ✦
-                      </div>
-
-                      {/* Floating glowing play overlay */}
-                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 sm:gap-3 p-4">
-                        <motion.div
-                          animate={{
-                            scale: [1, 1.1, 1],
-                            boxShadow: [
-                              "0 0 20px rgba(244,63,94,0.6)",
-                              "0 0 40px rgba(244,63,94,0.95)",
-                              "0 0 20px rgba(244,63,94,0.6)",
-                            ],
-                          }}
-                          transition={{ repeat: Infinity, duration: 2.2, ease: "easeInOut" }}
-                          className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-tr from-[#9f1239] via-[#e11d48] to-[#f43f5e] flex items-center justify-center text-white border-2 border-rose-200/80 shadow-2xl"
-                        >
-                          <Play className="w-7 h-7 sm:w-9 sm:h-9 fill-white text-white ml-1" />
-                        </motion.div>
-                        <span className="font-serif text-xs sm:text-sm font-semibold text-rose-100 tracking-wide drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] group-hover:text-gold transition-colors">
-                          Touch to Watch Our Video ♥
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Explicit CTA Play Button (Phase 6 trigger) */}
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={startVideoPlayback}
-                      className="mt-4 sm:mt-5 min-h-[46px] px-8 py-3 rounded-full bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 text-white font-serif text-sm sm:text-base font-medium shadow-[0_0_25px_rgba(244,63,94,0.65)] hover:shadow-[0_0_40px_rgba(244,63,94,0.95)] transition-all flex items-center gap-2.5 cursor-pointer"
-                    >
-                      <Play size={18} className="fill-white" />
-                      <span>Play My Birthday Wish ♥</span>
-                    </motion.button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Phase 6: Full-Screen Video Element */}
-      <video
-        ref={videoRef}
-        src={currentSource}
-        poster="/assets/personal_video_thumb.jpg"
-        playsInline
-        preload="auto"
-        onTimeUpdate={() => {
-          if (!videoRef.current || isScrubbing) return;
-          setCurrentTime(videoRef.current.currentTime);
-        }}
-        onLoadedMetadata={() => {
-          if (!videoRef.current) return;
-          setDuration(videoRef.current.duration);
-          if (phase === 6) {
-            videoRef.current
-              .play()
-              .then(() => setIsPlaying(true))
-              .catch(() => setRequiresUserInteraction(true));
-          }
-        }}
-        onEnded={handleVideoEnded}
-        onError={handleVideoError}
-        onClick={togglePlay}
-        className="w-full h-full object-contain cursor-pointer bg-black"
-      />
-
-      {/* Tap to Play prompt if autoplay was blocked */}
-      <AnimatePresence>
-        {phase === 6 && requiresUserInteraction && !isPlaying && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm p-4 pointer-events-auto"
-            onClick={togglePlay}
-          >
-            <motion.button
-              whileHover={{ scale: 1.08 }}
-              whileTap={{ scale: 0.95 }}
-              className="min-h-[44px] px-7 py-3.5 rounded-full bg-gradient-to-r from-rose-500 via-rose-600 to-amber-500 text-white font-serif text-base sm:text-lg font-medium shadow-[0_0_35px_rgba(244,63,94,0.7)] flex items-center gap-3 cursor-pointer"
-            >
-              <Play size={20} className="fill-white" />
-              <span>Tap to Play Video ♥</span>
-            </motion.button>
-            <p className="mt-3 text-xs text-white/70 font-mono">Turn on sound for the best experience</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Graceful Retry Error Overlay (Phase 6) */}
-      <AnimatePresence>
-        {hasError && phase === 6 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 z-30 flex flex-col items-center justify-center p-6 bg-black/85 backdrop-blur-md text-center"
-          >
-            <div className="max-w-md p-6 sm:p-8 rounded-3xl bg-[#140818]/90 border border-[#d9a85e]/40 shadow-2xl flex flex-col items-center gap-3.5">
-              <Sparkles size={28} className="text-amber-300" />
-              <h3 className="font-serif text-2xl sm:text-3xl text-white font-medium">A Quiet Moment</h3>
-              <p className="font-serif italic text-xs sm:text-sm text-rose-100/80 leading-relaxed">
-                The connection took a gentle breath. Tap below to reload our special wish video.
-              </p>
-              <button
-                onClick={handleRetry}
-                className="mt-2 min-h-[46px] px-7 py-2.5 rounded-full bg-gradient-to-r from-rose-500 via-rose-600 to-amber-500 text-white font-serif text-sm font-semibold shadow-lg hover:scale-105 active:scale-95 transition-transform cursor-pointer"
-              >
-                Retry Video Playback ♥
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Top Header without Skip/Continue (Phase 6) */}
-      <AnimatePresence>
-        {(showControls || !isPlaying) && phase === 6 && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-            className="absolute top-0 inset-x-0 z-20 flex items-center justify-between p-4 sm:p-6 bg-gradient-to-b from-black/85 via-black/40 to-transparent pointer-events-auto"
-          >
-            <div className="flex items-center gap-2 text-white/85">
-              <Film size={16} className="text-gold" />
-              <span className="font-serif text-xs sm:text-sm tracking-wide text-rose-100 font-medium">
-                Special Birthday Wish
+              <div className="w-10 h-10 border-2 border-rose-400/30 border-t-rose-400 rounded-full animate-spin mb-3 shadow-[0_0_15px_rgba(244,114,182,0.6)]" />
+              <span className="text-xs sm:text-sm font-serif italic text-rose-100/90 tracking-wide">
+                Loading birthday wish...
               </span>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
 
-      {/* Floating Bottom Minimalist Player Controls (Phase 6) */}
-      <AnimatePresence>
-        {(showControls || !isPlaying) && phase === 6 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.3 }}
-            className="absolute bottom-0 inset-x-0 z-20 p-4 sm:p-6 bg-gradient-to-t from-black/90 via-black/50 to-transparent pointer-events-auto"
-          >
-            <div className="max-w-4xl mx-auto flex flex-col gap-2.5 bg-[#0e0712]/85 backdrop-blur-md border border-white/15 rounded-2xl p-3 sm:px-5 sm:py-3.5 shadow-2xl">
-              {/* Scrubber Progress Bar */}
-              <div
-                ref={progressRef}
-                onPointerDown={handlePointerDown}
-                onPointerMove={handlePointerMove}
-                onPointerUp={handlePointerUp}
-                className="relative w-full h-4 flex items-center cursor-pointer group"
-                role="slider"
-                aria-label="Video scrubber"
-                aria-valuemin={0}
-                aria-valuemax={Math.round(duration)}
-                aria-valuenow={Math.round(currentTime)}
-              >
-                <div className="w-full h-1.5 rounded-full bg-white/20 overflow-hidden relative group-hover:h-2 transition-all">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-rose-500 via-rose-400 to-gold relative shadow-[0_0_12px_rgba(244,63,94,0.7)]"
-                    style={{ width: `${Math.max(0, Math.min(100, progressRatio * 100))}%` }}
-                  />
-                </div>
-                <div
-                  className="absolute -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-white ring-2 ring-rose-400 shadow-md group-hover:scale-125 transition-transform pointer-events-none"
-                  style={{ left: `${Math.max(0, Math.min(100, progressRatio * 100))}%` }}
-                />
-              </div>
-
-              {/* Controls: Play/Pause, Time, Volume, Fullscreen */}
-              <div className="flex items-center justify-between text-white text-xs">
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={togglePlay}
-                    className="min-h-[44px] min-w-[44px] flex items-center justify-center p-1.5 text-white hover:text-gold transition-colors cursor-pointer"
-                    aria-label={isPlaying ? "Pause" : "Play"}
-                  >
-                    {isPlaying ? <Pause size={20} /> : <Play size={20} />}
-                  </button>
-
-                  <span className="font-mono text-xs text-white/80 select-none">
-                    {formatTime(currentTime)} / {formatTime(duration)}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={toggleMute}
-                      className="min-h-[44px] min-w-[44px] flex items-center justify-center p-1 text-white/80 hover:text-white transition-colors cursor-pointer"
-                      aria-label={isMuted ? "Unmute" : "Mute"}
-                    >
-                      {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                    </button>
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.02"
-                      value={isMuted ? 0 : volume}
-                      onChange={handleVolumeChange}
-                      className="w-16 sm:w-24 h-1 accent-rose-500 bg-white/20 rounded-full cursor-pointer"
-                      aria-label="Volume slider"
-                    />
-                  </div>
-
-                  <button
-                    onClick={toggleFullscreen}
-                    className="min-h-[44px] min-w-[44px] flex items-center justify-center p-1.5 text-white/80 hover:text-gold transition-colors cursor-pointer"
-                    aria-label={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-                  >
-                    {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
-                  </button>
-                </div>
+          {/* Friendly Error Overlay with Retry */}
+          {hasError && inCinemaMode && (
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-6 bg-black/90 backdrop-blur-md text-center">
+              <div className="max-w-md p-6 sm:p-8 rounded-2xl bg-[#140818]/95 border border-[#d9a85e]/40 shadow-2xl flex flex-col items-center gap-3">
+                <Sparkles size={28} className="text-amber-300" />
+                <h3 className="font-serif text-xl sm:text-2xl text-white font-medium">A Quiet Moment</h3>
+                <p className="font-serif italic text-xs sm:text-sm text-rose-100/80 leading-relaxed">
+                  We had trouble loading our special wish video. Please tap below to try again.
+                </p>
+                <button
+                  onClick={handleRetry}
+                  className="mt-2 min-h-[44px] px-6 py-2 rounded-full bg-gradient-to-r from-rose-500 via-rose-600 to-amber-500 text-white font-serif text-xs sm:text-sm font-semibold shadow-lg hover:scale-105 active:scale-95 transition-transform cursor-pointer"
+                  aria-label="Retry video playback"
+                >
+                  Retry Video Playback ♥
+                </button>
               </div>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </div>
+      </div>
 
-      {/* Tasteful Completion Transition Overlay */}
+      {/* Bottom Spacer with Safe Area Inset */}
+      <div
+        className="h-2 shrink-0"
+        style={{
+          paddingBottom: "max(0.5rem, env(safe-area-inset-bottom, 0px))",
+        }}
+        aria-hidden="true"
+      />
+
+      {/* Completion Overlay When Video Finishes */}
       <AnimatePresence>
         {isCompletedOverlay && (
           <motion.div
@@ -7470,24 +6928,35 @@ function SpecialVideoScene({
               initial={{ scale: 0.85, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ duration: 0.8, delay: 0.2 }}
-              className="flex flex-col items-center gap-3"
+              className="flex flex-col items-center gap-3 max-w-md mx-auto"
             >
-              <Heart size={38} className="text-rose-400 fill-rose-400 filter drop-shadow-[0_0_15px_rgba(244,63,94,0.8)] animate-pulse" />
-              <h3 className="font-serif text-3xl sm:text-5xl text-gold glow-gold mt-2 font-bold">
+              <Heart size={36} className="text-rose-400 fill-rose-400 filter drop-shadow-[0_0_15px_rgba(244,63,94,0.8)] animate-pulse" />
+              <h3 className="font-serif text-2xl sm:text-4xl text-[#fed7aa] drop-shadow-[0_2px_12px_rgba(217,168,94,0.6)] font-bold">
                 That was just for you. ♥
               </h3>
-              <p className="font-serif italic text-sm sm:text-base text-rose-100/90 max-w-md">
+              <p className="font-serif italic text-xs sm:text-sm text-rose-100/90 leading-relaxed">
                 Happy Birthday, my love. Let's step into the final chapter together...
               </p>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={onContinue}
-                className="mt-4 min-h-[46px] px-8 py-2.5 rounded-full bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 text-white font-serif text-sm sm:text-base font-medium shadow-[0_0_25px_rgba(244,63,94,0.65)] hover:shadow-[0_0_40px_rgba(244,63,94,0.95)] transition-all flex items-center gap-2 cursor-pointer"
-              >
-                <span>Step into Our Forever ♥</span>
-                <ArrowRight size={16} />
-              </motion.button>
+              <div className="flex flex-wrap items-center justify-center gap-3 mt-3">
+                <button
+                  onClick={handleReplayVideo}
+                  className="min-h-[44px] px-5 py-2 rounded-full border border-[rgba(217,168,94,0.4)] text-[#fed7aa] font-serif text-xs sm:text-sm hover:bg-white/10 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+                  aria-label="Replay video"
+                >
+                  <RotateCcw size={14} />
+                  <span>Replay Video</span>
+                </button>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={onContinue}
+                  className="min-h-[46px] px-7 py-2.5 rounded-full bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 text-white font-serif text-xs sm:text-sm font-semibold shadow-[0_0_25px_rgba(244,63,94,0.65)] hover:shadow-[0_0_40px_rgba(244,63,94,0.95)] transition-all flex items-center gap-2 cursor-pointer"
+                  aria-label="Step into our forever"
+                >
+                  <span>Step into Our Forever ♥</span>
+                  <ArrowRight size={15} />
+                </motion.button>
+              </div>
             </motion.div>
           </motion.div>
         )}
@@ -7539,7 +7008,7 @@ function FinalScene({ onReplay }: { onReplay: () => void }) {
         return (
           <h2 className="leading-tight">
             <span className="font-serif text-4xl sm:text-6xl lg:text-7xl text-champagne/90 block">Happy Birthday</span>
-            <span className="font-script text-5xl sm:text-7xl lg:text-8xl text-rose glow-rose block mt-3">Bindu ♥</span>
+            <span className="font-script text-5xl sm:text-7xl lg:text-8xl text-rose glow-rose block mt-3">{birthdayContent.herName} ♥</span>
           </h2>
         );
       case 4:

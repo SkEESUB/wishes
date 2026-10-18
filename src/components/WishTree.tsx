@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, X, Heart, Wind } from "lucide-react";
+import { Sparkles, X } from "lucide-react";
 import { wishTreeWishes, birthdayContent } from "../data/content";
 import { NameRibbon } from "./NameRibbon";
 import { AmbientParticles } from "./AmbientParticles";

@@ -213,7 +213,7 @@ export const birthdayContent = {
       label: "First Meet",
       date: "A moment frozen in time",
       description: "The world blurred and all I saw was you.",
-      image: "/story/stoty 3.png",
+      image: "/story/story 3.png",
       rotate: -4,
     },
     {
@@ -292,7 +292,7 @@ export const birthdayContent = {
     wishTree: "/images/wish-tree.jpg",
     lanternSky: "/images/lantern-sky.jpg",
     finalSunset: "/images/final-sunset.jpg",
-    specialVideo: "/assets/special_video.mp4",
+    specialVideo: "/assets/specail_wish_video.mp4",
     cinematicCakeWish: "/images/cinematic/cake-wish-ref.jpg",
     cinematicCakeCut: "/images/cinematic/cake-cut-ref.jpg",
     cinematicOurStory: "/images/cinematic/our-story-ref.jpg",

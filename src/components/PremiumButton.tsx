@@ -38,10 +38,10 @@ export function PremiumButton({
   }[size];
 
   const variantClasses = {
-    gold: "bg-gradient-to-r from-[#d9a85e] via-[#f5d08a] to-[#d9a85e] text-[#2c1503] font-serif font-bold border border-[#fef08a]/60 shadow-[0_10px_28px_rgba(217,168,94,0.45),0_0_20px_rgba(254,240,138,0.3)] hover:shadow-[0_14px_36px_rgba(217,168,94,0.65),0_0_30px_rgba(254,240,138,0.5)]",
-    rose: "bg-gradient-to-r from-[#881337] via-[#be123c] to-[#9f1239] text-[#fff1f2] font-serif font-semibold border border-[#fda4af]/45 shadow-[0_10px_28px_rgba(225,29,72,0.45),0_0_20px_rgba(244,63,94,0.3)] hover:shadow-[0_14px_36px_rgba(225,29,72,0.65),0_0_30px_rgba(244,63,94,0.5)]",
+    gold: "bg-[rgba(14,11,18,0.82)] hover:bg-[rgba(22,17,28,0.92)] text-[#fff5ea] hover:text-[#fed7aa] font-serif font-semibold border border-[rgba(217,168,94,0.42)] hover:border-[rgba(254,240,138,0.7)] backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.55)] hover:shadow-[0_6px_22px_rgba(0,0,0,0.7),0_0_16px_rgba(217,168,94,0.22)]",
+    rose: "bg-[rgba(16,10,18,0.82)] hover:bg-[rgba(24,14,26,0.92)] text-[#fff5ea] hover:text-rose-200 font-serif font-semibold border border-[rgba(217,168,94,0.4)] hover:border-rose-400/60 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.55)] hover:shadow-[0_6px_22px_rgba(0,0,0,0.7),0_0_16px_rgba(244,114,182,0.2)]",
     glass:
-      "bg-black/40 hover:bg-black/60 text-[#fed7aa] font-serif font-medium border border-[#e7b876]/45 hover:border-[#fef08a] backdrop-blur-md shadow-[0_8px_20px_rgba(0,0,0,0.5)] hover:shadow-[0_0_20px_rgba(231,184,118,0.35)]",
+      "bg-black/60 hover:bg-black/80 text-[#fff5ea] hover:text-[#fed7aa] font-serif font-medium border border-[#d9a85e]/35 hover:border-[#fef08a]/60 backdrop-blur-md shadow-[0_4px_16px_rgba(0,0,0,0.5)] hover:shadow-[0_6px_20px_rgba(0,0,0,0.65),0_0_14px_rgba(217,168,94,0.18)]",
   }[variant];
 
   return (
@@ -53,16 +53,16 @@ export function PremiumButton({
         disabled
           ? {}
           : {
-              y: -2.5,
-              scale: 1.025,
+              y: -1.5,
+              scale: 1.015,
             }
       }
       whileTap={
         disabled
           ? {}
           : {
-              scale: 0.96,
-              y: 0,
+              scale: 0.98,
+              y: 0.5,
             }
       }
       transition={{ type: "spring", stiffness: 450, damping: 25 }}

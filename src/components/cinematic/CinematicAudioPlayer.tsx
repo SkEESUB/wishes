@@ -49,6 +49,8 @@ export interface AudioEngineProps {
   toggleShuffle?: () => void;
   loadTrack?: (index: number, shouldPlay: boolean) => void;
   audioError?: boolean;
+  favorites?: string[];
+  toggleFavorite?: (title: string) => void;
 }
 
 interface CinematicAudioPlayerProps {
