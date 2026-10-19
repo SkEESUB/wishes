@@ -46,6 +46,7 @@ import { CosmicStarfield } from "./components/cinematic/CosmicStarfield";
 import { CinematicTextIntroSequence } from "./components/cinematic/CinematicTextIntroSequence";
 import { mainWishesIntroScenes, videoIntroScenes } from "./data/introSequences";
 import { mainWishVideoConfig } from "./data/videos";
+import { PageCountdownTimer } from "./components/PageCountdownTimer";
 /* ------------------------------------------------------------------ */
 /* Types                                                              */
 /* ------------------------------------------------------------------ */
@@ -1263,7 +1264,7 @@ export default function App() {
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const urlParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
     const sceneParam = urlParams?.get("scene");
-    const initialScene = sceneParam !== null && !isNaN(Number(sceneParam)) ? Number(sceneParam) : 2;
+    const initialScene = sceneParam !== null && !isNaN(Number(sceneParam)) ? Number(sceneParam) : 0;
     return {
       scene: initialScene,
       started: saved.started ?? false,
@@ -1283,28 +1284,21 @@ export default function App() {
 
   const audio = useAudioEngine();
   const [targetDate] = useState(() => getTargetBirthdayDate());
-  const [remainingSeconds, setRemainingSeconds] = useState<number>(10);
-  const [isCountdownFinished, setIsCountdownFinished] = useState<boolean>(false);
+  const [pageSecondsLeft, setPageSecondsLeft] = useState<number>(10);
   const [isCompleting, setIsCompleting] = useState<boolean>(false);
-
-  const isCountdownPage = state.scene === 2;
-  const isCountdownLocked = isCountdownPage && !isCountdownFinished;
+  const hasNavigatedForSceneRef = useRef<boolean>(false);
 
   const countdown = useMemo(() => {
-    const d = Math.floor(remainingSeconds / 86400);
-    const h = Math.floor((remainingSeconds % 86400) / 3600);
-    const m = Math.floor((remainingSeconds % 3600) / 60);
-    const s = remainingSeconds % 60;
+    const d = Math.floor(pageSecondsLeft / 86400);
+    const h = Math.floor((pageSecondsLeft % 86400) / 3600);
+    const m = Math.floor((pageSecondsLeft % 3600) / 60);
+    const s = pageSecondsLeft % 60;
     return { d, h, m, s };
-  }, [remainingSeconds]);
+  }, [pageSecondsLeft]);
   const [direction, setDirection] = useState<number>(1);
 
   const isTransitioningRef = useRef(false);
   const goTo = useCallback((scene: number) => {
-    // If user is currently on the countdown page and countdown is running, block forward/bypass navigation
-    if (state.scene === 2 && !isCountdownFinished) {
-      return;
-    }
     if (isTransitioningRef.current) return;
     isTransitioningRef.current = true;
     setTimeout(() => {
@@ -1317,7 +1311,7 @@ export default function App() {
       saveState(next);
       return next;
     });
-  }, [state.scene, isCountdownFinished]);
+  }, []);
 
   const startExperience = useCallback(() => {
     setState((s) => {
@@ -1387,13 +1381,102 @@ export default function App() {
     goTo(21);
   }, [goTo]);
 
+  const advanceToNextScene = useCallback(
+    (currentScene: number) => {
+      if (currentScene >= 21) return;
+
+      switch (currentScene) {
+        case 0:
+          startExperience();
+          break;
+        case 1:
+          goTo(2);
+          break;
+        case 2:
+          setIsCompleting(true);
+          setTimeout(() => {
+            setIsCompleting(false);
+            goTo(3);
+          }, 1200);
+          break;
+        case 3:
+          goTo(4);
+          break;
+        case 4:
+          unlockPassword();
+          break;
+        case 5:
+          goTo(6);
+          break;
+        case 6:
+          setState((s) => {
+            const next = { ...s, scene: 7, cakeBlown: true };
+            saveState(next);
+            return next;
+          });
+          break;
+        case 7:
+          setState((s) => {
+            const next = { ...s, scene: 8, cakeStage: 6 };
+            saveState(next);
+            return next;
+          });
+          break;
+        case 8:
+          goTo(9);
+          break;
+        case 9:
+          goTo(10);
+          break;
+        case 10:
+          goTo(11);
+          break;
+        case 11:
+          goTo(12);
+          break;
+        case 12:
+          goTo(13);
+          break;
+        case 13:
+          goTo(14);
+          break;
+        case 14:
+          goTo(15);
+          break;
+        case 15:
+          goTo(16);
+          break;
+        case 16:
+          goTo(17);
+          break;
+        case 17:
+          goTo(18);
+          break;
+        case 18:
+          goTo(19);
+          break;
+        case 19:
+          goTo(20);
+          break;
+        case 20:
+          completeExperience();
+          break;
+        default:
+          if (currentScene < 21) {
+            goTo(currentScene + 1);
+          }
+          break;
+      }
+    },
+    [startExperience, goTo, unlockPassword, completeExperience]
+  );
+
   const replay = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
-    setRemainingSeconds(10);
-    setIsCountdownFinished(false);
+    setPageSecondsLeft(10);
     setIsCompleting(false);
     setState({
-      scene: 2,
+      scene: 0,
       started: false,
       passwordCorrect: false,
       openedGifts: [],
@@ -1409,81 +1492,39 @@ export default function App() {
     });
   }, [state.reducedMotion]);
 
-  /* 10-second countdown timer */
+  /* 10-second countdown timer for EVERY page */
   useEffect(() => {
-    if (isCountdownFinished || state.scene !== 2) return;
+    // If on final scene (21), no auto-advance timer
+    if (state.scene >= 21) {
+      setPageSecondsLeft(0);
+      return;
+    }
+
+    setPageSecondsLeft(10);
+    hasNavigatedForSceneRef.current = false;
 
     const timer = setInterval(() => {
-      setRemainingSeconds((prev) => {
+      setPageSecondsLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          setIsCountdownFinished(true);
+          if (!hasNavigatedForSceneRef.current) {
+            hasNavigatedForSceneRef.current = true;
+            advanceToNextScene(state.scene);
+          }
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
 
-    return () => clearInterval(timer);
-  }, [state.scene, isCountdownFinished]);
-
-  /* Smooth transition to Scene 3 when countdown finishes on countdown page */
-  useEffect(() => {
-    if (state.scene === 2 && isCountdownFinished && !isCompleting) {
-      setIsCompleting(true);
-      const timer = setTimeout(() => {
-        setIsCompleting(false);
-        setState((s) => {
-          setDirection(1);
-          const next = { ...s, scene: 3 };
-          saveState(next);
-          return next;
-        });
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [state.scene, isCountdownFinished, isCompleting]);
+    return () => {
+      clearInterval(timer);
+    };
+  }, [state.scene, advanceToNextScene]);
 
   useEffect(() => {
     audio.setVolume(state.audioVolume);
   }, [state.audioVolume]);
-
-  /* Countdown lock: block back/forward popstate ONLY while locked on countdown page */
-  useEffect(() => {
-    if (!isCountdownLocked) return;
-    const handlePopState = () => {
-      window.history.pushState(null, "", window.location.href);
-    };
-    window.history.pushState(null, "", window.location.href);
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, [isCountdownLocked]);
-
-  /* Countdown lock: block navigation key events ONLY while locked on countdown page */
-  useEffect(() => {
-    if (!isCountdownLocked) return;
-    const blockKeys = (e: KeyboardEvent) => {
-      const blockedKeys = [
-        "ArrowRight",
-        "ArrowLeft",
-        "ArrowDown",
-        "ArrowUp",
-        "Space",
-        "Enter",
-        "PageDown",
-        "PageUp",
-        "Home",
-        "End",
-        "Tab",
-      ];
-      if (blockedKeys.includes(e.code) || blockedKeys.includes(e.key)) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    };
-    window.addEventListener("keydown", blockKeys, { capture: true });
-    return () => window.removeEventListener("keydown", blockKeys, { capture: true });
-  }, [isCountdownLocked]);
 
   const scenes = useMemo(
     () => [
@@ -1612,6 +1653,15 @@ export default function App() {
           : "h-screen overflow-hidden"
       )}
     >
+      {/* Universal 10-Second Page Countdown Timer */}
+      <PageCountdownTimer
+        secondsLeft={pageSecondsLeft}
+        totalSeconds={10}
+        onAdvance={() => advanceToNextScene(state.scene)}
+        isVisible={state.scene < 21}
+        reducedMotion={state.reducedMotion}
+      />
+
       <AnimatePresence mode="wait" custom={direction}>
         <motion.div
           key={state.scene}

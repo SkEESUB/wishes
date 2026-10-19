@@ -21,8 +21,8 @@ export function CosmicStoryIntroScene({
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  // Configured display duration: automatically advances once the reading duration completes
-  const durationMs = page === 1 ? 4800 : 5000;
+  // Configured display duration: aligns with 10-second universal page timer
+  const durationMs = 10000;
 
   const handleNext = useCallback(() => {
     if (hasNavigatedRef.current) return;
