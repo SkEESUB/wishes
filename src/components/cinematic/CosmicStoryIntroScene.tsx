@@ -14,49 +14,27 @@ export function CosmicStoryIntroScene({
   onContinue,
   onBack,
 }: CosmicStoryIntroSceneProps) {
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasNavigatedRef = useRef(false);
 
   const prefersReduced =
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  // Configured display duration: aligns with 10-second universal page timer
-  const durationMs = 10000;
-
   const handleNext = useCallback(() => {
     if (hasNavigatedRef.current) return;
     hasNavigatedRef.current = true;
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
     onContinue();
   }, [onContinue]);
 
   const handleBack = useCallback(() => {
     if (hasNavigatedRef.current) return;
     hasNavigatedRef.current = true;
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
     onBack?.();
   }, [onBack]);
 
   useEffect(() => {
     hasNavigatedRef.current = false;
-    timerRef.current = setTimeout(() => {
-      handleNext();
-    }, durationMs);
-
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-    };
-  }, [page, durationMs, handleNext]);
+  }, [page]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowLeft" && onBack) {
@@ -152,8 +130,22 @@ export function CosmicStoryIntroScene({
         </motion.div>
       </div>
 
-      {/* 4. Balanced Bottom Spacer (No Continue button or manual indicator) */}
-      <div className="h-6 shrink-0" aria-hidden="true" />
+      {/* 4. Bottom Continue Action */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4, duration: 0.6 }}
+        className="relative z-10 w-full flex items-center justify-center shrink-0 pt-2 pb-1"
+      >
+        <button
+          onClick={handleNext}
+          className="btn-cinematic-pill cursor-pointer"
+          aria-label={page === 1 ? "Continue to next reflection" : "Continue to our videos"}
+        >
+          <span>Continue</span>
+          <ArrowRight className="w-4 h-4 text-[#fed7aa] ml-0.5 inline-block" />
+        </button>
+      </motion.div>
     </div>
   );
 }
