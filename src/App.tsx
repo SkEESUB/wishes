@@ -21,6 +21,9 @@ import {
   Shuffle,
   Repeat,
   Film,
+  Smile,
+  Laugh,
+  Compass,
 } from "lucide-react";
 import assets from "./data/assets";
 import {
@@ -31,6 +34,8 @@ import {
   wishTreeWishes,
   birthdayContent,
   stories,
+  happiness,
+  type HappinessItem,
 } from "./data/content";
 import { stickersConfig } from "./data/stickers";
 import { NameRibbon } from "./components/NameRibbon";
@@ -1263,20 +1268,20 @@ export default function App() {
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const urlParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
     const sceneParam = urlParams?.get("scene");
-    const initialScene = sceneParam !== null && !isNaN(Number(sceneParam)) ? Number(sceneParam) : 2;
+    const initialScene = sceneParam !== null && !isNaN(Number(sceneParam)) ? Number(sceneParam) : 0;
     return {
       scene: initialScene,
       started: saved.started ?? false,
       passwordCorrect: saved.passwordCorrect ?? false,
-      openedGifts: saved.openedGifts ?? [],
-      visitedGifts: saved.visitedGifts ?? [],
-      letterAnimated: saved.letterAnimated ?? false,
-      cakeBlown: saved.cakeBlown ?? false,
-      cakeStage: saved.cakeStage ?? 0,
-      happinessOpened: saved.happinessOpened ?? [],
+      openedGifts: [],
+      visitedGifts: [],
+      letterAnimated: false,
+      cakeBlown: false,
+      cakeStage: 0,
+      happinessOpened: [],
       audioEnabled: saved.audioEnabled ?? false,
       audioVolume: saved.audioVolume ?? 0.5,
-      experienceCompleted: saved.experienceCompleted ?? false,
+      experienceCompleted: false,
       reducedMotion,
     };
   });
@@ -1386,7 +1391,7 @@ export default function App() {
     setIsCountdownFinished(false);
     setIsCompleting(false);
     setState({
-      scene: 2,
+      scene: 0,
       started: false,
       passwordCorrect: false,
       openedGifts: [],
@@ -1454,7 +1459,7 @@ export default function App() {
             saveState(next);
             return next;
           });
-          if (n >= 6) setTimeout(() => goTo(8), 1000);
+          if (n >= 6) goTo(8);
         }}
       />,
       <ShareHappinessScene
@@ -3227,8 +3232,26 @@ export function CakeCuttingScene({ stage, onStage }: { stage: number; onStage: (
   const [activeKnife, setActiveKnife] = useState<number | null>(null);
   const [particles, setParticles] = useState<{ id: number; x: number; y: number; vx: number; vy: number; color: string; size: number; alpha: number }[]>([]);
 
+  const playCutSound = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.3);
+    } catch {}
+  };
   const spawnParticles = (x: number, y: number, count = 20) => {
-    const colors = ["#d9a85e", "#f43f5e", "#fb7185", "#ffffff", "#fed7aa", "#fbcfe8"];
+    const colors = ["#d9a85e", "#d4869a", "#f3cbb4", "#ffffff", "#b06b7d"];
     const newParticles = Array.from({ length: count }).map((_, i) => ({
       id: Date.now() + i + Math.random(),
       x,
@@ -3246,10 +3269,12 @@ export function CakeCuttingScene({ stage, onStage }: { stage: number; onStage: (
     if (activeKnife !== null) return;
     if (stage < 3) {
       setActiveKnife(stage);
+      playCutSound();
       // Wait 700ms (when knife passes center) to show cut line & advance stage
       setTimeout(() => {
         onStage(stage + 1);
         spawnParticles(200, 135, 25);
+        playCutSound();
       }, 700);
       // Wait 1400ms to allow another cut
       setTimeout(() => {
@@ -3258,6 +3283,7 @@ export function CakeCuttingScene({ stage, onStage }: { stage: number; onStage: (
     } else if (stage < 5) {
       onStage(stage + 1);
       spawnParticles(200, 135, 15);
+      playCutSound();
     }
   };
 
@@ -3292,6 +3318,7 @@ export function CakeCuttingScene({ stage, onStage }: { stage: number; onStage: (
   const ry = 24;
   const h = 60; // cake height
   const cyTop = 135;
+  const cyBottom = cyTop + h;
   const cx = 200;
 
   // Sorting indices from back-to-front to ensure perfect overlap rendering (painter's algorithm)
@@ -3299,374 +3326,224 @@ export function CakeCuttingScene({ stage, onStage }: { stage: number; onStage: (
 
   return (
     <div className="scene-container relative">
-      {/* Premium Dark Burgundy Background Progression matching Candle scene */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#0a0309] via-[#1f0616] to-[#080207] z-0" />
+      {/* Premium Dark Burgundy Background Progression */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#0f060b] via-[#2b081a] to-[#0c0309] z-0" />
       
       {/* Soft spotlight behind the cake (Warm champagne/gold bloom) */}
-      <div 
-        className="absolute inset-0 pointer-events-none z-0 mix-blend-screen opacity-70"
-        style={{
-          background: "radial-gradient(circle at 50% 55%, rgba(217, 168, 94, 0.2) 0%, rgba(244, 63, 94, 0.12) 40%, transparent 70%)"
-        }}
-      />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(217,168,94,0.12),_transparent_65%)] pointer-events-none z-0 mix-blend-screen" />
       
       {/* Cinematic vignette */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_45%,_rgba(0,0,0,0.88)_100%)] pointer-events-none z-0" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_45%,_rgba(0,0,0,0.85)_100%)] pointer-events-none z-0" />
 
-      {/* Hanging fairy light accents along top */}
-      <div className="absolute top-0 left-0 right-0 h-16 pointer-events-none z-10 opacity-60 flex justify-around px-8">
-        {[1, 2, 3, 4, 5, 6, 7].map((i) => (
-          <div key={i} className="flex flex-col items-center">
-            <div className="w-[1px] h-6 sm:h-8 bg-gradient-to-b from-white/20 via-gold/40 to-gold/70" />
-            <div className="w-1.5 h-1.5 rounded-full bg-amber-200 shadow-[0_0_8px_rgba(254,240,138,0.9)] animate-pulse" style={{ animationDelay: `${i * 0.3}s` }} />
-          </div>
-        ))}
-      </div>
-
-      {/* Premium Celebration triggered by successful cake-cut interaction */}
+      {/* Edge-only Fireworks once cut is complete */}
       {stage >= 5 && (
-        <>
-          <CelebrationEffects type="cutting" durationMs={6500} />
-          {/* Premium cinematic lighting bloom flash */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: [0, 0.45, 0] }}
-            transition={{ duration: 1.8, ease: "easeOut" }}
-            className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(254,240,138,0.5)_0%,_rgba(244,63,94,0.3)_40%,_transparent_75%)] pointer-events-none z-20 mix-blend-screen"
-          />
-        </>
+        <FireworkCanvas edgesOnly={true} />
       )}
 
       <ParticleField density="low" petals={true} dots={false} />
       
       <div className="relative z-10 flex min-h-full flex-1 flex-col items-center justify-center p-4 py-8 text-center select-none overflow-y-auto">
         
-        {/* Title & Decorative Ribbon */}
+        {/* Title */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-3 sm:mb-4 z-30"
+          className="mb-3 z-30"
         >
-          {/* Decorative Romantic Ribbon matching Cake Scene */}
-          <div className="inline-flex items-center justify-center gap-2 px-5 py-1.5 rounded-full bg-gradient-to-r from-[#881337] via-[#be123c] to-[#881337] border-y border-[#fef08a]/80 shadow-[0_4px_16px_rgba(0,0,0,0.6),0_0_15px_rgba(244,63,94,0.35)] mb-2">
-            <span className="text-[10px] sm:text-xs font-serif uppercase tracking-[0.25em] text-[#fed7aa] font-semibold">
-              ✦ SHARED SWEETNESS ✦
-            </span>
-          </div>
-
-          <h2 className="font-calligraphy text-4xl sm:text-6xl text-[#fef08a] glow-gold leading-tight drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]">
-            Cake Cutting Time
+          <h2 className="font-script text-4xl sm:text-5xl text-gold glow-gold leading-tight">
+            Tap to cut the cake
           </h2>
-
-          <div className="flex items-center justify-center gap-2 my-1">
-            <span className="text-xs text-gold/60">~</span>
-            <span className="font-script text-2xl sm:text-3xl text-rose-300 glow-rose">
-              {birthdayContent.herName}
-            </span>
-            <span className="text-xs text-gold/60">~</span>
-          </div>
-
-          <p className="text-xs sm:text-sm font-serif italic text-rose-100/80 mt-1 max-w-md mx-auto leading-relaxed">
-            {stage === 0 && "Let's cut the cake and make this moment sweeter together..."}
-            {stage === 1 && "Tap to make the second cut ✦"}
-            {stage === 2 && "Tap to make the final cut ✦"}
-            {stage >= 3 && stage < 5 && "The sweet slices pull apart! Tap to serve ✦"}
-            {stage >= 5 && "Every slice holds a special reason I adore you ♥"}
+          <p className="text-white/60 text-xs mt-1">
+            {stage === 0 && "Click anywhere to make the first cut."}
+            {stage === 1 && "Click to make the second cut."}
+            {stage === 2 && "Click to make the final cut."}
+            {stage >= 3 && stage < 5 && "Watch the delicious pieces separate!"}
+            {stage >= 5 && "Share the sweetness and happiness!"}
           </p>
         </motion.div>
 
         <div
-          className="relative w-full max-w-[42rem] h-[52vh] sm:h-[60vh] cursor-pointer flex items-center justify-center"
+          className="relative w-full max-w-3xl cursor-pointer flex flex-col items-center justify-center min-h-[55vh] sm:min-h-[62vh]"
           onClick={interact}
           role="button"
           tabIndex={0}
           onKeyDown={(e) => e.key === "Enter" && interact()}
-          aria-label="Tap to slice cake"
+          aria-label="Cut the cake"
         >
-          <svg viewBox="0 0 400 280" className="w-full drop-shadow-[0_24px_60px_rgba(0,0,0,0.65)] overflow-visible">
+          <svg viewBox="0 0 400 280" className="w-full h-full max-h-[55vh] sm:max-h-[62vh] max-w-[42rem] drop-shadow-[0_24px_60px_rgba(0,0,0,0.55)]">
             <defs>
-              <linearGradient id="cutFrostingTop" x1="0" y1="0" x2="1" y2="1">
+              <linearGradient id="rcakeTop" x1="0" y1="0" x2="1" y2="1">
                 <stop offset="0%" stopColor="#ffcbd7" />
                 <stop offset="100%" stopColor="#fca1b5" />
               </linearGradient>
-              <linearGradient id="cutFrostingSide" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id="rcakeFront" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#fca1b5" />
                 <stop offset="60%" stopColor="#e87a90" />
                 <stop offset="100%" stopColor="#cf576e" />
               </linearGradient>
-              <linearGradient id="spongeWall" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#fef08a" />
-                <stop offset="50%" stopColor="#fde047" />
-                <stop offset="100%" stopColor="#eab308" />
+              <linearGradient id="cakeInside" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#cf576e" />
+                <stop offset="10%" stopColor="#cf576e" />
+                <stop offset="10%" stopColor="#4a1521" /> {/* dark chocolate sponge */}
+                <stop offset="35%" stopColor="#4a1521" />
+                <stop offset="35%" stopColor="#faf6ee" /> {/* cream layers */}
+                <stop offset="45%" stopColor="#faf6ee" />
+                <stop offset="45%" stopColor="#4a1521" />
+                <stop offset="70%" stopColor="#4a1521" />
+                <stop offset="70%" stopColor="#faf6ee" />
+                <stop offset="80%" stopColor="#faf6ee" />
+                <stop offset="80%" stopColor="#4a1521" />
+                <stop offset="100%" stopColor="#4a1521" />
               </linearGradient>
-              <linearGradient id="jamLayer" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#be123c" />
-                <stop offset="50%" stopColor="#e11d48" />
-                <stop offset="100%" stopColor="#9f1239" />
-              </linearGradient>
-              <linearGradient id="silverKnife" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#ffffff" />
-                <stop offset="40%" stopColor="#e2e8f0" />
-                <stop offset="70%" stopColor="#cbd5e1" />
+              <linearGradient id="rblade" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#f1f5f9" />
                 <stop offset="100%" stopColor="#94a3b8" />
               </linearGradient>
-              <linearGradient id="goldKnifeHandle" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#fef08a" />
+              <linearGradient id="goldCalligraphy" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#a37d37" />
                 <stop offset="50%" stopColor="#d9a85e" />
-                <stop offset="100%" stopColor="#854d0e" />
+                <stop offset="100%" stopColor="#8c6623" />
               </linearGradient>
-              <filter id="cakeCutShadow">
-                <feDropShadow dx="0" dy="16" stdDeviation="14" floodColor="#000" floodOpacity="0.6" />
+              <filter id="rcakeShadow">
+                <feDropShadow dx="0" dy="15" stdDeviation="12" floodColor="#000" floodOpacity="0.45" />
               </filter>
-
-              <filter id="ribbonCutShadow">
-                <feDropShadow dx="0" dy="6" stdDeviation="8" floodColor="#000" floodOpacity="0.55" />
-              </filter>
-              <linearGradient id="cutRibbonBodyGrad" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#831843" />
-                <stop offset="15%" stopColor="#9f1239" />
-                <stop offset="50%" stopColor="#e11d48" />
-                <stop offset="85%" stopColor="#9f1239" />
-                <stop offset="100%" stopColor="#831843" />
-              </linearGradient>
-              <linearGradient id="cutRibbonFoldDark" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#4c0519" />
-                <stop offset="100%" stopColor="#2b030d" />
-              </linearGradient>
-              <linearGradient id="cutRibbonTailGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#9f1239" />
-                <stop offset="100%" stopColor="#670d22" />
-              </linearGradient>
-              <linearGradient id="cutGoldCalligraphy" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#d4af37" />
-                <stop offset="35%" stopColor="#fef08a" />
-                <stop offset="70%" stopColor="#d9a85e" />
-                <stop offset="100%" stopColor="#996515" />
-              </linearGradient>
             </defs>
 
-            {/* PHYSICAL SATIN RIBBON MATCHING CAKE SCENE - ELEVATED WITH CAKE-TOPPER ATTACHMENTS */}
-            <g className="cake-ribbon-behind select-none" opacity="0.98">
-              {/* Slender Golden Cake-Topper Pick Supports (Physically Anchoring Ribbon to Cake) */}
-              <g className="cake-ribbon-supports pointer-events-none" opacity="0.95">
-                <line x1="86" y1="92" x2="86" y2="120" stroke="url(#cutGoldCalligraphy)" strokeWidth="1.8" strokeLinecap="round" />
-                <circle cx="86" cy="92" r="2.2" fill="#fef08a" stroke="#b45309" strokeWidth="0.8" />
-                <line x1="314" y1="92" x2="314" y2="120" stroke="url(#cutGoldCalligraphy)" strokeWidth="1.8" strokeLinecap="round" />
-                <circle cx="314" cy="92" r="2.2" fill="#fef08a" stroke="#b45309" strokeWidth="0.8" />
-              </g>
-
-              {/* Left Ribbon Tail */}
-              <path
-                d="M 42 76 L 68 66 L 68 94 L 42 104 L 53 90 Z"
-                fill="url(#cutRibbonTailGrad)"
-                filter="url(#ribbonCutShadow)"
-              />
-              {/* Right Ribbon Tail */}
-              <path
-                d="M 358 76 L 332 66 L 332 94 L 358 104 L 347 90 Z"
-                fill="url(#cutRibbonTailGrad)"
-                filter="url(#ribbonCutShadow)"
-              />
-
-              {/* Shaded Foldbacks behind body */}
-              <path d="M 68 66 L 86 70 L 86 98 L 68 94 Z" fill="url(#cutRibbonFoldDark)" />
-              <path d="M 332 66 L 314 70 L 314 98 L 332 94 Z" fill="url(#cutRibbonFoldDark)" />
-
-              {/* Main Arched Ribbon Banner Body */}
-              <path
-                d="M 72 66 Q 200 36 328 66 L 328 94 Q 200 64 72 94 Z"
-                fill="url(#cutRibbonBodyGrad)"
-                filter="url(#ribbonCutShadow)"
-              />
-
-              {/* Gold Embroidered Edges on top and bottom of banner */}
-              <path d="M 73 67 Q 200 37 327 67" fill="none" stroke="url(#cutGoldCalligraphy)" strokeWidth="1.2" opacity="0.9" />
-              <path d="M 73 93 Q 200 63 327 93" fill="none" stroke="url(#cutGoldCalligraphy)" strokeWidth="1.2" opacity="0.9" />
-
-              {/* Text Path following the arch of the ribbon */}
-              <path id="cutGarlandPath" d="M 76 84 Q 200 54 324 84" fill="none" />
-              <text
-                className="font-serif font-bold text-[13px] tracking-[0.18em]"
-                fill="url(#cutGoldCalligraphy)"
-              >
-                <textPath href="#cutGarlandPath" startOffset="50%" textAnchor="middle">
-                  A Sweet Slice of Joy ♡
-                </textPath>
-              </text>
-            </g>
-
-            {/* Subtle soft shadow cast by elevated ribbon onto cake top */}
-            <ellipse cx="200" cy="116" rx="85" ry="6" fill="#000000" opacity="0.16" filter="url(#ribbonCutShadow)" />
-
             {/* Porcelain Plate */}
-            <ellipse cx="200" cy="195" rx="145" ry="24" fill="#faf8f5" filter="url(#cakeCutShadow)" />
-            <ellipse cx="200" cy="195" rx="141" ry="21" fill="none" stroke="#ebdcb9" strokeWidth="1.5" opacity="0.6" />
+            <ellipse cx="200" cy="205" rx="150" ry="24" fill="#faf8f5" filter="url(#rcakeShadow)" />
+            <ellipse cx="200" cy="205" rx="146" ry="21" fill="none" stroke="#ebdcb9" strokeWidth="1.5" opacity="0.6" />
 
-            {/* 6 Individual Isometric Cake Slices */}
-            {sortedSlices.map((sliceIdx) => {
-              const startAngle = (sliceIdx * 60 * Math.PI) / 180;
-              const endAngle = ((sliceIdx + 1) * 60 * Math.PI) / 180;
-              const midAngle = ((sliceIdx + 0.5) * 60 * Math.PI) / 180;
+            {/* Render 6 Slices Back-to-Front */}
+            {sortedSlices.map((i) => {
+              // Separation distance base calculation
+              let d_sep = 0;
+              if (stage === 3) {
+                d_sep = (i === 1) ? 20 : 1; // Front-center starts to slip out
+              } else if (stage === 4) {
+                d_sep = (i === 1 || i === 4) ? 22 : 4; // Front-center and opposite back slip out
+              } else if (stage >= 5) {
+                d_sep = 18; // All slices separate slightly
+              }
 
-              // Pull apart outward radially at stage >= 3
-              const pullDist = stage >= 5 ? 26 : stage >= 4 ? 18 : stage >= 3 ? 10 : 0;
-              const dx = Math.cos(midAngle) * pullDist;
-              const dy = Math.sin(midAngle) * pullDist * (ry / rx);
+              // Radial angles
+              const t1 = (i * 2 * Math.PI) / 6;
+              const t2 = ((i + 1) * 2 * Math.PI) / 6;
+              const a_mid = ((i + 0.5) * 2 * Math.PI) / 6;
 
-              const p1x = cx + rx * Math.cos(startAngle);
-              const p1y = cyTop + ry * Math.sin(startAngle);
-              const p2x = cx + rx * Math.cos(endAngle);
-              const p2y = cyTop + ry * Math.sin(endAngle);
+              // Perspective translation
+              const dx = d_sep * Math.cos(a_mid);
+              const dy = d_sep * Math.sin(a_mid) * 0.24;
+
+              // Top vertices
+              const p1x = cx + rx * Math.cos(t1);
+              const p1y = cyTop + ry * Math.sin(t1);
+              const p2x = cx + rx * Math.cos(t2);
+              const p2y = cyTop + ry * Math.sin(t2);
+
+              // Bottom vertices
+              const p1yBot = cyBottom + ry * Math.sin(t1);
+              const p2yBot = cyBottom + ry * Math.sin(t2);
+
+              // Top outer perimeter decorative frosting dollop
+              const fx = cx + 96 * Math.cos(a_mid);
+              const fy = cyTop + 23 * Math.sin(a_mid);
 
               return (
-                <g
-                  key={sliceIdx}
-                  transform={`translate(${dx}, ${dy})`}
-                  className="transition-transform duration-700 ease-out"
+                <motion.g
+                  key={i}
+                  animate={{ x: dx, y: dy }}
+                  transition={{ type: "spring", stiffness: 85, damping: 13 }}
                 >
-                  {/* Internal Sponge & Jam Walls exposed when separated */}
-                  {stage >= 3 && (
-                    <>
-                      {/* Left Wall Slice (facing inward from startAngle) */}
-                      <path
-                        d={`M ${cx} ${cyTop} L ${p1x} ${p1y} L ${p1x} ${p1y + h} L ${cx} ${cyTop + h} Z`}
-                        fill="url(#spongeWall)"
-                        stroke="#fef08a"
-                        strokeWidth="0.5"
-                      />
-                      {/* Jam & Cream Strips along Left Wall */}
-                      <path
-                        d={`M ${cx} ${cyTop + h * 0.45} L ${p1x} ${p1y + h * 0.45} L ${p1x} ${p1y + h * 0.55} L ${cx} ${cyTop + h * 0.55} Z`}
-                        fill="url(#jamLayer)"
-                      />
-                      <path
-                        d={`M ${cx} ${cyTop + h * 0.55} L ${p1x} ${p1y + h * 0.55} L ${p1x} ${p1y + h * 0.62} L ${cx} ${cyTop + h * 0.62} Z`}
-                        fill="#fff"
-                        opacity="0.9"
-                      />
-
-                      {/* Right Wall Slice (facing inward from endAngle) */}
-                      <path
-                        d={`M ${cx} ${cyTop} L ${p2x} ${p2y} L ${p2x} ${p2y + h} L ${cx} ${cyTop + h} Z`}
-                        fill="url(#spongeWall)"
-                        stroke="#fef08a"
-                        strokeWidth="0.5"
-                      />
-                      {/* Jam Strip on Right Wall */}
-                      <path
-                        d={`M ${cx} ${cyTop + h * 0.45} L ${p2x} ${p2y + h * 0.45} L ${p2x} ${p2y + h * 0.55} L ${cx} ${cyTop + h * 0.55} Z`}
-                        fill="url(#jamLayer)"
-                      />
-                    </>
-                  )}
-
-                  {/* Outer Frosted Curved Wall */}
+                  {/* Slice Inner Cut Wall 1 (along t1) */}
                   <path
-                    d={`M ${p1x} ${p1y} A ${rx} ${ry} 0 0 1 ${p2x} ${p2y} L ${p2x} ${p2y + h} A ${rx} ${ry} 0 0 0 ${p1x} ${p1y + h} Z`}
-                    fill="url(#cutFrostingSide)"
+                    d={`M ${cx} ${cyTop} L ${cx} ${cyBottom} L ${p1x} ${p1yBot} L ${p1x} ${p1y} Z`}
+                    fill="url(#cakeInside)"
                   />
 
-                  {/* Top Frosted Wedge */}
+                  {/* Slice Inner Cut Wall 2 (along t2) */}
+                  <path
+                    d={`M ${cx} ${cyTop} L ${cx} ${cyBottom} L ${p2x} ${p2yBot} L ${p2x} ${p2y} Z`}
+                    fill="url(#cakeInside)"
+                  />
+
+                  {/* Slice Curved Outer Wall */}
+                  <path
+                    d={`M ${p1x} ${p1y} A ${rx} ${ry} 0 0 1 ${p2x} ${p2y} L ${p2x} ${p2yBot} A ${rx} ${ry} 0 0 0 ${p1x} ${p1yBot} Z`}
+                    fill="url(#rcakeFront)"
+                  />
+
+                  {/* Slice Top Wedge */}
                   <path
                     d={`M ${cx} ${cyTop} L ${p1x} ${p1y} A ${rx} ${ry} 0 0 1 ${p2x} ${p2y} Z`}
-                    fill="url(#cutFrostingTop)"
-                    stroke="#ffffff"
-                    strokeWidth="0.5"
+                    fill="url(#rcakeTop)"
                   />
 
-                  {/* Slice Cream Rosette on top edge */}
-                  <circle
-                    cx={cx + (rx * 0.85) * Math.cos(midAngle)}
-                    cy={cyTop + (ry * 0.85) * Math.sin(midAngle)}
-                    r="4"
-                    fill="#fff"
-                    stroke="#ebdcb9"
-                    strokeWidth="0.5"
-                    filter="url(#cakeCutShadow)"
+                  {/* Decorative frosting flowers along outer edges */}
+                  <circle cx={fx} cy={fy} r="4.5" fill="#fcf7eb" stroke="#ebdcb9" strokeWidth="0.5" />
+                  <circle cx={fx} cy={fy} r="3" fill="#d4869a" />
+
+                  {/* Central gold little stars on each wedge */}
+                  <path
+                    d={`M ${cx + 50 * Math.cos(a_mid)} ${cyTop + 12 * Math.sin(a_mid)} L ${cx + 52 * Math.cos(a_mid)} ${cyTop + 10 * Math.sin(a_mid)}`}
+                    stroke="#d9a85e"
+                    strokeWidth="1.2"
+                    opacity="0.8"
                   />
-                  {/* Strawberry Slice Topper on rosette */}
-                  <circle
-                    cx={cx + (rx * 0.85) * Math.cos(midAngle)}
-                    cy={cyTop + (ry * 0.85) * Math.sin(midAngle)}
-                    r="2"
-                    fill="#e11d48"
-                  />
-                </g>
+                </motion.g>
               );
             })}
 
-            {/* Cut Lines across the cake (drawn progressively) */}
-            {stage >= 1 && (
-              <line
-                x1={cx - rx}
-                y1={cyTop}
-                x2={cx + rx}
-                y2={cyTop}
-                stroke="#fff"
-                strokeWidth="2.5"
-                strokeDasharray="4 2"
-                opacity="0.95"
-              />
-            )}
-            {stage >= 2 && (
-              <line
-                x1={cx - rx * 0.5}
-                y1={cyTop - ry * 0.866}
-                x2={cx + rx * 0.5}
-                y2={cyTop + ry * 0.866}
-                stroke="#fff"
-                strokeWidth="2.5"
-                strokeDasharray="4 2"
-                opacity="0.95"
-              />
-            )}
-            {stage >= 3 && (
-              <line
-                x1={cx - rx * 0.5}
-                y1={cyTop + ry * 0.866}
-                x2={cx + rx * 0.5}
-                y2={cyTop - ry * 0.866}
-                stroke="#fff"
-                strokeWidth="2.5"
-                strokeDasharray="4 2"
-                opacity="0.95"
-              />
-            )}
+            {/* Glowing cut lines overlays (when whole) */}
+            <g opacity={stage >= 4 ? 0 : 0.65}>
+              {stage >= 1 && (
+                <line x1={cx} y1={cyTop - ry} x2={cx} y2={cyTop + ry} stroke="#fff" strokeWidth="2.5" strokeDasharray="3 3" />
+              )}
+              {stage >= 2 && (
+                <line x1={cx - rx * Math.cos(Math.PI/6)} y1={cyTop - ry * Math.sin(Math.PI/6)} x2={cx + rx * Math.cos(Math.PI/6)} y2={cyTop + ry * Math.sin(Math.PI/6)} stroke="#fff" strokeWidth="2.5" strokeDasharray="3 3" />
+              )}
+              {stage >= 3 && (
+                <line x1={cx - rx * Math.cos(Math.PI/6)} y1={cyTop + ry * Math.sin(Math.PI/6)} x2={cx + rx * Math.cos(Math.PI/6)} y2={cyTop - ry * Math.sin(Math.PI/6)} stroke="#fff" strokeWidth="2.5" strokeDasharray="3 3" />
+              )}
+            </g>
 
-            {/* Animated Silver Knife */}
-            {activeKnife !== null && (
-              <motion.g
-                initial={{
-                  x: activeKnife === 0 ? cx - 140 : cx - 100,
-                  y: activeKnife === 0 ? cyTop - 80 : cyTop - 100,
-                  rotate: activeKnife === 0 ? 25 : activeKnife === 1 ? -35 : 45,
-                  opacity: 0,
-                }}
-                animate={{
-                  x: [
-                    activeKnife === 0 ? cx - 140 : cx - 100,
-                    cx,
-                    activeKnife === 0 ? cx + 140 : cx + 100,
-                  ],
-                  y: [cyTop - 80, cyTop, cyTop + 70],
-                  opacity: [0, 1, 1, 0],
-                }}
-                transition={{ duration: 1.2, ease: "easeInOut" }}
-                className="pointer-events-none"
-              >
-                {/* Silver Blade */}
-                <path
-                  d="M -60 -4 L 40 -2 L 50 0 L 40 2 L -60 4 Z"
-                  fill="url(#silverKnife)"
-                  filter="url(#cakeCutShadow)"
-                />
-                {/* Golden Handle */}
-                <rect x="-95" y="-6" width="35" height="12" rx="3" fill="url(#goldKnifeHandle)" />
-                <circle cx="-77" cy="0" r="2" fill="#fff" opacity="0.6" />
-              </motion.g>
-            )}
+             {/* Knife slash cutting animations */}
+            <AnimatePresence>
+              {activeKnife !== null && (
+                <motion.g
+                  key={`knife-${activeKnife}`}
+                  initial={{ x: 120, y: -90, rotate: -40, opacity: 0 }}
+                  animate={
+                    activeKnife === 0
+                      ? {
+                          x: [120, 20, 20, 80],
+                          y: [-90, -10, 30, -50],
+                          rotate: [-40, -90, -90, -40],
+                          opacity: [0, 1, 1, 0],
+                        }
+                      : activeKnife === 1
+                      ? {
+                          x: [120, -20, 50, 80],
+                          y: [-90, -20, 20, -50],
+                          rotate: [-45, -30, -30, -40],
+                          opacity: [0, 1, 1, 0],
+                        }
+                      : {
+                          x: [120, 50, -20, 80],
+                          y: [-90, -20, 20, -50],
+                          rotate: [-45, -150, -150, -40],
+                          opacity: [0, 1, 1, 0],
+                        }
+                  }
+                  transition={{ duration: 1.4, ease: "easeInOut" }}
+                  style={{ transformOrigin: "200px 135px" }}
+                >
+                  <path d="M280 40 L310 130 L302 133 L272 44 Z" fill="url(#rblade)" stroke="#cbd5e1" />
+                  <rect x="294" y="128" width="22" height="34" rx="3" fill="#4a3b52" />
+                </motion.g>
+              )}
+            </AnimatePresence>
 
-            {/* Crumb & Sparkle Particles */}
+            {/* Cut Particles Layer */}
             {particles.map((p) => (
               <circle
                 key={p.id}
@@ -3680,28 +3557,98 @@ export function CakeCuttingScene({ stage, onStage }: { stage: number; onStage: (
           </svg>
         </div>
 
-        {/* CTA Button once cutting is complete */}
-        <div className="relative z-30 mt-3 min-h-[50px] flex items-center justify-center">
-          {stage >= 5 && (
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 10 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <button
-                onClick={() => onStage(6)}
-                className="btn-breathe-glow btn-pill-rose font-serif text-sm tracking-wide shadow-[0_0_25px_rgba(244,63,94,0.5)] cursor-pointer"
-              >
-                Share the Happiness ♥ →
-              </button>
-            </motion.div>
-          )}
-        </div>
+        {stage >= 5 && (
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.8 }}
+            className="mt-6 z-30 flex flex-col items-center gap-3"
+          >
+            <p className="font-script text-2xl text-gold glow-gold">
+              Yay! Let's share the happiness ❤️
+            </p>
+            <PrimaryButton onClick={() => onStage(6)}>
+              Taste the Sweetness ✦
+            </PrimaryButton>
+          </motion.div>
+        )}
       </div>
     </div>
   );
 }
 
+
+/* Scene 8 — Share the Happiness                                      */
+/* ------------------------------------------------------------------ */
+
+function HappinessIcon({ icon, className }: { icon: HappinessItem["icon"]; className?: string }) {
+  const props = { className: cn("h-6 w-6", className || "text-gold glow-gold") };
+  switch (icon) {
+    case "smile":
+      return <Smile {...props} />;
+    case "laugh":
+      return <Laugh {...props} />;
+    case "eyes":
+      return <Eye {...props} />;
+    case "memories":
+      return <ImageIcon {...props} />;
+    case "adventures":
+      return <Compass {...props} />;
+    case "future":
+      return <Sparkles {...props} />;
+  }
+}
+
+function CardHearts({ active }: { active: boolean }) {
+  const [hearts, setHearts] = useState<{ id: number; left: number; size: number; delay: number }[]>([]);
+
+  useEffect(() => {
+    if (active) {
+      const generated = Array.from({ length: 6 }).map((_, i) => ({
+        id: i,
+        left: 10 + Math.random() * 80,
+        size: 8 + Math.random() * 8,
+        delay: Math.random() * 0.4,
+      }));
+      setHearts(generated);
+    } else {
+      setHearts([]);
+    }
+  }, [active]);
+
+  if (!active || hearts.length === 0) return null;
+
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
+      {hearts.map((h) => (
+        <motion.div
+          key={h.id}
+          initial={{ y: 80, x: 0, opacity: 0, scale: 0.5 }}
+          animate={{
+            y: [-20, -100],
+            x: [0, Math.random() * 30 - 15, Math.random() * 40 - 20],
+            opacity: [0, 0.9, 0],
+            scale: [0.5, 1.2, 0.8],
+          }}
+          transition={{
+            duration: 2.2,
+            ease: "easeOut",
+            delay: h.delay,
+          }}
+          style={{
+            position: "absolute",
+            left: `${h.left}%`,
+            width: h.size,
+            height: h.size,
+          }}
+          className="text-rose-400/90 fill-rose-400/90"
+        >
+          <Heart size={h.size} className="fill-current" />
+        </motion.div>
+      ))}
+    </div>
+  );
+}
 
 function ShareHappinessScene({
   opened,
@@ -3713,100 +3660,15 @@ function ShareHappinessScene({
   onContinue: () => void;
 }) {
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
+  const [isFlipped, setIsFlipped] = useState(false);
+  const isFlippingRef = useRef(false);
 
-  // 6 Collectible Cake Flavors with matching imagery & reasons
-  const cakeDetails = [
-    {
-      id: "smile",
-      flavor: "Strawberry Rose",
-      label: "Your Smile",
-      sliceImg: "/images/cake-strawberry.jpg",
-      cardFeaturedImg: "/images/card-featured-1.jpg",
-      color: "#f472b6",
-      glow: "rgba(244, 114, 182, 0.45)",
-      titleColor: "text-[#f472b6]",
-      message: "The kind of smile that makes the whole room feel like home.",
-    },
-    {
-      id: "laugh",
-      flavor: "Dark Chocolate Truffle",
-      label: "Your Laugh",
-      sliceImg: "/images/cake-chocolate.jpg",
-      cardFeaturedImg: "/images/card-featured-2.jpg",
-      color: "#fb923c",
-      glow: "rgba(251, 146, 60, 0.45)",
-      titleColor: "text-[#fb923c]",
-      message: "My favorite sound — the one I want to hear for the rest of my life.",
-    },
-    {
-      id: "eyes",
-      flavor: "Vanilla Champagne",
-      label: "Your Eyes",
-      sliceImg: "/images/cake-vanilla.jpg",
-      cardFeaturedImg: "/images/card-featured-3.jpg",
-      color: "#fef08a",
-      glow: "rgba(250, 204, 21, 0.45)",
-      titleColor: "text-[#fef08a]",
-      message: "I could get lost in them a thousand times and never want to be found.",
-    },
-    {
-      id: "memories",
-      flavor: "Red Velvet Royale",
-      label: "Our Memories",
-      sliceImg: "/images/cake-redvelvet.jpg",
-      cardFeaturedImg: "/images/card-featured-4.jpg",
-      color: "#fb7185",
-      glow: "rgba(244, 63, 94, 0.45)",
-      titleColor: "text-[#fb7185]",
-      message: "Every moment with you is a page in my favorite story.",
-    },
-    {
-      id: "adventures",
-      flavor: "Blueberry Dream",
-      label: "Our Adventures",
-      sliceImg: "/images/cake-blueberry.jpg",
-      cardFeaturedImg: "/images/card-featured-5.jpg",
-      color: "#c084fc",
-      glow: "rgba(192, 132, 252, 0.45)",
-      titleColor: "text-[#c084fc]",
-      message: "Every road is better when you're holding my hand.",
-    },
-    {
-      id: "future",
-      flavor: "Salted Caramel Glow",
-      label: "Our Future",
-      sliceImg: "/images/cake-caramel.jpg",
-      cardFeaturedImg: "/images/card-featured-6.jpg",
-      color: "#fbbf24",
-      glow: "rgba(245, 158, 11, 0.45)",
-      titleColor: "text-[#fbbf24]",
-      message: "The best chapters are the ones we haven't written yet.",
-    },
-  ];
-
-  const handleSelectCake = useCallback(
-    (idx: number) => {
-      setActiveIdx(idx);
-      const item = cakeDetails[idx];
-      if (item && !opened.includes(item.id)) {
-        onOpen(item.id);
-      }
-    },
-    [opened, onOpen]
-  );
-
-  const [showIncompleteNotice, setShowIncompleteNotice] = useState(false);
-
-  const handleClose = useCallback(() => {
-    setActiveIdx(null);
-  }, []);
-
-  // Keyboard navigation (Escape to close) & body scroll lock
+  // Body scroll lock and Escape key listener
   useEffect(() => {
     if (activeIdx !== null) {
       document.body.style.overflow = "hidden";
       const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === "Escape") handleClose();
+        if (e.key === "Escape") setActiveIdx(null);
       };
       window.addEventListener("keydown", handleKeyDown);
       return () => {
@@ -3814,284 +3676,627 @@ function ShareHappinessScene({
         window.removeEventListener("keydown", handleKeyDown);
       };
     }
-  }, [activeIdx, handleClose]);
+  }, [activeIdx]);
 
-  const isComplete = opened.length >= cakeDetails.length;
+  const handleFlip = useCallback(() => {
+    if (isFlippingRef.current) return;
+    isFlippingRef.current = true;
+    setIsFlipped((f) => !f);
+    setTimeout(() => {
+      isFlippingRef.current = false;
+    }, 450);
+  }, []);
 
-  const handleContinueClick = () => {
-    if (activeIdx !== null) return; // Do not navigate while detail card is open
-    if (!isComplete) {
-      setShowIncompleteNotice(true);
-      setTimeout(() => setShowIncompleteNotice(false), 3000);
-      return;
+  const handleOpen = (idx: number) => {
+    setActiveIdx(idx);
+    setIsFlipped(false);
+    const item = happiness[idx];
+    if (!opened.includes(item.id)) {
+      onOpen(item.id);
     }
-    onContinue();
+    
+    // Auto-flip to reason after initial reveal
+    setTimeout(() => {
+      setIsFlipped(true);
+    }, 550);
   };
 
+  // 6 Distinct Light & Medium-Tone Luxury Themes
+  const cardThemes = [
+    {
+      id: "smile",
+      title: "Your Smile",
+      themeSubtitle: "Soft Blush & Gentle Petals",
+      primaryColor: "#831843", // Deep rich rose
+      subtitleColor: "#9d174d",
+      borderColor: "#f472b6",
+      accentBg: "#fce7f3",
+      cardBg: "linear-gradient(145deg, #fff0f3 0%, #ffd6e0 50%, #fecdd3 100%)",
+      unopenedBg: "linear-gradient(145deg, #fff8fa 0%, #feeef3 100%)",
+      popupCoverBg: "linear-gradient(150deg, #fff5f7 0%, #fedee5 55%, #fecad5 100%)",
+      popupBackBg: "linear-gradient(150deg, #fff0f3 0%, #fde2e8 55%, #fed4dc 100%)",
+      badgeColor: "#be185d",
+      badgeBg: "rgba(190, 24, 93, 0.12)",
+      shadowColor: "rgba(244, 114, 182, 0.35)",
+      seal: "Keepsake Love Card",
+      type: "smile",
+    },
+    {
+      id: "laugh",
+      title: "Your Laugh",
+      themeSubtitle: "Warm Champagne & Sparkles",
+      primaryColor: "#7c2d12", // Warm cognac/amber
+      subtitleColor: "#9a3412",
+      borderColor: "#fb923c",
+      accentBg: "#ffedd5",
+      cardBg: "linear-gradient(145deg, #fffbeb 0%, #fef3c7 50%, #fed7aa 100%)",
+      unopenedBg: "linear-gradient(145deg, #fffdf7 0%, #fef8eb 100%)",
+      popupCoverBg: "linear-gradient(150deg, #fffaf0 0%, #feeecf 55%, #fde4b8 100%)",
+      popupBackBg: "linear-gradient(150deg, #fffcf5 0%, #fef0d7 55%, #fde6c1 100%)",
+      badgeColor: "#c2410c",
+      badgeBg: "rgba(194, 65, 12, 0.12)",
+      shadowColor: "rgba(251, 146, 60, 0.35)",
+      seal: "Celebration Card",
+      type: "laugh",
+    },
+    {
+      id: "eyes",
+      title: "Your Eyes",
+      themeSubtitle: "Lavender & Starlight Dream",
+      primaryColor: "#3b0764", // Royal deep violet
+      subtitleColor: "#581c87",
+      borderColor: "#c084fc",
+      accentBg: "#f3e8ff",
+      cardBg: "linear-gradient(145deg, #faf5ff 0%, #f3e8ff 50%, #e9d5ff 100%)",
+      unopenedBg: "linear-gradient(145deg, #fdfbfe 0%, #f8f2fd 100%)",
+      popupCoverBg: "linear-gradient(150deg, #fbf7ff 0%, #edd8ff 55%, #e2ceff 100%)",
+      popupBackBg: "linear-gradient(150deg, #faf5ff 0%, #ede3ff 55%, #e4d3ff 100%)",
+      badgeColor: "#6b21a8",
+      badgeBg: "rgba(107, 33, 168, 0.12)",
+      shadowColor: "rgba(192, 132, 252, 0.35)",
+      seal: "Moonlight Dream Card",
+      type: "eyes",
+    },
+    {
+      id: "memories",
+      title: "Our Memories",
+      themeSubtitle: "Warm Ivory Scrapbook",
+      primaryColor: "#451a03", // Vintage dark sepia
+      subtitleColor: "#78350f",
+      borderColor: "#d9a85e",
+      accentBg: "#fef3c7",
+      cardBg: "linear-gradient(145deg, #fefce8 0%, #fef9c3 50%, #fef08a 100%)",
+      unopenedBg: "linear-gradient(145deg, #fffef7 0%, #fefbe8 100%)",
+      popupCoverBg: "linear-gradient(150deg, #fffdf2 0%, #fef6cf 55%, #fdecb2 100%)",
+      popupBackBg: "linear-gradient(150deg, #fffef5 0%, #fef8db 55%, #fdedbf 100%)",
+      badgeColor: "#854d0e",
+      badgeBg: "rgba(133, 77, 14, 0.12)",
+      shadowColor: "rgba(217, 168, 94, 0.35)",
+      seal: "Scrapbook Keepsake",
+      type: "memories",
+    },
+    {
+      id: "adventures",
+      title: "Our Adventures",
+      themeSubtitle: "Sage & Travel Postcard",
+      primaryColor: "#14331e", // Deep forest green
+      subtitleColor: "#1b4324",
+      borderColor: "#86a789",
+      accentBg: "#e7efe4",
+      cardBg: "linear-gradient(145deg, #f4f7f2 0%, #e7efe4 50%, #d8e5d4 100%)",
+      unopenedBg: "linear-gradient(145deg, #fafbf9 0%, #eff5ee 100%)",
+      popupCoverBg: "linear-gradient(150deg, #f6f9f4 0%, #e1ebd9 55%, #d1e2cb 100%)",
+      popupBackBg: "linear-gradient(150deg, #f8faf6 0%, #e5eedf 55%, #d6e5d1 100%)",
+      badgeColor: "#2d5a37",
+      badgeBg: "rgba(45, 90, 55, 0.12)",
+      shadowColor: "rgba(134, 167, 137, 0.35)",
+      seal: "Travel Postcard",
+      type: "adventures",
+    },
+    {
+      id: "future",
+      title: "Our Future",
+      themeSubtitle: "Rose Gold & Constellations",
+      primaryColor: "#4c0519", // Deep romantic burgundy
+      subtitleColor: "#881337",
+      borderColor: "#fb7185",
+      accentBg: "#ffe4e6",
+      cardBg: "linear-gradient(145deg, #fff1f2 0%, #ffe4e6 50%, #fecdd3 100%)",
+      unopenedBg: "linear-gradient(145deg, #fff8f9 0%, #fdf0f2 100%)",
+      popupCoverBg: "linear-gradient(150deg, #fff2f4 0%, #fed8df 55%, #fcc1cd 100%)",
+      popupBackBg: "linear-gradient(150deg, #fff5f6 0%, #fedfe5 55%, #fcc9d4 100%)",
+      badgeColor: "#9f1239",
+      badgeBg: "rgba(159, 18, 57, 0.12)",
+      shadowColor: "rgba(251, 113, 133, 0.35)",
+      seal: "Constellation Card",
+      type: "future",
+    },
+  ];
+
   return (
-    <div className="scene-container relative min-h-screen min-h-[100dvh] h-auto overflow-x-hidden overflow-y-auto select-none bg-[#0c0209] flex flex-col justify-between py-4 sm:py-6">
-      {/* 1. SIMPLE, ELEGANT, ROMANTIC BIRTHDAY BACKGROUND (CSS GRADIENTS & SUBTLE ATMOSPHERICS) */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        {/* Deep burgundy, warm rose, champagne gold, and midnight plum gradients */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#180512] via-[#24081a] to-[#0c0209]" />
-        {/* Soft atmospheric radial lighting */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_15%,_rgba(244,114,182,0.18)_0%,_rgba(217,168,94,0.1)_40%,_transparent_75%)]" />
-        {/* Gentle candlelight warmth in the center */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_50%,_rgba(217,168,94,0.08)_0%,_transparent_65%)]" />
-        {/* Restrained cinematic vignette */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_50%,_rgba(8,1,6,0.85)_100%)]" />
-      </div>
-
-      {/* Floating Rose Petals & Gentle Bokeh */}
+    <div className="scene-container relative">
+      <BackgroundLayer src={assets.countdownGarden} overlay />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(61,15,24,0.45),_transparent_75%)]" />
       <ParticleField density="low" petals={true} dots={false} />
+      <CardHearts active={activeIdx !== null} />
 
-      <div className="relative z-10 flex min-h-full flex-1 flex-col items-center justify-between px-3 sm:px-6 w-full max-w-4xl mx-auto">
-        {/* 2. COMPACT EDITORIAL HEADER */}
+      <div className="relative z-10 flex min-h-full flex-1 flex-col items-center justify-start overflow-y-auto p-4 py-8 select-none">
+        {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: -10 }}
+          initial={{ opacity: 0, y: -15 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-          className="text-center w-full max-w-lg mb-2 sm:mb-4"
+          className="max-w-3xl text-center w-full mt-4"
         >
-          {/* Eyebrow */}
-          <div className="flex items-center justify-center gap-1.5">
-            <span className="text-[10px] sm:text-[11px] uppercase tracking-[0.28em] text-[#d9a85e] font-serif font-bold">
-              Sweet Collectibles
-            </span>
-            <span className="text-rose-400 text-[10px] leading-none">♥</span>
-          </div>
-
-          {/* Main Heading */}
-          <h2 className="font-serif text-2xl sm:text-3xl md:text-4xl text-white tracking-wide mt-0.5 font-bold leading-tight drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)]">
-            Yay! Let's share the{" "}
-            <span className="font-serif italic font-normal text-rose-300 drop-shadow-[0_0_15px_rgba(244,114,182,0.6)]">
-              happiness
-            </span>
+          <span className="text-xs uppercase tracking-[0.3em] text-gold font-medium">Collectible Memories</span>
+          <h2 className="font-serif text-3xl font-bold sm:text-5xl gradient-text glow-gold mt-2">
+            Yay! Let's share the happiness
           </h2>
-
-          {/* Decorative Divider with Heart */}
-          <div className="flex items-center justify-center gap-2 my-1 text-[#d9a85e]/70">
-            <span className="w-8 sm:w-12 h-[1px] bg-gradient-to-r from-transparent to-[#d9a85e]/60" />
-            <Heart className="w-2.5 h-2.5 text-rose-400 fill-rose-400/80 drop-shadow-[0_0_6px_rgba(244,114,182,0.6)]" />
-            <span className="w-8 sm:w-12 h-[1px] bg-gradient-to-l from-transparent to-[#d9a85e]/60" />
-          </div>
-
-          {/* Subtitle */}
-          <p className="text-[11px] sm:text-xs text-rose-100/85 font-serif max-w-sm mx-auto leading-tight">
-            Six sweet cake slices — each holding an individual treasured memory with you.
+          <p className="mt-2.5 text-xs text-white/70 max-w-md mx-auto font-sans leading-relaxed">
+            Click on each memory card to reveal the special reasons why you are so precious to me.
           </p>
         </motion.div>
 
-        {/* 3. COMPACT BALANCED 6-CAKE RESPONSIVE GRID (3 COLS DESKTOP, 2 COLS MOBILE) */}
-        <div className="w-full max-w-3xl mx-auto my-auto flex flex-col items-center">
-          <div className="w-full grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3.5 md:gap-4 items-stretch">
-            {cakeDetails.map((cake, globalIdx) => {
-              const isOpened = opened.includes(cake.id);
-
-              return (
-                <motion.button
-                  key={cake.id}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: globalIdx * 0.04, duration: 0.4 }}
-                  whileHover={{ y: -3, scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => handleSelectCake(globalIdx)}
-                  className="group relative flex flex-col items-center text-center cursor-pointer select-none outline-none focus:outline-none transition-all p-2 sm:p-2.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/10 hover:border-rose-400/40 shadow-md"
-                  aria-label={`Select ${cake.flavor} - ${cake.label}`}
-                >
-                  {/* Candlelight Aura Glow */}
-                  <div
-                    className={cn(
-                      "absolute top-1.5 w-20 h-20 sm:w-26 sm:h-26 rounded-full blur-xl pointer-events-none transition-opacity duration-300",
-                      isOpened
-                        ? "opacity-80 bg-rose-500/25"
-                        : "opacity-35 group-hover:opacity-70 bg-amber-400/20"
-                    )}
-                  />
-
-                  {/* Cake Image Container — Consistent Aspect Ratio & Filled */}
-                  <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden bg-black/40 border border-white/10 group-hover:border-rose-400/40 transition-colors shadow-md">
-                    <img
-                      src={cake.sliceImg}
-                      alt={cake.flavor}
-                      className="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).src = cake.cardFeaturedImg;
-                      }}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
-                  </div>
-
-                  {/* Title beneath cake */}
-                  <div className="mt-1 flex flex-col items-center">
-                    <h3
-                      className={cn(
-                        "font-serif text-[11px] sm:text-xs md:text-[13px] font-bold tracking-wide transition-colors leading-tight",
-                        cake.titleColor,
-                        "group-hover:brightness-125 drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]"
-                      )}
-                    >
-                      {cake.flavor}
-                    </h3>
-                    {/* Personal Label */}
-                    <span className="font-serif text-[10px] sm:text-[11px] text-rose-100/90 tracking-wider mt-0.5 font-medium drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
-                      {cake.label}
-                    </span>
-                    {/* Small Heart Interaction */}
-                    <div className="mt-1 flex items-center justify-center">
-                      <Heart
-                        className={cn(
-                          "w-2.5 h-2.5 sm:w-3 sm:h-3 transition-all",
-                          isOpened
-                            ? "text-rose-400 fill-rose-400 drop-shadow-[0_0_8px_rgba(244,114,182,0.85)] scale-110"
-                            : "text-white/35 group-hover:text-rose-300 group-hover:scale-110"
-                        )}
-                      />
-                    </div>
-                  </div>
-                </motion.button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* 4. INDIVIDUAL MEMORY MODAL OVERLAY (CLOSE-ONLY INTERACTION) */}
-        <AnimatePresence>
-          {activeIdx !== null && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.25 }}
-              className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md"
-              onClick={handleClose}
-            >
-              <motion.div
-                initial={{ opacity: 0, scale: 0.92, y: 15 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.92, y: 15 }}
-                transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                className="w-full max-w-[380px] sm:max-w-[410px] rounded-[24px] p-4 sm:p-5 flex flex-col items-center text-center overflow-y-auto max-h-[90dvh] relative shadow-[0_25px_60px_rgba(0,0,0,0.95)] border border-rose-300/35 bg-gradient-to-b from-[#240816]/98 via-[#180510]/98 to-[#0e0207] ring-1 ring-white/10"
-                style={{
-                  boxShadow: `0 25px 60px rgba(0,0,0,0.95), 0 0 35px ${cakeDetails[activeIdx].glow}`,
+        {/* 6 Cards Grid - 6 Unique Light & Medium Luxury Cards */}
+        <div className="mt-8 sm:mt-12 grid w-full max-w-4xl grid-cols-2 gap-3.5 sm:gap-6 sm:grid-cols-3 px-1.5 sm:px-6">
+          {happiness.map((h, i) => {
+            const isOpened = opened.includes(h.id);
+            const theme = cardThemes[i];
+            return (
+              <motion.button
+                key={h.id}
+                initial={{ opacity: 0, y: 25 }}
+                animate={{ opacity: 1, y: 0 }}
+                whileHover={{
+                  y: -6,
+                  scale: 1.03,
+                  boxShadow: `0 18px 36px rgba(0, 0, 0, 0.25), 0 0 25px ${theme.shadowColor}`,
+                  borderColor: theme.borderColor,
                 }}
-                onClick={(e) => e.stopPropagation()}
+                whileTap={{ scale: 0.97 }}
+                transition={{ delay: i * 0.08, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                onClick={() => handleOpen(i)}
+                style={{
+                  background: isOpened ? theme.cardBg : theme.unopenedBg,
+                  boxShadow: isOpened
+                    ? `0 12px 28px rgba(0,0,0,0.22), 0 0 20px ${theme.shadowColor}, inset 0 1px 1px rgba(255,255,255,0.9)`
+                    : "0 8px 20px rgba(0,0,0,0.18), inset 0 1px 1px rgba(255,255,255,0.8)",
+                  borderColor: isOpened ? theme.borderColor : "rgba(255,255,255,0.5)",
+                }}
+                className={cn(
+                  "group relative flex flex-col items-center justify-between rounded-2xl p-3.5 sm:p-6 text-center border-2 cursor-pointer select-none transition-all duration-300 min-h-[11.5rem] sm:min-h-[13rem] overflow-hidden shadow-lg",
+                  "backdrop-blur-md"
+                )}
               >
-                {/* Subtle Rose Glow Backdrop */}
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,_rgba(244,114,182,0.15)_0%,_transparent_75%)] pointer-events-none" />
+                {/* Unique decorative elements per card */}
+                {theme.type === "smile" && (
+                  <>
+                    <div className="absolute top-2.5 left-2.5 opacity-95 group-hover:scale-110 transition-transform">
+                      <picture>
+                        <source srcSet="/assets/stickers/teddy-1.webp" type="image/webp" />
+                        <img
+                          src="/assets/stickers/teddy-1.gif"
+                          alt="Teddy"
+                          className="w-7 h-7 sm:w-8 sm:h-8 object-contain filter drop-shadow-[0_2px_6px_rgba(244,114,182,0.4)]"
+                        />
+                      </picture>
+                    </div>
+                    <div className="absolute top-3 right-3">
+                      <Heart className={cn("h-4 w-4", isOpened ? "fill-rose-500 text-rose-500 animate-pulse" : "text-rose-300")} />
+                    </div>
+                  </>
+                )}
 
-                {/* Header: Memory Title + Close Button ONLY */}
-                <div className="relative z-10 w-full flex items-center justify-between pb-2 border-b border-rose-400/20 px-1">
-                  <span className="text-[10px] sm:text-[11px] font-mono tracking-[0.25em] text-rose-200/90 font-bold uppercase">
-                    MEMORY #{activeIdx + 1} OF 6
-                  </span>
+                {theme.type === "laugh" && (
+                  <>
+                    <div className="absolute top-2.5 left-3 text-amber-600 text-xs font-serif font-bold animate-pulse">
+                      ✨ ♥
+                    </div>
+                    <div className="absolute top-3 right-3 flex items-center gap-0.5">
+                      <Sparkles className="h-4 w-4 text-amber-500" />
+                    </div>
+                  </>
+                )}
 
-                  <button
-                    onClick={handleClose}
-                    className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white/90 flex items-center justify-center transition-all cursor-pointer hover:scale-105 active:scale-95"
-                    title="Close panel"
-                    aria-label="Close panel"
+                {theme.type === "eyes" && (
+                  <>
+                    <div className="absolute top-2.5 left-3 text-sm text-purple-600">
+                      🌙
+                    </div>
+                    <div className="absolute top-3 right-3 text-xs text-purple-400 font-serif">
+                      ✧ ✦
+                    </div>
+                  </>
+                )}
+
+                {theme.type === "memories" && (
+                  <>
+                    <div className="absolute top-2 left-2 text-[11px] font-mono text-amber-800/60 font-bold">⌜</div>
+                    <div className="absolute top-2 right-2 text-[11px] font-mono text-amber-800/60 font-bold">⌝</div>
+                    <div className="absolute bottom-2 left-2 text-[11px] font-mono text-amber-800/40 font-bold">⌞</div>
+                    <div className="absolute bottom-2 right-2 text-[11px] font-mono text-amber-800/40 font-bold">⌟</div>
+                  </>
+                )}
+
+                {theme.type === "adventures" && (
+                  <>
+                    <div className="absolute top-2.5 left-2.5">
+                      <Compass className="h-4 w-4 text-emerald-700 group-hover:rotate-45 transition-transform duration-500" />
+                    </div>
+                    <div className="absolute top-3 right-3 text-[10px] tracking-widest text-emerald-800/70 font-mono font-bold">
+                      ✈ • •
+                    </div>
+                  </>
+                )}
+
+                {theme.type === "future" && (
+                  <>
+                    <div className="absolute top-2.5 left-3 text-xs font-bold text-rose-700">
+                      ∞
+                    </div>
+                    <div className="absolute top-3 right-3">
+                      <Heart className={cn("h-4 w-4", isOpened ? "fill-rose-600 text-rose-600 animate-pulse" : "text-rose-400")} />
+                    </div>
+                  </>
+                )}
+
+                {/* Card Icon in Thematic Medallion */}
+                <div
+                  className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full border transition-all duration-300 mt-2 bg-white/90 shadow-sm"
+                  style={{
+                    color: theme.primaryColor,
+                    borderColor: theme.borderColor,
+                    boxShadow: `0 4px 12px ${theme.shadowColor}`,
+                  }}
+                >
+                  <HappinessIcon icon={h.icon} className="h-6 w-6 sm:h-7 sm:w-7 transition-transform duration-500 group-hover:scale-110" />
+                </div>
+
+                {/* Card Title & Subtitle with high-contrast text */}
+                <div className="w-full my-auto py-1 px-1">
+                  <h3
+                    className="font-serif text-base sm:text-lg font-bold tracking-wide transition-colors duration-300 drop-shadow-sm"
+                    style={{ color: theme.primaryColor }}
                   >
-                    <X size={14} />
-                  </button>
-                </div>
-
-                {/* Large Featured Cake Image */}
-                <div className="relative z-10 w-full mt-3 aspect-[4/3] rounded-xl overflow-hidden border border-rose-300/25 shadow-2xl bg-black/60 group">
-                  <img
-                    src={cakeDetails[activeIdx].cardFeaturedImg}
-                    alt={cakeDetails[activeIdx].flavor}
-                    className="w-full h-full object-cover object-center transform group-hover:scale-105 transition-transform duration-700"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src = cakeDetails[activeIdx].sliceImg;
-                    }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
-                </div>
-
-                {/* Card Content (Category, Title, Heart Divider, Message) */}
-                <div className="relative z-10 w-full mt-3 flex flex-col items-center">
-                  <span className="font-serif uppercase text-[11px] sm:text-xs tracking-[0.25em] font-semibold text-rose-300/95">
-                    {cakeDetails[activeIdx].flavor}
-                  </span>
-
-                  <h3 className="font-serif text-base sm:text-lg font-bold tracking-[0.18em] text-white mt-0.5 uppercase">
-                    {cakeDetails[activeIdx].label}
+                    {h.title}
                   </h3>
-
-                  <div className="flex items-center justify-center gap-2 my-2 text-rose-400">
-                    <span className="w-8 h-[1px] bg-rose-400/40" />
-                    <Heart className="w-3 h-3 fill-rose-400 text-rose-400 drop-shadow-[0_0_6px_rgba(244,114,182,0.8)]" />
-                    <span className="w-8 h-[1px] bg-rose-400/40" />
-                  </div>
-
-                  <p className="font-serif italic text-sm sm:text-[15px] text-rose-100/95 leading-relaxed font-normal px-2 max-w-xs sm:max-w-sm select-text drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
-                    “{cakeDetails[activeIdx].message}”
+                  <p
+                    className="text-[11px] font-sans tracking-wide mt-0.5 font-medium truncate"
+                    style={{ color: theme.subtitleColor }}
+                  >
+                    {theme.themeSubtitle}
                   </p>
                 </div>
 
-                {/* Close Button at bottom */}
-                <button
-                  onClick={handleClose}
-                  className="relative z-10 w-full max-w-[200px] mt-4 py-2 px-6 rounded-full font-serif font-bold text-xs uppercase tracking-[0.2em] text-[#4a1220] bg-gradient-to-r from-[#e89cae] via-[#f3b0be] to-[#e89cae] shadow-[0_4px_18px_rgba(244,114,182,0.35)] hover:shadow-[0_6px_25px_rgba(244,114,182,0.6)] hover:brightness-105 active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <Heart className="w-3.5 h-3.5 fill-[#4a1220] text-[#4a1220]" />
-                  <span>CLOSE MEMORY</span>
-                </button>
-              </motion.div>
+                {/* Bottom Status Callout */}
+                <div className="w-full pt-1">
+                  <span
+                    className="text-[10px] uppercase tracking-widest block font-bold transition-colors"
+                    style={{ color: theme.primaryColor }}
+                  >
+                    {isOpened ? "♥ Relive Memory" : "✦ Tap to open"}
+                  </span>
+                </div>
+              </motion.button>
+            );
+          })}
+        </div>
+
+        {/* Continue button: disabled until all 6 cards opened, then glows with repeating pulse */}
+        <div className="mt-10 sm:mt-14 mb-8 text-center z-20 flex flex-col items-center gap-2">
+          {opened.length < 6 ? (
+            <button
+              disabled
+              className="px-8 py-3.5 rounded-full border border-white/10 bg-white/5 text-white/40 text-xs sm:text-sm font-sans tracking-widest uppercase cursor-not-allowed transition-all select-none"
+            >
+              Open all 6 cards to continue ({opened.length}/6)
+            </button>
+          ) : (
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{
+                scale: [1, 1.04, 1],
+                boxShadow: [
+                  "0 0 15px rgba(217, 168, 94, 0.4)",
+                  "0 0 35px rgba(217, 168, 94, 0.85), 0 0 50px rgba(244, 114, 182, 0.5)",
+                  "0 0 15px rgba(217, 168, 94, 0.4)",
+                ],
+              }}
+              transition={{
+                repeat: Infinity,
+                duration: 2,
+                ease: "easeInOut",
+              }}
+              className="rounded-full"
+            >
+              <PrimaryButton onClick={onContinue} className="shadow-2xl">
+                Discover More Memories ✦
+              </PrimaryButton>
             </motion.div>
           )}
-        </AnimatePresence>
-
-        {/* 5. COMPLETION-AWARE GLOWING CONTINUE BUTTON (PHASE 4 & 8) */}
-        <div className="mt-4 sm:mt-6 mb-2 text-center z-20 flex flex-col items-center gap-2">
-          {isComplete ? (
-            <motion.button
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: [1, 1.02, 1], opacity: 1 }}
-              transition={{
-                scale: { repeat: Infinity, duration: 2.2, ease: "easeInOut" },
-                opacity: { duration: 0.5 },
-              }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleContinueClick}
-              className="btn-breathe-glow group relative inline-flex items-center gap-2.5 px-8 py-3.5 rounded-full font-serif font-bold text-sm sm:text-base tracking-wide text-white bg-gradient-to-r from-rose-600 via-rose-500 to-amber-600 shadow-[0_0_25px_rgba(244,63,94,0.6),0_0_40px_rgba(217,168,94,0.35)] hover:shadow-[0_0_35px_rgba(244,63,94,0.85)] cursor-pointer border border-rose-300/50 transition-all"
-            >
-              <span>Continue to Special Gifts</span>
-              <span className="text-rose-200 group-hover:translate-x-1 transition-transform">♥ →</span>
-            </motion.button>
-          ) : (
-            <button
-              onClick={handleContinueClick}
-              className="group relative inline-flex items-center gap-2 px-6 py-3 rounded-full font-serif font-medium text-xs sm:text-sm tracking-wide text-white/50 bg-white/5 border border-white/15 hover:border-white/30 transition-all cursor-pointer"
-            >
-              <Heart className="w-3.5 h-3.5 text-rose-400/50" />
-              <span>Open all 6 memories to continue ({opened.length}/6)</span>
-            </button>
-          )}
-
-          {/* Helpful Incomplete Reminder */}
-          <AnimatePresence>
-            {showIncompleteNotice && (
-              <motion.p
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="text-xs text-rose-300 font-serif italic"
-              >
-                Please tap each of the 6 cakes to discover its sweet memory first ♥
-              </motion.p>
-            )}
-          </AnimatePresence>
         </div>
       </div>
+
+      {/* 3D Collectible Card Modal popup with Theme Extension */}
+      <AnimatePresence>
+        {activeIdx !== null && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setActiveIdx(null)}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 sm:p-6 backdrop-blur-md"
+          >
+            {/* 3D Perspective Card Wrapper */}
+            <div
+              className="relative w-full max-w-[340px] sm:max-w-md h-[480px] sm:h-[510px] max-h-[86vh] perspective-1000"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Card Container holding both faces with Accessible Flip */}
+              <motion.div
+                animate={{ rotateY: isFlipped ? 180 : 0, scale: isFlipped ? 1.02 : 1 }}
+                transition={{ type: "spring", stiffness: 90, damping: 14 }}
+                className="w-full h-full preserve-3d relative cursor-pointer outline-none"
+                tabIndex={0}
+                role="button"
+                aria-label="Flip collectible memory card"
+                onClick={handleFlip}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    handleFlip();
+                  }
+                }}
+              >
+                {/* 1. FRONT FACE (Card Cover) */}
+                <div
+                  className="absolute inset-0 rounded-3xl border-2 p-6 sm:p-8 flex flex-col items-center justify-between text-center backface-hidden overflow-hidden shadow-2xl"
+                  style={{
+                    background: cardThemes[activeIdx].popupCoverBg,
+                    borderColor: cardThemes[activeIdx].borderColor,
+                    boxShadow: `0 25px 60px rgba(0,0,0,0.6), 0 0 35px ${cardThemes[activeIdx].shadowColor}`,
+                  }}
+                >
+                  {/* Decorative corner filigrees */}
+                  <div className="absolute top-3.5 left-3.5 text-xs font-mono font-bold" style={{ color: cardThemes[activeIdx].subtitleColor }}>✦</div>
+                  <div className="absolute top-3.5 right-3.5 text-xs font-mono font-bold" style={{ color: cardThemes[activeIdx].subtitleColor }}>✦</div>
+                  <div className="absolute bottom-3.5 left-3.5 text-xs font-mono font-bold" style={{ color: cardThemes[activeIdx].subtitleColor }}>✦</div>
+                  <div className="absolute bottom-3.5 right-3.5 text-xs font-mono font-bold" style={{ color: cardThemes[activeIdx].subtitleColor }}>✦</div>
+
+                  {/* Inner dashed border */}
+                  <div
+                    className="absolute inset-3 rounded-2xl border border-dashed opacity-40 pointer-events-none"
+                    style={{ borderColor: cardThemes[activeIdx].borderColor }}
+                  />
+
+                  {/* Top Bar with Number, Seal, and Close Button */}
+                  <div className="w-full flex justify-between items-center z-10 px-1 pt-1">
+                    <span
+                      className="text-[10px] uppercase tracking-[0.25em] font-bold"
+                      style={{ color: cardThemes[activeIdx].subtitleColor }}
+                    >
+                      NO. 0{activeIdx + 1} / 06
+                    </span>
+                    <span
+                      className="text-[10px] uppercase tracking-wider px-2.5 py-0.5 rounded-full border font-bold shadow-sm"
+                      style={{
+                        color: cardThemes[activeIdx].badgeColor,
+                        backgroundColor: cardThemes[activeIdx].badgeBg,
+                        borderColor: cardThemes[activeIdx].borderColor,
+                      }}
+                    >
+                      {cardThemes[activeIdx].seal}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveIdx(null);
+                      }}
+                      className="p-1.5 rounded-full bg-black/10 hover:bg-black/20 text-neutral-800 transition-colors cursor-pointer"
+                      title="Close Card"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+
+                  {/* Center Themed Feature Medallion */}
+                  <div className="flex flex-col items-center gap-4 z-10 my-auto">
+                    <motion.div
+                      animate={{ scale: [1, 1.05, 1] }}
+                      transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
+                      className="relative flex h-24 w-24 sm:h-28 sm:w-28 items-center justify-center rounded-full bg-white/95 border-2 shadow-lg"
+                      style={{
+                        borderColor: cardThemes[activeIdx].borderColor,
+                        boxShadow: `0 8px 25px ${cardThemes[activeIdx].shadowColor}`,
+                      }}
+                    >
+                      {/* Individual Theme Feature Element */}
+                      {cardThemes[activeIdx].type === "smile" && (
+                        <div className="flex flex-col items-center justify-center">
+                          <picture>
+                            <source srcSet="/assets/stickers/teddy-1.webp" type="image/webp" />
+                            <img
+                              src="/assets/stickers/teddy-1.gif"
+                              alt="Teddy blowing kisses"
+                              className="w-16 h-16 sm:w-20 sm:h-20 object-contain filter drop-shadow-[0_2px_8px_rgba(244,114,182,0.5)]"
+                            />
+                          </picture>
+                        </div>
+                      )}
+
+                      {cardThemes[activeIdx].type === "laugh" && (
+                        <div className="flex flex-col items-center justify-center">
+                          <picture>
+                            <source srcSet="/assets/stickers/teddy-2.webp" type="image/webp" />
+                            <img
+                              src="/assets/stickers/teddy-2.gif"
+                              alt="Teddy joyful laugh"
+                              className="w-16 h-16 sm:w-20 sm:h-20 object-contain filter drop-shadow-[0_2px_8px_rgba(251,146,60,0.5)]"
+                            />
+                          </picture>
+                        </div>
+                      )}
+
+                      {cardThemes[activeIdx].type === "eyes" && (
+                        <div className="relative flex items-center justify-center">
+                          <span className="absolute -top-3 -right-2 text-xl">🌙</span>
+                          <Eye className="h-12 w-12 text-purple-700 drop-shadow-sm" />
+                          <span className="absolute -bottom-2 -left-2 text-xs text-purple-400">✦</span>
+                        </div>
+                      )}
+
+                      {cardThemes[activeIdx].type === "memories" && (
+                        <div className="relative flex flex-col items-center justify-center p-2 rounded-xl border border-amber-300/80 bg-white shadow-md rotate-[-2deg]">
+                          <div className="w-16 h-11 bg-amber-100/60 rounded-md overflow-hidden flex items-center justify-center">
+                            <ImageIcon className="h-7 w-7 text-amber-800/80" />
+                          </div>
+                          <span className="text-[8px] font-serif text-amber-900 mt-0.5 font-bold">Us Forever ♥</span>
+                          <Heart className="h-3 w-3 absolute -top-1 -right-1 fill-rose-500 text-rose-500 animate-pulse" />
+                        </div>
+                      )}
+
+                      {cardThemes[activeIdx].type === "adventures" && (
+                        <div className="relative flex items-center justify-center p-2 rounded-2xl bg-emerald-50 border border-emerald-300">
+                          <Compass className="h-12 w-12 text-emerald-800 drop-shadow-sm animate-[spin_16s_linear_infinite]" />
+                          <span className="absolute -bottom-1 -right-1 text-[9px] font-mono font-bold text-emerald-900 bg-emerald-200/80 px-1 rounded-sm">TRAVEL</span>
+                        </div>
+                      )}
+
+                      {cardThemes[activeIdx].type === "future" && (
+                        <div className="relative flex flex-col items-center justify-center">
+                          <div className="relative flex items-center justify-center">
+                            <Sparkles className="h-10 w-10 text-rose-600 drop-shadow-sm animate-pulse" />
+                            <span className="text-lg absolute">✨</span>
+                          </div>
+                          <span className="text-[10px] font-serif font-bold text-rose-800 mt-0.5 tracking-widest">∞ FOREVER</span>
+                        </div>
+                      )}
+                    </motion.div>
+
+                    <div>
+                      <h3
+                        className="font-serif text-2xl sm:text-3xl font-bold tracking-wide drop-shadow-sm"
+                        style={{ color: cardThemes[activeIdx].primaryColor }}
+                      >
+                        {happiness[activeIdx].title}
+                      </h3>
+                      <p
+                        className="text-xs font-sans tracking-wide mt-1 font-semibold"
+                        style={{ color: cardThemes[activeIdx].subtitleColor }}
+                      >
+                        {cardThemes[activeIdx].themeSubtitle}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Tap to Unveil Callout */}
+                  <div className="flex flex-col items-center gap-1.5 z-10 pb-1">
+                    <motion.span
+                      animate={{ y: [0, -3, 0] }}
+                      transition={{ repeat: Infinity, duration: 1.8, ease: "easeInOut" }}
+                      className="text-xs uppercase tracking-[0.2em] font-bold"
+                      style={{ color: cardThemes[activeIdx].primaryColor }}
+                    >
+                      Tap to Unveil Reason ♥
+                    </motion.span>
+                    <div
+                      className="w-14 h-0.5 rounded-full"
+                      style={{ backgroundColor: cardThemes[activeIdx].borderColor }}
+                    />
+                  </div>
+                </div>
+
+                {/* 2. BACK FACE (Revealed Reason Details with Premium Typography) */}
+                <div
+                  className="absolute inset-0 rounded-3xl border-2 p-6 sm:p-8 flex flex-col justify-between text-center backface-hidden rotate-y-180 overflow-hidden shadow-2xl"
+                  style={{
+                    background: cardThemes[activeIdx].popupBackBg,
+                    borderColor: cardThemes[activeIdx].borderColor,
+                    boxShadow: `0 25px 60px rgba(0,0,0,0.6), 0 0 35px ${cardThemes[activeIdx].shadowColor}`,
+                  }}
+                >
+                  {/* Glowing inner border accent */}
+                  <div
+                    className="absolute inset-3 rounded-2xl border border-dashed opacity-40 pointer-events-none"
+                    style={{ borderColor: cardThemes[activeIdx].borderColor }}
+                  />
+
+                  {/* Header */}
+                  <div className="relative z-10 flex justify-between items-center px-1">
+                    <span
+                      className="text-[10px] font-sans tracking-[0.3em] uppercase font-bold"
+                      style={{ color: cardThemes[activeIdx].subtitleColor }}
+                    >
+                      Reason #{activeIdx + 1} of 6
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveIdx(null);
+                      }}
+                      className="p-1.5 rounded-full bg-black/10 hover:bg-black/20 text-neutral-800 transition-colors cursor-pointer"
+                      title="Close Card"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+
+                  {/* Content details with custom typographic styling & guaranteed high contrast */}
+                  <div className="relative z-10 my-auto py-3 flex flex-col items-center select-text">
+                    <motion.div
+                      animate={{ y: [0, -4, 0] }}
+                      transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
+                      className="mb-3"
+                      style={{ color: cardThemes[activeIdx].primaryColor }}
+                    >
+                      <HappinessIcon icon={happiness[activeIdx].icon} className="h-10 w-10 drop-shadow-sm" />
+                    </motion.div>
+
+                    <h4
+                      className="font-serif text-sm tracking-[0.25em] font-bold uppercase mb-3"
+                      style={{ color: cardThemes[activeIdx].subtitleColor }}
+                    >
+                      {happiness[activeIdx].title}
+                    </h4>
+
+                    {/* Clear, readable, high-contrast message */}
+                    <p
+                      className="font-serif italic text-xl sm:text-2xl leading-relaxed font-semibold px-2 py-1 drop-shadow-sm"
+                      style={{ color: cardThemes[activeIdx].primaryColor }}
+                    >
+                      "{happiness[activeIdx].message}"
+                    </p>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="relative z-10 flex flex-col items-center gap-2">
+                    <span className="text-[10px] uppercase tracking-widest font-medium text-neutral-600">
+                      Tap card to flip back
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveIdx(null);
+                      }}
+                      className="rounded-full px-6 py-2 text-xs font-bold uppercase tracking-wider text-white border shadow-md active:scale-95 transition-all cursor-pointer"
+                      style={{
+                        backgroundColor: cardThemes[activeIdx].primaryColor,
+                        borderColor: cardThemes[activeIdx].borderColor,
+                      }}
+                    >
+                      Close Reason ♥
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-/* ------------------------------------------------------------------ */
+
 /* Scene 9 — Three Gifts                                              */
 /* ------------------------------------------------------------------ */
 
@@ -4215,6 +4420,7 @@ function GiftBox3D({
           rx="72"
           ry="12"
           fill="#000"
+          initial={false}
           animate={opened ? { opacity: 0.3, rx: 66 } : { opacity: 0.5, rx: 72 }}
           transition={{ duration: 0.6 }}
           filter={`url(#shadowFilter-${giftId})`}
@@ -4320,6 +4526,7 @@ function GiftBox3D({
 
         {/* Animated Box Lid with Ribbon Bow */}
         <motion.g
+          initial={false}
           animate={opened ? { y: -32, x: 26, rotate: 42, scale: 0.95 } : { y: 0, x: 0, rotate: 0 }}
           transition={{ type: "spring", stiffness: 65, damping: 12 }}
           style={{ transformOrigin: "100px 42px" }}

@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight } from "lucide-react";
 import { type IntroSceneItem } from "../../data/introSequences";
 import { CosmicStarfield } from "./CosmicStarfield";
 
