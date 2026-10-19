@@ -45,9 +45,7 @@ import { CosmicStoryIntroScene } from "./components/cinematic/CosmicStoryIntroSc
 import { CosmicStarfield } from "./components/cinematic/CosmicStarfield";
 import { CinematicTextIntroSequence } from "./components/cinematic/CinematicTextIntroSequence";
 import { mainWishesIntroScenes, videoIntroScenes } from "./data/introSequences";
-
-
-
+import { mainWishVideoConfig } from "./data/videos";
 /* ------------------------------------------------------------------ */
 /* Types                                                              */
 /* ------------------------------------------------------------------ */
@@ -6684,8 +6682,11 @@ function SpecialVideoScene({
 
   // Phase: "intro" (Cinematic text sequence) | "cinema" (active video playback)
   const [inCinemaMode, setInCinemaMode] = useState<boolean>(false);
+  const [videoSrc, setVideoSrc] = useState<string>(mainWishVideoConfig.src);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [hasError, setHasError] = useState<boolean>(false);
+  const [requiresUserInteraction, setRequiresUserInteraction] = useState<boolean>(false);
   const [isCompletedOverlay, setIsCompletedOverlay] = useState<boolean>(false);
   const [aspectRatio, setAspectRatio] = useState<number | null>(null);
   const [, setVideoDims] = useState<{ width: number; height: number } | null>(null);
@@ -6705,14 +6706,59 @@ function SpecialVideoScene({
 
   const startVideoPlayback = () => {
     setInCinemaMode(true);
-    // User can initiate playback with sound using native video controls or poster tap
-    if (videoRef.current) {
-      videoRef.current
+    const video = videoRef.current;
+    if (video) {
+      video
         .play()
+        .then(() => {
+          setIsLoading(false);
+          setIsPlaying(true);
+          setRequiresUserInteraction(false);
+        })
         .catch((err) => {
-          // Autoplay policy: browser awaits user tap/click to start with sound
-          console.log("Autoplay awaiting user interaction:", err?.name);
+          console.warn("Autoplay blocked by mobile browser policy; awaiting user tap", err);
+          setIsLoading(false);
+          setRequiresUserInteraction(true);
+          setIsPlaying(false);
         });
+    }
+  };
+
+  const handleUserTapPlay = () => {
+    setRequiresUserInteraction(false);
+    setIsLoading(true);
+    const video = videoRef.current;
+    if (video) {
+      video
+        .play()
+        .then(() => {
+          setIsLoading(false);
+          setIsPlaying(true);
+        })
+        .catch((e) => {
+          console.warn("Unmuted playback blocked, playing muted fallback:", e);
+          video.muted = true;
+          video
+            .play()
+            .then(() => {
+              setIsLoading(false);
+              setIsPlaying(true);
+            })
+            .catch(() => {
+              setIsLoading(false);
+            });
+        });
+    }
+  };
+
+  const togglePlay = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) {
+      handleUserTapPlay();
+    } else {
+      video.pause();
+      setIsPlaying(false);
     }
   };
 
@@ -6738,29 +6784,44 @@ function SpecialVideoScene({
 
   const handlePlaying = () => {
     setIsLoading(false);
+    setIsPlaying(true);
+    setRequiresUserInteraction(false);
   };
 
   const handleVideoEnded = () => {
     if (hasTransitionedRef.current) return;
+    setIsPlaying(false);
     setIsCompletedOverlay(true);
   };
 
   const handleVideoError = () => {
-    console.error("Main Wish Video failed to load (/assets/specail_wish_video.mp4)");
-    setIsLoading(false);
-    setHasError(true);
+    if (videoSrc !== mainWishVideoConfig.fallbackSrc) {
+      console.warn("Primary wish video failed, falling back to:", mainWishVideoConfig.fallbackSrc);
+      setVideoSrc(mainWishVideoConfig.fallbackSrc);
+      setIsLoading(true);
+    } else {
+      console.error("Main Wish Video failed to load all sources");
+      setIsLoading(false);
+      setHasError(true);
+    }
   };
 
   const handleRetry = () => {
     setHasError(false);
     setIsLoading(true);
+    setVideoSrc(mainWishVideoConfig.src);
     const video = videoRef.current;
     if (video) {
       video.load();
       video
         .play()
+        .then(() => {
+          setIsLoading(false);
+          setIsPlaying(true);
+        })
         .catch(() => {
           setIsLoading(false);
+          setRequiresUserInteraction(true);
         });
     }
   };
@@ -6770,14 +6831,17 @@ function SpecialVideoScene({
     const video = videoRef.current;
     if (video) {
       video.currentTime = 0;
-      video.play().catch(() => {});
+      video
+        .play()
+        .then(() => setIsPlaying(true))
+        .catch(() => setRequiresUserInteraction(true));
     }
   };
 
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 w-full h-full bg-[#050207] overflow-hidden flex flex-col items-center justify-between select-none z-40"
+      className="fixed inset-0 w-full h-full bg-[#050207] overflow-y-auto overflow-x-hidden flex flex-col items-center justify-between select-none z-40"
     >
       {/* Warm ambient cinematic lighting backdrop */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -6845,7 +6909,7 @@ function SpecialVideoScene({
         <div
           className="relative w-full rounded-xl sm:rounded-2xl border border-[rgba(217,168,94,0.35)] bg-black/90 shadow-[0_16px_50px_rgba(0,0,0,0.9),0_0_30px_rgba(217,168,94,0.12)] flex items-center justify-center overflow-hidden transition-all duration-300"
           style={{
-            aspectRatio: aspectRatio ? `${aspectRatio}` : undefined,
+            aspectRatio: aspectRatio ? `${aspectRatio}` : "16/9",
             maxHeight: "min(calc(100dvh - 100px), 720px)",
             maxWidth: aspectRatio
               ? `min(100%, calc(min(calc(100dvh - 100px), 720px) * ${aspectRatio}), 1120px)`
@@ -6853,21 +6917,29 @@ function SpecialVideoScene({
           }}
         >
           <video
+            key={videoSrc}
             ref={videoRef}
+            src={videoSrc}
             controls
             playsInline
             preload="metadata"
-            poster="/assets/personal_video_thumb.jpg"
+            poster={mainWishVideoConfig.poster}
             aria-label="A Personal Birthday Wish Video"
             onLoadedMetadata={handleLoadedMetadata}
+            onLoadedData={() => setIsLoading(false)}
             onCanPlay={handleCanPlay}
             onWaiting={handleWaiting}
             onPlaying={handlePlaying}
+            onPause={() => setIsPlaying(false)}
             onEnded={handleVideoEnded}
             onError={handleVideoError}
-            className="w-full h-full object-contain bg-black focus:outline-none"
+            onClick={togglePlay}
+            className="w-full h-full object-contain bg-black focus:outline-none cursor-pointer"
           >
-            <source src="/assets/specail_wish_video.mp4" type="video/mp4" />
+            <source src={videoSrc} type="video/mp4" />
+            {videoSrc !== mainWishVideoConfig.fallbackSrc && (
+              <source src={mainWishVideoConfig.fallbackSrc} type="video/mp4" />
+            )}
             Your browser does not support HTML5 video playback.
           </video>
 
@@ -6882,6 +6954,38 @@ function SpecialVideoScene({
                 Loading birthday wish...
               </span>
             </div>
+          )}
+
+          {/* User Gesture Play Prompt (iOS / Mobile Autoplay Fallback) */}
+          {requiresUserInteraction && inCinemaMode && !hasError && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/65 backdrop-blur-sm p-4 cursor-pointer"
+              onClick={handleUserTapPlay}
+            >
+              <button
+                onClick={handleUserTapPlay}
+                className="min-h-[46px] px-7 py-3 rounded-full bg-gradient-to-r from-rose-500 via-rose-600 to-amber-500 text-white font-serif text-sm sm:text-base font-medium shadow-2xl flex items-center gap-2.5 cursor-pointer hover:scale-105 active:scale-95 transition-transform"
+              >
+                <Play size={18} className="fill-white" />
+                <span>Tap to Play Birthday Wish ♥</span>
+              </button>
+              <p className="mt-2.5 text-[11px] text-white/80 font-mono">
+                Tap once to start with sound
+              </p>
+            </motion.div>
+          )}
+
+          {/* Paused Play Icon Overlay */}
+          {!isPlaying && !isLoading && !hasError && !requiresUserInteraction && inCinemaMode && (
+            <button
+              onClick={togglePlay}
+              className="absolute w-15 h-15 rounded-full bg-black/65 hover:bg-black/85 border border-white/30 text-white flex items-center justify-center shadow-2xl transition-all cursor-pointer hover:scale-105 active:scale-95 z-10 pointer-events-auto"
+              aria-label="Play video"
+            >
+              <Play className="w-7 h-7 fill-white text-white ml-0.5" />
+            </button>
           )}
 
           {/* Friendly Error Overlay with Retry */}

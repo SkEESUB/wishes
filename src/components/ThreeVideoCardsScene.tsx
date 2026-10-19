@@ -800,7 +800,7 @@ export function ThreeVideoCardsScene({ onContinue, audio }: ThreeVideoCardsScene
               >
                 {/* HTML5 Video Element */}
                 <video
-                  key={activeVideo.id}
+                  key={`${activeVideo.id}-${activeSourceUrl}`}
                   ref={videoRef}
                   src={activeSourceUrl}
                   poster={activeVideo.poster}
@@ -815,6 +815,9 @@ export function ThreeVideoCardsScene({ onContinue, audio }: ThreeVideoCardsScene
                     if (videoRef.current) {
                       setDuration(videoRef.current.duration);
                     }
+                  }}
+                  onLoadedData={() => {
+                    setIsLoading(false);
                   }}
                   onCanPlay={() => {
                     setIsLoading(false);
@@ -844,7 +847,12 @@ export function ThreeVideoCardsScene({ onContinue, audio }: ThreeVideoCardsScene
                   }}
                   onClick={togglePlay}
                   className="w-full h-full object-contain cursor-pointer"
-                />
+                >
+                  <source src={activeSourceUrl} type="video/mp4" />
+                  {activeVideo.fallbackSrc && activeVideo.fallbackSrc !== activeSourceUrl && (
+                    <source src={activeVideo.fallbackSrc} type="video/mp4" />
+                  )}
+                </video>
 
                 {/* ----------------------------------------------------------- */}
                 {/* CINEMATIC TRANSITION OVERLAY BEFORE PLAYING                */}
