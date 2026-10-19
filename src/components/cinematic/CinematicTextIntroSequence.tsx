@@ -7,19 +7,15 @@ import { CosmicStarfield } from "./CosmicStarfield";
 interface CinematicTextIntroSequenceProps {
   scenes: IntroSceneItem[];
   onComplete: () => void;
-  onSkip?: () => void;
   theme?: "wishes" | "video";
   className?: string;
-  allowSkip?: boolean;
 }
 
 export function CinematicTextIntroSequence({
   scenes,
   onComplete,
-  onSkip,
   theme = "wishes",
   className = "",
-  allowSkip = true,
 }: CinematicTextIntroSequenceProps) {
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
@@ -55,20 +51,6 @@ export function CinematicTextIntroSequence({
     }
   }, [currentIndex, scenes.length, onComplete, clearAutoTimer]);
 
-  // Handle direct skip
-  const handleSkip = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      clearAutoTimer();
-      if (onSkip) {
-        onSkip();
-      } else {
-        onComplete();
-      }
-    },
-    [clearAutoTimer, onSkip, onComplete]
-  );
-
   // Set up auto-advance timer for the active scene
   useEffect(() => {
     clearAutoTimer();
@@ -93,15 +75,12 @@ export function CinematicTextIntroSequence({
       if (e.key === "Enter" || e.key === " " || e.key === "ArrowRight") {
         e.preventDefault();
         handleAdvance();
-      } else if (e.key === "Escape" && allowSkip) {
-        e.preventDefault();
-        handleSkip(e as any);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleAdvance, handleSkip, allowSkip]);
+  }, [handleAdvance]);
 
   // Split words for staggered word reveal
   const words = currentScene.mainText.split(" ");
@@ -140,7 +119,7 @@ export function CinematicTextIntroSequence({
       {/* 1. Sophisticated Pure Black Cosmic Background with Twinkling Stars (No Shooting Stars) */}
       <CosmicStarfield showShootingStars={false} twinkleCount={50} />
 
-      {/* 2. TOP HEADER: BADGE & OPTIONAL SKIP PILL */}
+      {/* 2. TOP HEADER: BADGE */}
       <div className="relative z-10 w-full max-w-4xl flex items-center justify-between shrink-0 px-2 sm:px-4">
         {/* Badge or chapter label */}
         <div className="flex items-center gap-2">
@@ -156,20 +135,6 @@ export function CinematicTextIntroSequence({
             </motion.span>
           )}
         </div>
-
-        {/* Skip button (low profile, elegant) */}
-        {allowSkip && (
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={handleSkip}
-            className="min-h-[38px] px-3.5 py-1.5 rounded-full text-xs font-serif text-[#fff5ea]/75 hover:text-[#fff5ea] bg-black/40 hover:bg-black/60 border border-[rgba(217,168,94,0.25)] hover:border-[rgba(217,168,94,0.55)] backdrop-blur-md transition-all cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-95"
-            aria-label="Skip introduction"
-          >
-            <span>Skip</span>
-            <ArrowRight size={12} />
-          </motion.button>
-        )}
       </div>
 
       {/* 3. CENTER STAGE: CINEMATIC SCENE TEXT WITH WAITING ANIMATION */}

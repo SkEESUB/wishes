@@ -7,14 +7,12 @@ interface CosmicStoryIntroSceneProps {
   page: 1 | 2;
   onContinue: () => void;
   onBack?: () => void;
-  onSkip?: () => void;
 }
 
 export function CosmicStoryIntroScene({
   page,
   onContinue,
   onBack,
-  onSkip,
 }: CosmicStoryIntroSceneProps) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasNavigatedRef = useRef(false);
@@ -45,16 +43,6 @@ export function CosmicStoryIntroScene({
     }
     onBack?.();
   }, [onBack]);
-
-  const handleSkip = useCallback(() => {
-    if (hasNavigatedRef.current) return;
-    hasNavigatedRef.current = true;
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-    onSkip?.();
-  }, [onSkip]);
 
   useEffect(() => {
     hasNavigatedRef.current = false;
@@ -107,9 +95,9 @@ export function CosmicStoryIntroScene({
       {/* 1. Black Cosmic Background with Twinkling Stars (No Shooting Stars) */}
       <CosmicStarfield showShootingStars={false} twinkleCount={60} />
 
-      {/* 2. Top Navigation Bar (Back and Skip) */}
+      {/* 2. Top Navigation Bar (Back) */}
       <div className="relative z-10 w-full max-w-4xl flex items-center justify-between shrink-0 px-2 sm:px-4">
-        {onBack ? (
+        {onBack && (
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -122,24 +110,6 @@ export function CosmicStoryIntroScene({
           >
             <ArrowLeft size={13} />
             <span>Back</span>
-          </motion.button>
-        ) : (
-          <div />
-        )}
-
-        {onSkip && (
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleSkip();
-            }}
-            className="min-h-[38px] px-3.5 py-1.5 rounded-full text-xs font-serif text-[#fff5ea]/75 hover:text-[#fff5ea] bg-black/40 hover:bg-black/60 border border-[rgba(217,168,94,0.25)] hover:border-[rgba(217,168,94,0.55)] backdrop-blur-md transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
-            aria-label="Skip to videos"
-          >
-            <span>Skip to Films</span>
-            <ArrowRight size={13} />
           </motion.button>
         )}
       </div>

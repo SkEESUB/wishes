@@ -482,18 +482,6 @@ export function ThreeVideoCardsScene({ onContinue, audio }: ThreeVideoCardsScene
             exit={{ opacity: 0, scale: 1.02, transition: { duration: 0.8, ease: "easeInOut" } }}
             className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6 bg-[#08020a]/96 backdrop-blur-xl text-center"
           >
-            {/* Top Right Skip Button */}
-            <div className="absolute top-5 right-5 sm:top-7 sm:right-7 z-20">
-              <button
-                onClick={handleDismissIntro}
-                className="min-h-[44px] px-4 py-2 rounded-full text-xs font-serif text-white/80 hover:text-white bg-white/10 hover:bg-white/20 border border-white/20 backdrop-blur-md transition-all cursor-pointer flex items-center gap-1.5 shadow-md active:scale-95"
-                aria-label="Skip to video memories"
-              >
-                <span>Explore Films</span>
-                <ArrowRight size={13} />
-              </button>
-            </div>
-
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}

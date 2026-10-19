@@ -557,28 +557,122 @@ body {
   animation: button-breathe-glow 3.2s ease-in-out infinite !important;
 }
 
-/* Story Card Luxury Frame (Lightweight GPU-accelerated styling) */
+/* Story Card Luxury Frame with Refined Glowing Border */
 .story-card-glow {
   position: relative;
   border-radius: 1.25rem;
   overflow: hidden;
   background: linear-gradient(180deg, #1c081b 0%, #130413 60%, #0a0209 100%);
-  border: 1px solid rgba(217, 168, 94, 0.38);
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(217, 168, 94, 0.42);
+  box-shadow: 
+    0 14px 36px rgba(0, 0, 0, 0.75),
+    0 0 16px rgba(217, 168, 94, 0.18),
+    0 0 32px rgba(244, 63, 94, 0.12),
+    inset 0 1px 1px rgba(254, 240, 138, 0.22);
   transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s ease, border-color 0.35s ease;
   content-visibility: auto;
   contain-intrinsic-size: 380px;
 }
 
-.story-card-glow:hover {
-  transform: translateY(-3px);
-  border-color: rgba(217, 168, 94, 0.75);
-  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.88), 0 0 28px rgba(217, 168, 94, 0.22);
+/* Refined glowing gradient border pseudo-element */
+.story-card-glow::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgba(254, 240, 138, 0.5) 0%,
+    rgba(217, 168, 94, 0.3) 30%,
+    rgba(244, 63, 94, 0.35) 70%,
+    rgba(217, 168, 94, 0.2) 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 15;
+  opacity: 0.85;
+  transition: opacity 0.35s ease, filter 0.35s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .story-card-glow:hover {
+    transform: translateY(-3px);
+    border-color: rgba(231, 184, 118, 0.75);
+    box-shadow: 
+      0 18px 46px rgba(0, 0, 0, 0.88),
+      0 0 28px rgba(217, 168, 94, 0.32),
+      0 0 48px rgba(244, 63, 94, 0.2),
+      inset 0 1px 1px rgba(254, 240, 138, 0.4);
+  }
+
+  .story-card-glow:hover::before {
+    opacity: 1;
+    filter: drop-shadow(0 0 4px rgba(217, 168, 94, 0.4));
+  }
+}
+
+/* Narrative Story Text Card Glowing Frame */
+.story-text-card-glow {
+  position: relative;
+  border-radius: 1rem;
+  background: linear-gradient(180deg, rgba(28, 9, 27, 0.82) 0%, rgba(15, 4, 16, 0.88) 100%);
+  border: 1px solid rgba(217, 168, 94, 0.36);
+  box-shadow: 
+    0 10px 30px rgba(0, 0, 0, 0.7),
+    0 0 16px rgba(217, 168, 94, 0.14),
+    0 0 28px rgba(244, 63, 94, 0.08),
+    inset 0 1px 0 rgba(254, 240, 138, 0.18);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s ease, border-color 0.35s ease;
+}
+
+.story-text-card-glow::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgba(254, 240, 138, 0.45) 0%,
+    rgba(217, 168, 94, 0.25) 35%,
+    rgba(244, 63, 94, 0.28) 75%,
+    rgba(217, 168, 94, 0.15) 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 10;
+  opacity: 0.8;
+  transition: opacity 0.35s ease, filter 0.35s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .story-text-card-glow:hover {
+    border-color: rgba(231, 184, 118, 0.7);
+    box-shadow: 
+      0 14px 38px rgba(0, 0, 0, 0.8),
+      0 0 24px rgba(217, 168, 94, 0.26),
+      0 0 38px rgba(244, 63, 94, 0.15),
+      inset 0 1px 0 rgba(254, 240, 138, 0.3);
+  }
+
+  .story-text-card-glow:hover::before {
+    opacity: 1;
+    filter: drop-shadow(0 0 3px rgba(217, 168, 94, 0.35));
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .story-card-glow {
+  .story-card-glow,
+  .story-text-card-glow {
     transition: none;
+    transform: none !important;
   }
 }
 

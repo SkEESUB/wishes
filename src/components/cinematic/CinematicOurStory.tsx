@@ -237,7 +237,7 @@ export function CinematicOurStory({ onContinue }: CinematicOurStoryProps) {
                       </div>
                     </div>
 
-                    <div className="mt-5 max-w-lg mx-auto bg-gradient-to-b from-[#21091f]/90 via-[#150514]/90 to-[#0e020d] border border-[#d9a85e]/30 rounded-2xl p-4 sm:p-6 shadow-xl backdrop-blur-md">
+                    <div className="story-text-card-glow mt-5 max-w-lg mx-auto p-4 sm:p-6 shadow-xl">
                       <p className="font-serif italic text-xs sm:text-base text-rose-100/90 leading-relaxed">
                         "There are still so many moments waiting for us. Every road, every quiet sunset, and every shared dream will be ours to live."
                       </p>
@@ -348,7 +348,7 @@ export function CinematicOurStory({ onContinue }: CinematicOurStoryProps) {
                       </h2>
 
                       {/* Story Card */}
-                      <div className="mt-2.5 sm:mt-3 p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-white/[0.08] via-white/[0.04] to-black/30 border border-white/15 hover:border-[#d9a85e]/50 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.7)] transition-all">
+                      <div className="story-text-card-glow mt-2.5 sm:mt-3 p-4 sm:p-5">
                         <p className="font-serif text-xs sm:text-sm lg:text-[15px] leading-relaxed text-rose-100/95 font-normal">
                           {item.description}
                         </p>

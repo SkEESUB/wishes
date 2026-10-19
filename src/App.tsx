@@ -53,7 +53,6 @@ import { mainWishVideoConfig } from "./data/videos";
 type SceneState = {
   scene: number;
   started: boolean;
-  countdownSkipped?: boolean;
   passwordCorrect: boolean;
   openedGifts: string[];
   visitedGifts: string[];
@@ -1264,11 +1263,10 @@ export default function App() {
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const urlParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
     const sceneParam = urlParams?.get("scene");
-    const initialScene = sceneParam !== null && !isNaN(Number(sceneParam)) ? Number(sceneParam) : (saved.scene ?? 0);
+    const initialScene = sceneParam !== null && !isNaN(Number(sceneParam)) ? Number(sceneParam) : 2;
     return {
       scene: initialScene,
       started: saved.started ?? false,
-      countdownSkipped: saved.countdownSkipped ?? false,
       passwordCorrect: saved.passwordCorrect ?? false,
       openedGifts: saved.openedGifts ?? [],
       visitedGifts: saved.visitedGifts ?? [],
@@ -1285,17 +1283,20 @@ export default function App() {
 
   const audio = useAudioEngine();
   const [targetDate] = useState(() => getTargetBirthdayDate());
-  const calculateRemaining = useCallback(() => {
-    return Math.max(0, targetDate.getTime() - Date.now());
-  }, [targetDate]);
-
-  const [isCountdownFinished, setIsCountdownFinished] = useState<boolean>(() => calculateRemaining() <= 0);
+  const [remainingSeconds, setRemainingSeconds] = useState<number>(10);
+  const [isCountdownFinished, setIsCountdownFinished] = useState<boolean>(false);
   const [isCompleting, setIsCompleting] = useState<boolean>(false);
 
   const isCountdownPage = state.scene === 2;
   const isCountdownLocked = isCountdownPage && !isCountdownFinished;
 
-  const [countdown, setCountdown] = useState({ d: 0, h: 0, m: 0, s: 0 });
+  const countdown = useMemo(() => {
+    const d = Math.floor(remainingSeconds / 86400);
+    const h = Math.floor((remainingSeconds % 86400) / 3600);
+    const m = Math.floor((remainingSeconds % 3600) / 60);
+    const s = remainingSeconds % 60;
+    return { d, h, m, s };
+  }, [remainingSeconds]);
   const [direction, setDirection] = useState<number>(1);
 
   const isTransitioningRef = useRef(false);
@@ -1388,8 +1389,11 @@ export default function App() {
 
   const replay = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
+    setRemainingSeconds(10);
+    setIsCountdownFinished(false);
+    setIsCompleting(false);
     setState({
-      scene: 0,
+      scene: 2,
       started: false,
       passwordCorrect: false,
       openedGifts: [],
@@ -1405,29 +1409,23 @@ export default function App() {
     });
   }, [state.reducedMotion]);
 
-  /* Countdown timer tick */
+  /* 10-second countdown timer */
   useEffect(() => {
-    if (isCountdownFinished) return;
+    if (isCountdownFinished || state.scene !== 2) return;
 
-    const tick = () => {
-      const now = Date.now();
-      const diff = targetDate.getTime() - now;
-      if (diff <= 0) {
-        setCountdown({ d: 0, h: 0, m: 0, s: 0 });
-        setIsCountdownFinished(true);
-        return;
-      }
-      const totalSecs = Math.ceil(diff / 1000);
-      const d = Math.floor(totalSecs / (60 * 60 * 24));
-      const h = Math.floor((totalSecs / (60 * 60)) % 24);
-      const m = Math.floor((totalSecs / 60) % 60);
-      const s = totalSecs % 60;
-      setCountdown({ d, h, m, s });
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [targetDate, isCountdownFinished]);
+    const timer = setInterval(() => {
+      setRemainingSeconds((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setIsCountdownFinished(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [state.scene, isCountdownFinished]);
 
   /* Smooth transition to Scene 3 when countdown finishes on countdown page */
   useEffect(() => {
@@ -1487,16 +1485,6 @@ export default function App() {
     return () => window.removeEventListener("keydown", blockKeys, { capture: true });
   }, [isCountdownLocked]);
 
-  const skipCountdown = useCallback(() => {
-    setIsCountdownFinished(true);
-    setState((s) => {
-      setDirection(1);
-      const next = { ...s, scene: 3 };
-      saveState(next);
-      return next;
-    });
-  }, []);
-
   const scenes = useMemo(
     () => [
       <WelcomeScene key="welcome" onStart={startExperience} />,
@@ -1506,7 +1494,6 @@ export default function App() {
         countdown={countdown}
         targetDate={targetDate}
         isCompleting={isCompleting}
-        onSkip={skipCountdown}
       />,
       <BirthdayRevealScene key="reveal" onContinue={() => goTo(4)} />,
       <PasswordScene key="password" onUnlock={unlockPassword} />,
@@ -1576,7 +1563,6 @@ export default function App() {
         page={1}
         onContinue={() => goTo(18)}
         onBack={() => goTo(16)}
-        onSkip={() => goTo(19)}
       />,
       <CosmicStoryIntroScene
         key="storyintro2"
@@ -1848,12 +1834,10 @@ function CountdownRunningScene({
   countdown,
   targetDate,
   isCompleting = false,
-  onSkip,
 }: {
   countdown: { d: number; h: number; m: number; s: number };
   targetDate: Date;
   isCompleting?: boolean;
-  onSkip?: () => void;
 }) {
   return (
     <div className="scene-container relative overflow-hidden">
@@ -1978,30 +1962,6 @@ function CountdownRunningScene({
               </div>
             </div>
           </motion.div>
-
-          {/* Elegant Skip Option */}
-          {onSkip && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6, duration: 0.8 }}
-              className="mt-6 flex flex-col items-center"
-            >
-              <motion.button
-                type="button"
-                onClick={onSkip}
-                whileHover={{ scale: 1.04, y: -1 }}
-                whileTap={{ scale: 0.96 }}
-                className="group inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white/[0.05] hover:bg-gold/15 border border-[#e7b876]/35 hover:border-gold/70 text-[#fed7aa] hover:text-[#fef08a] text-xs font-serif tracking-widest uppercase shadow-[0_4px_16px_rgba(0,0,0,0.35)] backdrop-blur-md transition-all duration-300 cursor-pointer"
-              >
-                <span>Skip</span>
-                <span className="text-gold transition-transform duration-300 group-hover:translate-x-1">→</span>
-              </motion.button>
-              <span className="mt-1.5 text-[10px] text-white/40 font-serif italic">
-                Skip straight to the birthday celebration ♥
-              </span>
-            </motion.div>
-          )}
         </motion.div>
       </div>
     </div>
@@ -2028,10 +1988,6 @@ function BirthdayRevealScene({ onContinue }: { onContinue: () => void }) {
       clearTimeout(t4);
     };
   }, []);
-
-  const skip = () => {
-    setStage(5);
-  };
 
   return (
     <div className="scene-container bg-[#05060f]">
@@ -2180,16 +2136,6 @@ function BirthdayRevealScene({ onContinue }: { onContinue: () => void }) {
           )}
         </AnimatePresence>
       </div>
-
-      {/* Tiny subtle skip button for convenience during preview */}
-      {stage < 5 && (
-        <button
-          onClick={skip}
-          className="absolute bottom-6 right-6 z-30 min-h-[44px] min-w-[44px] px-3 py-2 flex items-center justify-center text-xs text-white/40 hover:text-white/80 tracking-widest uppercase transition-colors cursor-pointer"
-        >
-          Skip Intro
-        </button>
-      )}
     </div>
   );
 }
